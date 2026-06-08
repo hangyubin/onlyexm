@@ -277,7 +277,7 @@ router.put('/scenarios/:id', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFI
       data: scenario,
     });
   } catch (err) {
-    console.error('Update scenario error:', error);
+    console.error('Update scenario error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -296,7 +296,7 @@ router.delete('/scenarios/:id', authMiddleware, roleGuard(['ADMIN', 'INFECTION_O
       message: '场景已停用',
     });
   } catch (err) {
-    console.error('Delete scenario error:', error);
+    console.error('Delete scenario error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -327,7 +327,7 @@ router.post('/drill/submit', authMiddleware, async (req, res) => {
       record,
     });
   } catch (err) {
-    console.error('Save drill record error:', error);
+    console.error('Save drill record error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -357,7 +357,7 @@ router.get('/drill/records', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFI
       data: records,
     });
   } catch (err) {
-    console.error('Get drill records error:', error);
+    console.error('Get drill records error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -422,7 +422,7 @@ router.get('/drill/stats', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICE
       },
     });
   } catch (err) {
-    console.error('Get drill stats error:', error);
+    console.error('Get drill stats error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -529,7 +529,7 @@ router.get('/dashboard/dept-ranking', authMiddleware, roleGuard(['ADMIN', 'INFEC
       data: result,
     });
   } catch (err) {
-    console.error('Get dept ranking error:', error);
+    console.error('Get dept ranking error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });

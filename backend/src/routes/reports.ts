@@ -62,7 +62,7 @@ router.post('/exam-summary/data', authMiddleware, roleGuard(['ADMIN', 'INFECTION
       averageScore: items.length > 0 ? Math.round(totalScore / items.length) : 0,
     });
   } catch (err) {
-    console.error('Get exam summary data error:', error);
+    console.error('Get exam summary data error:', err);
     res.status(500).json({ code: -1, message: '获取数据失败' });
   }
 });
@@ -142,7 +142,7 @@ router.post('/infection-compliance/data', authMiddleware, roleGuard(['ADMIN', 'I
 
     res.json({ items });
   } catch (err) {
-    console.error('Get infection compliance error:', error);
+    console.error('Get infection compliance error:', err);
     res.status(500).json({ code: -1, message: '获取数据失败' });
   }
 });
@@ -217,7 +217,7 @@ router.post('/user-study/data', authMiddleware, roleGuard(['ADMIN', 'INFECTION_O
 
     res.json({ items });
   } catch (err) {
-    console.error('Get user study error:', error);
+    console.error('Get user study error:', err);
     res.status(500).json({ code: -1, message: '获取数据失败' });
   }
 });
@@ -237,7 +237,7 @@ router.post(
       res.setHeader('Content-Disposition', `attachment; filename=exam_summary_${startDate}_${endDate}.xlsx`);
       res.send(buffer);
     } catch (err) {
-      console.error('Generate exam summary report error:', error);
+      console.error('Generate exam summary report error:', err);
       res.status(500).json({ code: -1, message: '生成报表失败' });
     }
   }
@@ -256,7 +256,7 @@ router.post(
       res.setHeader('Content-Disposition', `attachment; filename=unqualified_staff_${currentDate}.xlsx`);
       res.send(buffer);
     } catch (err) {
-      console.error('Generate unqualified staff report error:', error);
+      console.error('Generate unqualified staff report error:', err);
       res.status(500).json({ code: -1, message: '生成报表失败' });
     }
   }
@@ -275,7 +275,7 @@ router.post(
       res.setHeader('Content-Disposition', `attachment; filename=dept_ranking_${startDate}_${endDate}.xlsx`);
       res.send(buffer);
     } catch (err) {
-      console.error('Generate dept ranking report error:', error);
+      console.error('Generate dept ranking report error:', err);
       res.status(500).json({ code: -1, message: '生成报表失败' });
     }
   }
@@ -313,7 +313,7 @@ router.post(
       res.setHeader('Content-Disposition', `attachment; filename=activity_report_${startDate}_${endDate}.xlsx`);
       res.send(buffer);
     } catch (err) {
-      console.error('Generate activity report error:', error);
+      console.error('Generate activity report error:', err);
       res.status(500).json({ code: -1, message: '生成报表失败' });
     }
   }
