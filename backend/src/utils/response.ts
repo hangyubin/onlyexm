@@ -15,11 +15,12 @@ export function success(res: Response, data?: any, message?: string) {
  * 统一分页响应
  */
 export function paginate(res: Response, data: any[], total: number, page?: number, pageSize?: number) {
+  const totalPages = pageSize ? Math.ceil(total / pageSize) : 0;
   return res.json({
     code: 0,
-    data,
+    items: data,
     total,
-    ...(page !== undefined && { page, pageSize }),
+    ...(page !== undefined && { page, pageSize, totalPages }),
   });
 }
 
