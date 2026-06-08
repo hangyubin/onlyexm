@@ -51,7 +51,7 @@ router.post(
         data: question,
       });
     } catch (err) {
-      console.error('Create question error:', error);
+      console.error('Create question error:', err);
       res.status(500).json({ error: '服务器内部错误' });
     }
   }
@@ -89,7 +89,7 @@ router.put(
         data: question,
       });
     } catch (err) {
-      console.error('Update question error:', error);
+      console.error('Update question error:', err);
       res.status(500).json({ error: '服务器内部错误' });
     }
   }
@@ -166,7 +166,7 @@ router.get(
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.send(buffer);
     } catch (err) {
-      console.error('Download template error:', error);
+      console.error('Download template error:', err);
       res.status(500).json({ error: '下载模板失败' });
     }
   }
