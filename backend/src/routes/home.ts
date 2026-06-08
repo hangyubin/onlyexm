@@ -159,7 +159,21 @@ router.get('/tasks', authMiddleware, async (req, res) => {
     // 5. 拼任务列表
     const examTasks = activePapers.map((paper) => {
       const record = recordsByPaper.get(paper.id);
-      const status: 'pending' | 'completed' | 'ended' = record?.isPassed ? 'completed' : record ? 'ended' : 'pending';
+      
+      // 检查试卷是否已过期（超过截止日期）
+      const deadline = new Date(paper.createdAt);
+      deadline.setDate(deadline.getDate() + 30); // 默认30天有效期
+      const isExpired = new Date() > deadline;
+      
+      let status: 'pending' | 'completed' | 'ended';
+      if (record?.isPassed) {
+        status = 'completed';
+      } else if (record || isExpired) {
+        status = 'ended';
+      } else {
+        status = 'pending';
+      }
+      
       return {
         id: paper.id,
         type: 'exam' as const,
