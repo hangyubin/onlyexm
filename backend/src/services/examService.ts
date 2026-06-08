@@ -339,7 +339,7 @@ export async function startExam(paperId: number, userId: number, clientIp?: stri
   }
 
   // 检查试卷是否已发布
-  if (!paper.isActive) {
+  if (!paper.isActive || !paper.isPublished) {
     return { error: '该试卷尚未发布，无法开考' };
   }
 

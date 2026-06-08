@@ -101,9 +101,9 @@ router.get('/tasks', authMiddleware, async (req, res) => {
   }
 
   try {
-    // 1. 启用中的试卷（= 考试任务）
+    // 1. 已发布且启用中的试卷（= 考试任务）
     const activePapers = await prisma.paper.findMany({
-      where: { isActive: true },
+      where: { isActive: true, isPublished: true },
       orderBy: { createdAt: 'desc' },
     });
 
@@ -154,28 +154,39 @@ router.get('/tasks', authMiddleware, async (req, res) => {
         .map((r) => r.materialId),
     );
 
-    // 5. 拼任务列表
+    const now = new Date();
+
+    // 5. 拼任务列表 - 考试任务（使用 examEndTime 判断是否已结束）
     const examTasks = activePapers.map((paper) => {
       const record = recordsByPaper.get(paper.id);
-      
-      const deadline = new Date(paper.createdAt);
-      deadline.setDate(deadline.getDate() + 30);
-      const isExpired = new Date() > deadline;
-      
+
+      // 判断考试是否已结束：使用 examEndTime（若未设置则用 createdAt + 30天）
+      const endTime = paper.examEndTime
+        ? new Date(paper.examEndTime)
+        : new Date(new Date(paper.createdAt).getTime() + 30 * 24 * 3600 * 1000);
+
+      const isExamEnded = now > endTime;
+
       let status: 'pending' | 'completed' | 'ended';
       if (record?.isPassed) {
+        // 已通过 = completed
         status = 'completed';
-      } else if (record || isExpired) {
+      } else if (record && !record.isPassed) {
+        // 已交卷但未通过 = ended（未通过）
+        status = 'ended';
+      } else if (isExamEnded) {
+        // 考试已结束但用户未参与 = ended
         status = 'ended';
       } else {
+        // 考试进行中且用户未交卷 = pending
         status = 'pending';
       }
-      
+
       return {
         id: paper.id,
         type: 'exam' as const,
         title: paper.name,
-        deadline: formatDeadline(paper.createdAt),
+        deadline: paper.examEndTime ? new Date(paper.examEndTime).toISOString().slice(0, 10) : formatDeadline(paper.createdAt),
         status,
       };
     });

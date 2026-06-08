@@ -14,11 +14,12 @@ function mapPaperItem(item: any) {
     description: item.description || '',
     totalScore: item.totalScore,
     passScore: item.passingScore,
-    duration: item.durationMinutes,
-    examStartTime: item.examStartTime || null,
-    examEndTime: item.examEndTime || null,
+    durationMinutes: item.durationMinutes,
+    examStartTime: item.examStartTime ? new Date(item.examStartTime).toISOString() : null,
+    examEndTime: item.examEndTime ? new Date(item.examEndTime).toISOString() : null,
     departments: [] as string[],
     status: item.isActive ? 'ACTIVE' : 'INACTIVE',
+    isActive: item.isActive,
     isPublished: item.isPublished || false,
     questions: [] as any[],
     questionCount: item._count?.paperQuestions ?? 0,
@@ -33,11 +34,12 @@ function mapPaperDetail(paper: any) {
     description: paper.description || '',
     totalScore: paper.totalScore,
     passScore: paper.passingScore,
-    duration: paper.durationMinutes,
-    examStartTime: paper.examStartTime || null,
-    examEndTime: paper.examEndTime || null,
+    durationMinutes: paper.durationMinutes,
+    examStartTime: paper.examStartTime ? new Date(paper.examStartTime).toISOString() : null,
+    examEndTime: paper.examEndTime ? new Date(paper.examEndTime).toISOString() : null,
     departments: [] as string[],
     status: paper.isActive ? 'ACTIVE' : 'INACTIVE',
+    isActive: paper.isActive,
     isPublished: paper.isPublished || false,
     questions: (paper.paperQuestions || []).map((pq: any) => ({
       questionId: pq.questionId,
@@ -64,6 +66,10 @@ router.get('/', authMiddleware, async (req, res) => {
     }
     if (isActive !== undefined && isActive !== '') {
       where.isActive = isActive === 'true';
+      // 用户端查询 isActive=true 的试卷时，同时要求 isPublished=true
+      if (isActive === 'true') {
+        where.isPublished = true;
+      }
     }
 
     const [items, total] = await Promise.all([
