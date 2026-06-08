@@ -300,8 +300,8 @@ router.get('/records', authMiddleware, async (req, res) => {
     });
 
     paginate(res, records, total, page, pageSize);
-  } catch (error) {
-    console.error('Get exam records error:', error);
+  } catch (err) {
+    console.error('Get exam records error:', err);
     error(res, 500, '获取考试记录失败');
   }
 });
@@ -354,8 +354,8 @@ router.post('/save-answer', authMiddleware, async (req, res) => {
     const successResult = await saveAnswer(examRecordId, questionId, answer);
 
     success(res, { success: successResult });
-  } catch (error) {
-    console.error('Save answer error:', error);
+  } catch (err) {
+    console.error('Save answer error:', err);
     error(res, 500, '服务器内部错误');
   }
 });
@@ -437,8 +437,8 @@ router.post('/submit', authMiddleware, async (req, res) => {
     } else {
       error(res, result.code === 404 ? 404 : 400, result.message);
     }
-  } catch (error) {
-    console.error('Submit exam error:', error);
+  } catch (err) {
+    console.error('Submit exam error:', err);
     error(res, 500, '服务器内部错误');
   }
 });
@@ -517,8 +517,8 @@ router.get('/monitor/:examRecordId', authMiddleware, roleGuard(['ADMIN', 'INFECT
       },
       currentAnswers,
     });
-  } catch (error) {
-    console.error('Get monitor detail error:', error);
+  } catch (err) {
+    console.error('Get monitor detail error:', err);
     error(res, 500, '获取监控详情失败');
   }
 });
