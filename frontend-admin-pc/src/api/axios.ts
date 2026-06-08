@@ -65,7 +65,7 @@ api.interceptors.response.use(
       localStorage.removeItem('userRole');
       // 如果不是在登录页面，跳转到登录页
       if (!window.location.pathname.startsWith('/admin/login')) {
-        window.location.href = '/admin/login';
+        window.location.href = `${window.location.origin}/admin/login`;
       }
     } else if (error.response?.status === 403) {
       message.error('没有权限执行此操作');

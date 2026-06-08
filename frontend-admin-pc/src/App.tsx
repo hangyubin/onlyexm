@@ -34,7 +34,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('token');
     localStorage.removeItem('userRole');
     alert('您没有管理后台访问权限，将跳转到用户端');
-    window.location.href = '/user';
+    window.location.href = `${window.location.origin}/user`;
     return null;
   }
 

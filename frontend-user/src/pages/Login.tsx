@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { authApi } from '../api/auth';
 
 const Login: React.FC = () => {
@@ -7,7 +6,6 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,15 +16,17 @@ const Login: React.FC = () => {
       const res = await authApi.login({ username, password });
       localStorage.setItem('token', res.token);
       localStorage.setItem('user', JSON.stringify(res.user));
+      // 同时存储 userRole，供管理端 ProtectedRoute 使用
+      if (res.user?.role) {
+        localStorage.setItem('userRole', res.user.role);
+      }
 
       if (res.user.role === 'ADMIN') {
-        const adminUrl = import.meta.env.VITE_ADMIN_URL || '/admin';
-        const targetUrl = new URL(adminUrl, window.location.origin);
-        setTimeout(() => {
-          window.location.href = targetUrl.href;
-        }, 100);
+        // 管理员跳转到管理端，使用 window.location.origin 确保端口号不丢失
+        window.location.href = `${window.location.origin}/admin/`;
       } else {
-        navigate('/', { replace: true });
+        // 普通用户跳转到首页
+        window.location.href = `${window.location.origin}/`;
       }
     } catch (err: any) {
       const errorMessage = err.response?.data?.message || 

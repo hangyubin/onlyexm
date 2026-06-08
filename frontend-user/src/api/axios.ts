@@ -82,7 +82,7 @@ api.interceptors.response.use(
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         if (!isLoginPage) {
-          window.location.href = '/login';
+          window.location.href = `${window.location.origin}/login`;
         }
         processQueue(null, '');
       } catch (refreshError) {
@@ -90,7 +90,7 @@ api.interceptors.response.use(
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         if (!isLoginPage) {
-          window.location.href = '/login';
+          window.location.href = `${window.location.origin}/login`;
         }
       } finally {
         isRefreshing = false;
