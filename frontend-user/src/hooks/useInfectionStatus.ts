@@ -25,7 +25,7 @@ export function useInfectionStatus() {
         return;
       }
 
-      const response = await api.get('/api/infection/status');
+      const response = await api.get('/infection/status');
       setStatus(response.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : '获取院感状态失败');
@@ -41,7 +41,7 @@ export function useInfectionStatus() {
         return { success: false, message: '请先登录' };
       }
 
-      const response = await api.post('/api/infection/check-unlock');
+      const response = await api.post('/infection/check-unlock');
       const data = response.data;
 
       if (data.success) {
