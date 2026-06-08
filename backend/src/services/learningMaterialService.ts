@@ -1,5 +1,4 @@
-import fs from 'fs';
-import path from 'path';
+import prisma from '../lib/prisma';
 
 export interface LearningMaterial {
   id: number;
@@ -17,131 +16,128 @@ export interface LearningMaterial {
   updatedAt: string;
 }
 
-const DATA_FILE = path.join(__dirname, '../../data/learningMaterials.json');
-
-const ensureDataFile = () => {
-  if (!fs.existsSync(path.dirname(DATA_FILE))) {
-    fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
-  }
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify([], null, 2));
-  }
-};
-
-export const getMaterials = (filters?: {
+export const getMaterials = async (filters?: {
   keyword?: string;
   type?: string;
   category?: string;
   isActive?: boolean;
-}): LearningMaterial[] => {
-  ensureDataFile();
-  let materials: LearningMaterial[] = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+}): Promise<LearningMaterial[]> => {
+  const where: any = {};
   
   if (filters) {
     if (filters.keyword) {
       const kw = filters.keyword.toLowerCase();
-      materials = materials.filter(m => 
-        m.title.toLowerCase().includes(kw) || 
-        m.description?.toLowerCase().includes(kw)
-      );
+      where.OR = [
+        { title: { contains: kw, mode: 'insensitive' } },
+        { description: { contains: kw, mode: 'insensitive' } },
+      ];
     }
     if (filters.type) {
-      materials = materials.filter(m => m.type === filters.type);
+      where.type = filters.type;
     }
     if (filters.category) {
-      materials = materials.filter(m => m.category === filters.category);
+      where.category = filters.category;
     }
     if (filters.isActive !== undefined) {
-      materials = materials.filter(m => m.isActive === filters.isActive);
+      where.isActive = filters.isActive;
     }
   }
   
-  return materials.sort((a, b) => a.sortOrder - b.sortOrder);
-};
-
-export const getMaterialById = (id: number): LearningMaterial | null => {
-  ensureDataFile();
-  const materials: LearningMaterial[] = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-  return materials.find(m => m.id === id) || null;
-};
-
-export const createMaterial = (data: Omit<LearningMaterial, 'id' | 'viewCount' | 'createdAt' | 'updatedAt'>): LearningMaterial => {
-  ensureDataFile();
-  const materials: LearningMaterial[] = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+  const materials = await prisma.learningMaterial.findMany({
+    where,
+    orderBy: { sortOrder: 'asc' },
+  });
   
-  const newMaterial: LearningMaterial = {
-    ...data,
-    id: materials.length > 0 ? Math.max(...materials.map(m => m.id)) + 1 : 1,
-    viewCount: 0,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+  return materials.map(m => ({
+    ...m,
+    createdAt: m.createdAt.toISOString(),
+    updatedAt: m.updatedAt.toISOString(),
+  }));
+};
+
+export const getMaterialById = async (id: number): Promise<LearningMaterial | null> => {
+  const material = await prisma.learningMaterial.findUnique({
+    where: { id },
+  });
+  
+  if (!material) return null;
+  
+  return {
+    ...material,
+    createdAt: material.createdAt.toISOString(),
+    updatedAt: material.updatedAt.toISOString(),
   };
-  
-  materials.push(newMaterial);
-  fs.writeFileSync(DATA_FILE, JSON.stringify(materials, null, 2));
-  
-  return newMaterial;
 };
 
-export const updateMaterial = (id: number, data: Partial<LearningMaterial>): LearningMaterial | null => {
-  ensureDataFile();
-  const materials: LearningMaterial[] = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-  const index = materials.findIndex(m => m.id === id);
+export const createMaterial = async (data: Omit<LearningMaterial, 'id' | 'viewCount' | 'createdAt' | 'updatedAt'>): Promise<LearningMaterial> => {
+  const material = await prisma.learningMaterial.create({
+    data: {
+      ...data,
+      viewCount: 0,
+    },
+  });
   
-  if (index === -1) return null;
-  
-  materials[index] = {
-    ...materials[index],
-    ...data,
-    updatedAt: new Date().toISOString(),
+  return {
+    ...material,
+    createdAt: material.createdAt.toISOString(),
+    updatedAt: material.updatedAt.toISOString(),
   };
-  
-  fs.writeFileSync(DATA_FILE, JSON.stringify(materials, null, 2));
-  
-  return materials[index];
 };
 
-export const deleteMaterial = (id: number): boolean => {
-  ensureDataFile();
-  const materials: LearningMaterial[] = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-  const filtered = materials.filter(m => m.id !== id);
+export const updateMaterial = async (id: number, data: Partial<LearningMaterial>): Promise<LearningMaterial | null> => {
+  const material = await prisma.learningMaterial.update({
+    where: { id },
+    data: {
+      ...data,
+      updatedAt: new Date(),
+    },
+  });
   
-  if (filtered.length === materials.length) return false;
+  if (!material) return null;
   
-  fs.writeFileSync(DATA_FILE, JSON.stringify(filtered, null, 2));
-  return true;
+  return {
+    ...material,
+    createdAt: material.createdAt.toISOString(),
+    updatedAt: material.updatedAt.toISOString(),
+  };
 };
 
-export const incrementViewCount = (id: number): boolean => {
-  ensureDataFile();
-  const materials: LearningMaterial[] = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-  const index = materials.findIndex(m => m.id === id);
+export const deleteMaterial = async (id: number): Promise<boolean> => {
+  const result = await prisma.learningMaterial.delete({
+    where: { id },
+  });
   
-  if (index === -1) return false;
-  
-  materials[index].viewCount++;
-  materials[index].updatedAt = new Date().toISOString();
-  
-  fs.writeFileSync(DATA_FILE, JSON.stringify(materials, null, 2));
-  return true;
+  return !!result;
 };
 
-export const getCategories = (): string[] => {
-  ensureDataFile();
-  const materials: LearningMaterial[] = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-  const categories = new Set(materials.map(m => m.category).filter(Boolean));
+export const incrementViewCount = async (id: number): Promise<boolean> => {
+  const result = await prisma.learningMaterial.update({
+    where: { id },
+    data: {
+      viewCount: { increment: 1 },
+      updatedAt: new Date(),
+    },
+  });
+  
+  return !!result;
+};
+
+export const getCategories = async (): Promise<string[]> => {
+  const materials = await prisma.learningMaterial.findMany({
+    select: { category: true },
+    where: { category: { not: null } },
+  });
+  
+  const categories = new Set(materials.map(m => m.category!).filter(Boolean));
   return Array.from(categories);
 };
 
-export const initSampleData = () => {
-  ensureDataFile();
-  const materials: LearningMaterial[] = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+export const initSampleData = async () => {
+  const count = await prisma.learningMaterial.count();
+  if (count > 0) return;
   
-  if (materials.length > 0) return;
-  
-  const sampleData: LearningMaterial[] = [
+  const sampleData = [
     {
-      id: 1,
       title: '院感防护基础培训',
       description: '医院感染防护的基础知识和操作规范',
       type: 'ARTICLE',
@@ -150,11 +146,8 @@ export const initSampleData = () => {
       viewCount: 128,
       sortOrder: 0,
       isActive: true,
-      createdAt: new Date('2024-01-15').toISOString(),
-      updatedAt: new Date('2024-01-15').toISOString(),
     },
     {
-      id: 2,
       title: '手卫生规范操作',
       description: '六步洗手法的详细操作指南',
       type: 'VIDEO',
@@ -163,11 +156,8 @@ export const initSampleData = () => {
       viewCount: 256,
       sortOrder: 1,
       isActive: true,
-      createdAt: new Date('2024-01-16').toISOString(),
-      updatedAt: new Date('2024-01-16').toISOString(),
     },
     {
-      id: 3,
       title: '抗生素使用指南',
       description: '抗生素合理使用的指导文档',
       type: 'DOC',
@@ -176,11 +166,8 @@ export const initSampleData = () => {
       viewCount: 89,
       sortOrder: 2,
       isActive: true,
-      createdAt: new Date('2024-01-17').toISOString(),
-      updatedAt: new Date('2024-01-17').toISOString(),
     },
     {
-      id: 4,
       title: '院感应急演练方案',
       description: '医院感染暴发应急演练的完整方案',
       type: 'PDF',
@@ -189,11 +176,8 @@ export const initSampleData = () => {
       viewCount: 45,
       sortOrder: 3,
       isActive: false,
-      createdAt: new Date('2024-01-18').toISOString(),
-      updatedAt: new Date('2024-01-18').toISOString(),
     },
     {
-      id: 5,
       title: '院感知识考核题库',
       description: '院感知识考核的题目汇总',
       type: 'EXCEL',
@@ -202,11 +186,8 @@ export const initSampleData = () => {
       viewCount: 67,
       sortOrder: 4,
       isActive: true,
-      createdAt: new Date('2024-01-19').toISOString(),
-      updatedAt: new Date('2024-01-19').toISOString(),
     },
     {
-      id: 6,
       title: '院感培训课件',
       description: '院感培训的PPT课件',
       type: 'PPT',
@@ -215,10 +196,10 @@ export const initSampleData = () => {
       viewCount: 34,
       sortOrder: 5,
       isActive: true,
-      createdAt: new Date('2024-01-20').toISOString(),
-      updatedAt: new Date('2024-01-20').toISOString(),
     },
   ];
   
-  fs.writeFileSync(DATA_FILE, JSON.stringify(sampleData, null, 2));
+  await prisma.learningMaterial.createMany({
+    data: sampleData,
+  });
 };

@@ -42,13 +42,26 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+const sanitizeFilename = (filename: string): string => {
+  const ext = path.extname(filename).toLowerCase();
+  const allowedExts = [
+    '.jpg', '.jpeg', '.png', '.gif', '.webp',
+    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+    '.mp4', '.webm', '.ogg', '.mov', '.mp3', '.wav', '.txt'
+  ];
+  if (allowedExts.includes(ext)) {
+    return ext;
+  }
+  return '.bin';
+};
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + crypto.randomBytes(8).toString('hex');
-    const ext = path.extname(file.originalname);
+    const ext = sanitizeFilename(file.originalname);
     cb(null, `${uniqueSuffix}${ext}`);
   },
 });
@@ -105,7 +118,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(uploadDir, {
   setHeaders: (res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('Content-Security-Policy', "default-src 'none'");
+    res.setHeader('Content-Disposition', 'inline');
   },
 }));
 
@@ -195,7 +208,7 @@ const startServer = async () => {
     await prisma.$connect();
     console.log('Connected to database successfully');
     
-    require('./services/learningMaterialService').initSampleData();
+    await require('./services/learningMaterialService').initSampleData();
     console.log('Learning material sample data initialized');
     
     app.listen(PORT, () => {

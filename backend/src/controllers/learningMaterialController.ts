@@ -18,7 +18,7 @@ export const getLearningMaterials = async (req: any, res: any) => {
       filters.isActive = isActive === 'true';
     }
     
-    const materials = learningMaterialService.getMaterials(filters);
+    const materials = await learningMaterialService.getMaterials(filters);
     res.json({ success: true, data: materials });
   } catch (error) {
     console.error('Get learning materials error:', error);
@@ -29,13 +29,13 @@ export const getLearningMaterials = async (req: any, res: any) => {
 export const getLearningMaterialById = async (req: any, res: any) => {
   try {
     const { id } = req.params;
-    const material = learningMaterialService.getMaterialById(parseInt(id));
+    const material = await learningMaterialService.getMaterialById(parseInt(id));
     
     if (!material) {
       return res.status(404).json({ success: false, message: '学习资料不存在' });
     }
     
-    learningMaterialService.incrementViewCount(parseInt(id));
+    await learningMaterialService.incrementViewCount(parseInt(id));
     
     res.json({ success: true, data: material });
   } catch (error) {
@@ -48,7 +48,7 @@ export const createLearningMaterial = async (req: any, res: any) => {
   try {
     const { title, description, type, content, category, thumbnailUrl, attachmentUrl, sortOrder, isActive } = req.body;
     
-    const material = learningMaterialService.createMaterial({
+    const material = await learningMaterialService.createMaterial({
       title,
       description,
       type,
@@ -83,7 +83,7 @@ export const updateLearningMaterial = async (req: any, res: any) => {
     if (sortOrder !== undefined) data.sortOrder = sortOrder;
     if (isActive !== undefined) data.isActive = isActive;
     
-    const material = learningMaterialService.updateMaterial(parseInt(id), data);
+    const material = await learningMaterialService.updateMaterial(parseInt(id), data);
     
     if (!material) {
       return res.status(404).json({ success: false, message: '学习资料不存在' });
@@ -99,7 +99,7 @@ export const updateLearningMaterial = async (req: any, res: any) => {
 export const deleteLearningMaterial = async (req: any, res: any) => {
   try {
     const { id } = req.params;
-    const success = learningMaterialService.deleteMaterial(parseInt(id));
+    const success = await learningMaterialService.deleteMaterial(parseInt(id));
     
     if (!success) {
       return res.status(404).json({ success: false, message: '学习资料不存在' });
@@ -114,7 +114,7 @@ export const deleteLearningMaterial = async (req: any, res: any) => {
 
 export const getCategories = async (req: any, res: any) => {
   try {
-    const categories = learningMaterialService.getCategories();
+    const categories = await learningMaterialService.getCategories();
     res.json({ success: true, data: categories });
   } catch (error) {
     console.error('Get categories error:', error);

@@ -7,7 +7,7 @@ import * as learningMaterialService from '../services/learningMaterialService';
 
 const router = express.Router();
 
-// training 任务完成记录文件（LearningMaterial/LearningRecord 表未 migrate，用 JSON 兜底）
+// training 任务完成记录文件
 const LEARNING_COMPLETED_FILE = path.join(__dirname, '../../data/learningCompletedRecords.json');
 
 interface LearningCompletedRecord {
@@ -36,7 +36,6 @@ const getCompletedRecords = (): LearningCompletedRecord[] => {
 
 const addCompletedRecord = (record: LearningCompletedRecord) => {
   const list = getCompletedRecords();
-  // 同一用户对同一资料只保留一个
   const existing = list.find(r => r.userId === record.userId && r.materialId === record.materialId);
   if (existing) { existing.completedAt = record.completedAt; } else { list.push(record); }
   fs.writeFileSync(LEARNING_COMPLETED_FILE, JSON.stringify(list, null, 2));
@@ -108,7 +107,7 @@ router.get('/tasks', authMiddleware, async (req, res) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    // 2. 当前用户对这些试卷的已提交记录（有任意 SUBMITTED 即认为用户「做过」，有 isPassed=true 才算「通过」）
+    // 2. 当前用户对这些试卷的已提交记录
     let userRecords: { paperId: number; isPassed: boolean | null; score: number | null }[] = [];
     try {
       userRecords = await prisma.examRecord.findMany({
@@ -124,7 +123,7 @@ router.get('/tasks', authMiddleware, async (req, res) => {
       userRecords = [];
     }
 
-    // 每张试卷保留最佳记录（任意一次通过即通过；否则取最高分）
+    // 每张试卷保留最佳记录
     const recordsByPaper = new Map<number, { isPassed: boolean; score: number }>();
     for (const r of userRecords) {
       const existing = recordsByPaper.get(r.paperId);
@@ -140,15 +139,14 @@ router.get('/tasks', authMiddleware, async (req, res) => {
     }
 
     // 3. 启用中的学习资料（取前 3 条）
-    const activeMaterials = learningMaterialService
-      .getMaterials({ isActive: true })
+    const activeMaterials = (await learningMaterialService.getMaterials({ isActive: true }))
       .sort((a, b) => {
         if (a.sortOrder !== b.sortOrder) return (a.sortOrder || 0) - (b.sortOrder || 0);
         return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
       })
       .slice(0, 3);
 
-    // 4. 当前用户对这些资料的完成记录（JSON 文件存储）
+    // 4. 当前用户对这些资料的完成记录
     const completedList = getCompletedRecords();
     const completedMaterialIds = new Set<number>(
       completedList
@@ -160,9 +158,8 @@ router.get('/tasks', authMiddleware, async (req, res) => {
     const examTasks = activePapers.map((paper) => {
       const record = recordsByPaper.get(paper.id);
       
-      // 检查试卷是否已过期（超过截止日期）
       const deadline = new Date(paper.createdAt);
-      deadline.setDate(deadline.getDate() + 30); // 默认30天有效期
+      deadline.setDate(deadline.getDate() + 30);
       const isExpired = new Date() > deadline;
       
       let status: 'pending' | 'completed' | 'ended';
@@ -191,7 +188,6 @@ router.get('/tasks', authMiddleware, async (req, res) => {
       status: (completedMaterialIds.has(m.id) ? 'completed' : 'pending') as 'pending' | 'completed',
     }));
 
-    // pending 排前，completed 排后
     examTasks.sort((a, b) => {
       if (a.status === b.status) return 0;
       return a.status === 'pending' ? -1 : 1;
@@ -208,7 +204,6 @@ router.get('/tasks', authMiddleware, async (req, res) => {
   }
 });
 
-// 标记 training 任务完成（前端点击「开始」阅读后调用）
 router.post('/tasks/:taskId/complete', authMiddleware, async (req, res) => {
   const user = req.user;
   if (!user) return res.status(401).json({ error: '未授权' });
@@ -219,7 +214,7 @@ router.post('/tasks/:taskId/complete', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: '无效的任务 id' });
     }
 
-    const material = learningMaterialService.getMaterialById(taskId);
+    const material = await learningMaterialService.getMaterialById(taskId);
     if (!material) {
       return res.status(404).json({ error: '学习资料不存在' });
     }
@@ -231,8 +226,9 @@ router.post('/tasks/:taskId/complete', authMiddleware, async (req, res) => {
       completedAt: new Date().toISOString(),
     });
 
-    // 同时增加浏览量
-    try { learningMaterialService.incrementViewCount(taskId); } catch (_) {}
+    try { 
+      await learningMaterialService.incrementViewCount(taskId); 
+    } catch (_) {}
 
     res.json({ success: true });
   } catch (err) {
