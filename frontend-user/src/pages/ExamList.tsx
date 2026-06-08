@@ -17,6 +17,7 @@ interface Paper {
   examEndTime: string | null;
   userExamStatus: string | null;
   userExamRecordId: number | null;
+  createdAt: string;
 }
 
 type ExamStatus = 'not_started' | 'in_progress' | 'ended' | 'late_entry' | 'completed' | 'resuming';
@@ -30,7 +31,17 @@ function getExamStatus(paper: Paper): ExamStatus {
   if (paper.userExamStatus === 'IN_PROGRESS') {
     return 'resuming';
   }
-  if (!paper.examStartTime || !paper.examEndTime) return 'in_progress';
+  
+  // 如果没有设置具体考试时间，使用创建时间+30天作为有效期
+  if (!paper.examStartTime || !paper.examEndTime) {
+    const createdAt = new Date(paper.createdAt);
+    const deadline = new Date(createdAt.getTime() + 30 * 24 * 60 * 60 * 1000);
+    if (new Date() > deadline) {
+      return 'ended';
+    }
+    return 'in_progress';
+  }
+  
   const now = new Date();
   const start = new Date(paper.examStartTime);
   const end = new Date(paper.examEndTime);
