@@ -7,14 +7,17 @@ echo "============================================"
 
 # 执行数据库迁移（如果需要）
 cd /app/backend
-echo "[1/3] 执行数据库迁移..."
+echo "[1/4] 执行数据库迁移..."
 npx prisma migrate deploy 2>/dev/null || echo "  数据库迁移跳过（可能已最新）"
+
+echo "[2/4] 初始化种子数据..."
+npx prisma db seed 2>/dev/null || echo "  种子数据初始化（已存在则跳过）"
 
 # 确保 uploads 目录存在
 mkdir -p /app/backend/uploads
 
-echo "[2/3] 启动后端服务 (端口 3000)..."
-echo "[3/3] 启动 Nginx (端口 80)..."
+echo "[3/4] 启动后端服务 (端口 3000)..."
+echo "[4/4] 启动 Nginx (端口 80)..."
 
 echo "============================================"
 echo "  管理端: http://your-server-ip/admin/"
