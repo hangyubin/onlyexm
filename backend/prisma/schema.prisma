@@ -24,11 +24,11 @@ model User {
   realName   String
   role       String   // 动态字典 ROLE：ADMIN / INFECTION_OFFICER / DEPT_HEAD / DOCTOR / NURSE ...
   department String   // 动态字典 DEPARTMENT：内科 / 外科 / ICU ...（直接存字典 code 或 name）
-  hospitalId Int
+  hospitalId Int?
   isLocked   Boolean  @default(false)
   createdAt  DateTime @default(now())
 
-  hospital           Hospital              @relation(fields: [hospitalId], references: [id])
+  hospital           Hospital?             @relation(fields: [hospitalId], references: [id])
   examRecords        ExamRecord[]
   learningRecords    LearningRecord[]
   infectionRequirements InfectionRequirement[]

@@ -14,7 +14,7 @@ router.get('/today', authMiddleware, async (req, res) => {
       success: true,
       ...practice,
     });
-  } catch (error) {
+  } catch (err) {
     res.status(500).json({
       success: false,
       message: '获取今日练习失败',
@@ -32,8 +32,8 @@ router.post('/submit', authMiddleware, async (req, res) => {
     console.log('提交结果:', result.success, result.message);
     
     res.json(result);
-  } catch (error) {
-    console.error('提交练习失败:', error);
+  } catch (err) {
+    console.error('提交练习失败:', err);
     res.status(500).json({
       success: false,
       message: '提交练习失败',
@@ -53,8 +53,8 @@ router.post('/reset', authMiddleware, async (req, res) => {
       success: true,
       ...practice,
     });
-  } catch (error) {
-    console.error('重置练习失败:', error);
+  } catch (err) {
+    console.error('重置练习失败:', err);
     res.status(500).json({
       success: false,
       message: '重置练习失败',
@@ -71,7 +71,7 @@ router.get('/history', authMiddleware, async (req, res) => {
       success: true,
       data: history,
     });
-  } catch (error) {
+  } catch (err) {
     res.status(500).json({
       success: false,
       message: '获取练习历史失败',
@@ -87,8 +87,8 @@ router.get('/result/:practiceId', authMiddleware, async (req, res) => {
     const result = await getPracticeResult(practiceId);
     
     res.json(result);
-  } catch (error) {
-    console.error('获取练习详情失败:', error);
+  } catch (err) {
+    console.error('获取练习详情失败:', err);
     res.status(500).json({
       success: false,
       score: 0,

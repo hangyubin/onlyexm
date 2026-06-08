@@ -48,8 +48,8 @@ router.get('/stats', async (req, res) => {
       complianceRate,
       activeUsers: activeUsers.length,
     });
-  } catch (error) {
-    console.error('Get dashboard stats error:', error);
+  } catch (err) {
+    console.error('Get dashboard stats error:', err);
     res.status(500).json({ error: '获取仪表盘统计失败' });
   }
 });
@@ -87,8 +87,8 @@ router.get('/recent-exams', async (req, res) => {
     });
 
     res.json(examData);
-  } catch (error) {
-    console.error('Get recent exams error:', error);
+  } catch (err) {
+    console.error('Get recent exams error:', err);
     res.status(500).json({ error: '获取最近考试失败' });
   }
 });
@@ -114,8 +114,8 @@ router.get('/recent-activities', async (req, res) => {
     }));
 
     res.json(activities);
-  } catch (error) {
-    console.error('Get recent activities error:', error);
+  } catch (err) {
+    console.error('Get recent activities error:', err);
     res.status(500).json({ error: '获取最近动态失败' });
   }
 });
@@ -179,8 +179,8 @@ router.get('/weekly-stats', async (req, res) => {
     }));
 
     res.json(result);
-  } catch (error) {
-    console.error('Get weekly stats error:', error);
+  } catch (err) {
+    console.error('Get weekly stats error:', err);
     res.status(500).json({ error: '获取周统计数据失败' });
   }
 });
@@ -223,8 +223,8 @@ router.get('/progress', async (req, res) => {
       { label: '院感达标进度', value: complianceProgress, color: '#52c41a' },
       { label: '每日练习完成', value: dailyPracticeCompletion, color: '#722ed1' },
     ]);
-  } catch (error) {
-    console.error('Get progress error:', error);
+  } catch (err) {
+    console.error('Get progress error:', err);
     res.status(500).json({ error: '获取进度数据失败' });
   }
 });

@@ -10,7 +10,7 @@
 
 services:
   app:
-    image: ghcr.io/${GITHUB_OWNER:-your-github-username}/exsam:latest
+    image: ghcr.milu.moe/hangyubin/onlyexm:latest
     container_name: exsam-app
     env_file: .env
     ports:

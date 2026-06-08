@@ -91,8 +91,8 @@ router.post('/login', async (req, res) => {
         hospitalId: user.hospitalId,
       },
     });
-  } catch (error) {
-    console.error('Login error:', error);
+  } catch (err) {
+    console.error('Login error:', err);
     error(res, 500, '服务器内部错误');
   }
 });
@@ -157,8 +157,8 @@ router.post('/register', authMiddleware, roleGuard(['ADMIN']), async (req, res) 
       },
       infectionRequirement,
     });
-  } catch (error) {
-    console.error('Register error:', error);
+  } catch (err) {
+    console.error('Register error:', err);
     error(res, 500, '服务器内部错误');
   }
 });
@@ -194,8 +194,8 @@ router.post('/change-password', authMiddleware, async (req, res) => {
     });
 
     success(res, null, '密码修改成功');
-  } catch (error) {
-    console.error('Change password error:', error);
+  } catch (err) {
+    console.error('Change password error:', err);
     error(res, 500, '密码修改失败');
   }
 });

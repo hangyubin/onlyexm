@@ -57,8 +57,8 @@ router.get('/', authMiddleware, async (req, res) => {
       data: wrongQuestions,
       total,
     });
-  } catch (error) {
-    console.error('Get wrong questions error:', error);
+  } catch (err) {
+    console.error('Get wrong questions error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -114,8 +114,8 @@ router.post('/practice', authMiddleware, async (req, res) => {
       autoRemoved: newStatus === 'REMOVED',
       message: newStatus === 'REMOVED' ? '恭喜！此题已掌握，自动移出错题本' : '练习记录已保存',
     });
-  } catch (error) {
-    console.error('Practice wrong question error:', error);
+  } catch (err) {
+    console.error('Practice wrong question error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -149,8 +149,8 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       success: true,
       message: '已标记为已掌握',
     });
-  } catch (error) {
-    console.error('Delete wrong question error:', error);
+  } catch (err) {
+    console.error('Delete wrong question error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });

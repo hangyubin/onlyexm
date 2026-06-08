@@ -39,8 +39,8 @@ router.get('/dict/:category', async (req, res) => {
       }
       res.json(roots);
     }
-  } catch (error) {
-    console.error('获取字典失败:', error);
+  } catch (err) {
+    console.error('获取字典失败:', err);
     res.status(500).json({ error: '获取字典失败' });
   }
 });
@@ -64,8 +64,8 @@ router.get('/dict-batch', async (req, res) => {
       grouped[it.category].push(it);
     }
     res.json(grouped);
-  } catch (error) {
-    console.error('批量获取字典失败:', error);
+  } catch (err) {
+    console.error('批量获取字典失败:', err);
     res.status(500).json({ error: '批量获取字典失败' });
   }
 });
@@ -86,8 +86,8 @@ router.get('/dict', async (req, res) => {
       orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }, { id: 'asc' }],
     });
     res.json(items);
-  } catch (error) {
-    console.error('获取字典列表失败:', error);
+  } catch (err) {
+    console.error('获取字典列表失败:', err);
     res.status(500).json({ error: '获取字典列表失败' });
   }
 });
@@ -118,8 +118,8 @@ router.post('/dict', roleGuard(['ADMIN']), async (req, res) => {
     });
     clearDictCache(String(category));
     res.status(201).json(item);
-  } catch (error) {
-    console.error('创建字典项失败:', error);
+  } catch (err) {
+    console.error('创建字典项失败:', err);
     res.status(500).json({ error: '创建字典项失败' });
   }
 });
@@ -146,8 +146,8 @@ router.put('/dict/:id', roleGuard(['ADMIN']), async (req, res) => {
       clearDictCache(data.category);
     }
     res.json(item);
-  } catch (error) {
-    console.error('修改字典项失败:', error);
+  } catch (err) {
+    console.error('修改字典项失败:', err);
     res.status(500).json({ error: '修改字典项失败' });
   }
 });
@@ -158,8 +158,8 @@ router.delete('/dict/:id', roleGuard(['ADMIN']), async (req, res) => {
     const item = await prisma.systemDict.delete({ where: { id } });
     clearDictCache(item.category);
     res.json({ message: '删除成功' });
-  } catch (error) {
-    console.error('删除字典项失败:', error);
+  } catch (err) {
+    console.error('删除字典项失败:', err);
     res.status(500).json({ error: '删除字典项失败' });
   }
 });
@@ -183,8 +183,8 @@ router.get('/knowledge-distribution', async (req, res) => {
       grouped[it.schemeName].push(it);
     }
     res.json({ items, grouped });
-  } catch (error) {
-    console.error('获取知识点分布失败:', error);
+  } catch (err) {
+    console.error('获取知识点分布失败:', err);
     res.status(500).json({ error: '获取知识点分布失败' });
   }
 });
@@ -212,8 +212,8 @@ router.post('/knowledge-distribution', roleGuard(['ADMIN']), async (req, res) =>
       },
     });
     res.status(201).json(item);
-  } catch (error) {
-    console.error('创建知识点分布失败:', error);
+  } catch (err) {
+    console.error('创建知识点分布失败:', err);
     res.status(500).json({ error: '创建知识点分布失败' });
   }
 });
@@ -238,8 +238,8 @@ router.put('/knowledge-distribution/:id', roleGuard(['ADMIN']), async (req, res)
 
     const item = await prisma.systemKnowledgeDistribution.update({ where: { id }, data });
     res.json(item);
-  } catch (error) {
-    console.error('修改知识点分布失败:', error);
+  } catch (err) {
+    console.error('修改知识点分布失败:', err);
     res.status(500).json({ error: '修改知识点分布失败' });
   }
 });
@@ -249,8 +249,8 @@ router.delete('/knowledge-distribution/:id', roleGuard(['ADMIN']), async (req, r
     const id = Number(req.params.id);
     await prisma.systemKnowledgeDistribution.delete({ where: { id } });
     res.json({ message: '删除成功' });
-  } catch (error) {
-    console.error('删除知识点分布失败:', error);
+  } catch (err) {
+    console.error('删除知识点分布失败:', err);
     res.status(500).json({ error: '删除知识点分布失败' });
   }
 });
@@ -374,8 +374,8 @@ router.post('/dict/init', roleGuard(['ADMIN']), async (req, res) => {
       created,
       skipped,
     });
-  } catch (error) {
-    console.error('初始化字典失败:', error);
+  } catch (err) {
+    console.error('初始化字典失败:', err);
     res.status(500).json({ error: '初始化字典失败' });
   }
 });
@@ -419,8 +419,8 @@ router.post('/dict/batch', roleGuard(['ADMIN']), async (req, res) => {
     const failedCount = results.length - successCount;
 
     res.json({ success: successCount > 0, successCount, failedCount, results });
-  } catch (error) {
-    console.error('批量创建字典失败:', error);
+  } catch (err) {
+    console.error('批量创建字典失败:', err);
     res.status(500).json({ error: '批量创建字典失败' });
   }
 });
@@ -431,8 +431,8 @@ router.get('/hospitals', async (req, res) => {
   try {
     const hospitals = await prisma.hospital.findMany({ orderBy: { id: 'asc' } });
     res.json(hospitals);
-  } catch (error) {
-    console.error('获取医院列表失败:', error);
+  } catch (err) {
+    console.error('获取医院列表失败:', err);
     res.status(500).json({ error: '获取医院列表失败' });
   }
 });
@@ -444,8 +444,8 @@ router.post('/hospitals', roleGuard(['ADMIN']), async (req, res) => {
     const data: any = { name: String(name), level: String(level || 'TOWNSHIP') };
     const hospital = await prisma.hospital.create({ data });
     res.status(201).json(hospital);
-  } catch (error) {
-    console.error('创建医院失败:', error);
+  } catch (err) {
+    console.error('创建医院失败:', err);
     res.status(500).json({ error: '创建医院失败' });
   }
 });
@@ -459,8 +459,8 @@ router.put('/hospitals/:id', roleGuard(['ADMIN']), async (req, res) => {
     if (level !== undefined && level !== null) data.level = String(level);
     const hospital = await prisma.hospital.update({ where: { id }, data });
     res.json(hospital);
-  } catch (error) {
-    console.error('修改医院失败:', error);
+  } catch (err) {
+    console.error('修改医院失败:', err);
     res.status(500).json({ error: '修改医院失败' });
   }
 });
@@ -470,8 +470,8 @@ router.delete('/hospitals/:id', roleGuard(['ADMIN']), async (req, res) => {
     const id = Number(req.params.id);
     await prisma.hospital.delete({ where: { id } });
     res.json({ message: '删除成功' });
-  } catch (error) {
-    console.error('删除医院失败:', error);
+  } catch (err) {
+    console.error('删除医院失败:', err);
     res.status(500).json({ error: '删除医院失败' });
   }
 });

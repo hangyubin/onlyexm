@@ -118,8 +118,8 @@ router.get('/', authMiddleware, async (req, res) => {
       })),
       total,
     });
-  } catch (error) {
-    console.error('Get paper list error:', error);
+  } catch (err) {
+    console.error('Get paper list error:', err);
     res.status(500).json({ error: '获取试卷列表失败' });
   }
 });
@@ -193,8 +193,8 @@ router.post('/', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER']), asyn
     });
 
     res.json(mapPaperDetail(fullPaper));
-  } catch (error) {
-    console.error('Create paper error:', error);
+  } catch (err) {
+    console.error('Create paper error:', err);
     res.status(500).json({ error: '创建试卷失败' });
   }
 });
@@ -229,8 +229,8 @@ router.get('/:id', authMiddleware, async (req, res) => {
     }
 
     res.json(mapPaperDetail(paper));
-  } catch (error) {
-    console.error('Get paper detail error:', error);
+  } catch (err) {
+    console.error('Get paper detail error:', err);
     res.status(500).json({ error: '获取试卷详情失败' });
   }
 });
@@ -309,8 +309,8 @@ router.put('/:id', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER']), as
     });
 
     res.json(mapPaperDetail(fullPaper));
-  } catch (error) {
-    console.error('Update paper error:', error);
+  } catch (err) {
+    console.error('Update paper error:', err);
     res.status(500).json({ error: '更新试卷失败' });
   }
 });
@@ -358,8 +358,8 @@ router.delete('/:id', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER']),
     });
 
     res.json({ success: true, message: '试卷已删除' });
-  } catch (error) {
-    console.error('Delete paper error:', error);
+  } catch (err) {
+    console.error('Delete paper error:', err);
     res.status(500).json({ error: '删除试卷失败' });
   }
 });
@@ -436,8 +436,8 @@ router.patch('/:id/publish', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFI
         message: '试卷已发布',
       });
     }
-  } catch (error) {
-    console.error('Publish error:', error);
+  } catch (err) {
+    console.error('Publish error:', err);
     res.status(500).json({ error: '发布操作失败' });
   }
 });
@@ -516,8 +516,8 @@ router.post(
           message: result.message,
         });
       }
-    } catch (error) {
-      console.error('Generate paper error:', error);
+    } catch (err) {
+      console.error('Generate paper error:', err);
       res.status(500).json({
         success: false,
         message: '组卷失败，服务器内部错误',
@@ -694,8 +694,8 @@ router.get('/:id/print', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER'
     // 结束
     doc.end();
 
-  } catch (error) {
-    console.error('Print paper error:', error);
+  } catch (err) {
+    console.error('Print paper error:', err);
     res.status(500).json({ error: '打印试卷失败' });
   }
 });

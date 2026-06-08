@@ -104,8 +104,8 @@ router.get('/records/stats', authMiddleware, async (req, res) => {
       paperDetails,
       trend: { labels: trendLabels, data: trendData },
     });
-  } catch (error) {
-    console.error('Get exam stats error:', error);
+  } catch (err) {
+    console.error('Get exam stats error:', err);
     error(res, 500, '获取考试统计失败');
   }
 });
@@ -217,8 +217,8 @@ router.get('/records/:id', authMiddleware, async (req, res) => {
         department: await getDepartmentName(examRecord.user.department || ''),
         hospitalName: (examRecord.user as any).hospital?.name || '',
     });
-  } catch (error) {
-    console.error('Get exam record detail error:', error);
+  } catch (err) {
+    console.error('Get exam record detail error:', err);
     error(res, 500, '获取考试结果失败');
   }
 });
@@ -332,8 +332,8 @@ router.get('/start/:paperId', authMiddleware, infectionGuard, async (req, res) =
     }
 
     success(res, result);
-  } catch (error) {
-    console.error('Start exam error:', error);
+  } catch (err) {
+    console.error('Start exam error:', err);
     error(res, 500, '服务器内部错误');
   }
 });
@@ -634,8 +634,8 @@ router.post('/:examRecordId/force-submit', authMiddleware, roleGuard(['ADMIN', '
     });
 
     success(res, { examRecordId, score: totalScore, isPassed, status: 'FORCE_SUBMIT' }, '强制交卷成功');
-  } catch (error) {
-    console.error('Force submit exam error:', error);
+  } catch (err) {
+    console.error('Force submit exam error:', err);
     error(res, 500, '强制交卷失败');
   }
 });

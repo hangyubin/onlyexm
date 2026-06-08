@@ -88,8 +88,8 @@ router.get('/infection-status', authMiddleware, async (req, res) => {
       correctRate: currentAccuracy,
       isCompliant,
     });
-  } catch (error) {
-    console.error('Get infection status error:', error);
+  } catch (err) {
+    console.error('Get infection status error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -188,8 +188,8 @@ router.get('/tasks', authMiddleware, async (req, res) => {
     });
 
     res.json([...examTasks, ...trainingTasks]);
-  } catch (error) {
-    console.error('Get tasks error:', error);
+  } catch (err) {
+    console.error('Get tasks error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -221,8 +221,8 @@ router.post('/tasks/:taskId/complete', authMiddleware, async (req, res) => {
     try { learningMaterialService.incrementViewCount(taskId); } catch (_) {}
 
     res.json({ success: true });
-  } catch (error) {
-    console.error('complete task error:', error);
+  } catch (err) {
+    console.error('complete task error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -243,8 +243,8 @@ router.get('/wrong-count', authMiddleware, async (req, res) => {
     });
 
     res.json({ count });
-  } catch (error) {
-    console.error('Get wrong count error:', error);
+  } catch (err) {
+    console.error('Get wrong count error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -299,8 +299,8 @@ router.get('/weak-points', authMiddleware, async (req, res) => {
     });
 
     res.json(weakPoints);
-  } catch (error) {
-    console.error('Get weak points error:', error);
+  } catch (err) {
+    console.error('Get weak points error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });

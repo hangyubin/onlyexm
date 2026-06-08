@@ -14,8 +14,8 @@ router.get('/', async (req, res) => {
     });
 
     res.json(hospitals);
-  } catch (error) {
-    console.error('获取医院列表失败:', error);
+  } catch (err) {
+    console.error('获取医院列表失败:', err);
     res.status(500).json({ error: '获取医院列表失败' });
   }
 });
@@ -32,8 +32,8 @@ router.get('/:id', async (req, res) => {
     }
 
     res.json(hospital);
-  } catch (error) {
-    console.error('获取医院详情失败:', error);
+  } catch (err) {
+    console.error('获取医院详情失败:', err);
     res.status(500).json({ error: '获取医院详情失败' });
   }
 });
@@ -51,8 +51,8 @@ router.post('/', roleGuard(['ADMIN']), async (req, res) => {
     });
 
     res.status(201).json(hospital);
-  } catch (error) {
-    console.error('创建医院失败:', error);
+  } catch (err) {
+    console.error('创建医院失败:', err);
     res.status(500).json({ error: '创建医院失败' });
   }
 });
@@ -79,8 +79,8 @@ router.put('/:id', roleGuard(['ADMIN']), async (req, res) => {
     });
 
     res.json(hospital);
-  } catch (error) {
-    console.error('更新医院失败:', error);
+  } catch (err) {
+    console.error('更新医院失败:', err);
     res.status(500).json({ error: '更新医院失败' });
   }
 });
@@ -102,8 +102,8 @@ router.delete('/:id', roleGuard(['ADMIN']), async (req, res) => {
     });
 
     res.json({ message: '删除成功' });
-  } catch (error) {
-    console.error('删除医院失败:', error);
+  } catch (err) {
+    console.error('删除医院失败:', err);
     res.status(500).json({ error: '删除医院失败' });
   }
 });

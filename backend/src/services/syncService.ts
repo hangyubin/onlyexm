@@ -104,8 +104,8 @@ export async function syncPracticeRecords(userId: number, records: SyncRecord[])
       failedIds,
       isUnlocked,
     };
-  } catch (error) {
-    console.error('Sync practice records error:', error);
-    throw error;
+  } catch (err) {
+    console.error('Sync practice records error:', err);
+    throw err;
   }
 }

@@ -76,8 +76,8 @@ router.get('/stats', authMiddleware, async (req, res) => {
     };
 
     res.json({ code: 0, data: stats });
-  } catch (error) {
-    console.error('Get profile stats error:', error);
+  } catch (err) {
+    console.error('Get profile stats error:', err);
     res.status(500).json({ code: -1, message: '获取数据失败' });
   }
 });
@@ -118,8 +118,8 @@ router.get('/radar-data', authMiddleware, async (req, res) => {
     );
 
     res.json({ code: 0, data: radarData });
-  } catch (error) {
-    console.error('Get radar data error:', error);
+  } catch (err) {
+    console.error('Get radar data error:', err);
     res.status(500).json({ code: -1, message: '获取数据失败' });
   }
 });
@@ -147,8 +147,8 @@ router.get('/exam-trend', authMiddleware, async (req, res) => {
     }));
 
     res.json({ code: 0, data: trendData });
-  } catch (error) {
-    console.error('Get exam trend error:', error);
+  } catch (err) {
+    console.error('Get exam trend error:', err);
     res.status(500).json({ code: -1, message: '获取数据失败' });
   }
 });
@@ -193,8 +193,8 @@ router.get('/wrong-heatmap', authMiddleware, async (req, res) => {
     }));
 
     res.json({ code: 0, data: heatmapData });
-  } catch (error) {
-    console.error('Get wrong heatmap error:', error);
+  } catch (err) {
+    console.error('Get wrong heatmap error:', err);
     res.status(500).json({ code: -1, message: '获取数据失败' });
   }
 });

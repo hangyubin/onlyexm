@@ -50,7 +50,7 @@ router.post(
         success: true,
         data: question,
       });
-    } catch (error) {
+    } catch (err) {
       console.error('Create question error:', error);
       res.status(500).json({ error: '服务器内部错误' });
     }
@@ -88,7 +88,7 @@ router.put(
         success: true,
         data: question,
       });
-    } catch (error) {
+    } catch (err) {
       console.error('Update question error:', error);
       res.status(500).json({ error: '服务器内部错误' });
     }
@@ -117,8 +117,8 @@ router.delete(
         success: true,
         message: '删除成功',
       });
-    } catch (error) {
-      console.error('Delete question error:', error);
+    } catch (err) {
+      console.error('Delete question error:', err);
       res.status(500).json({ error: '服务器内部错误' });
     }
   }
@@ -148,8 +148,8 @@ router.get(
         page: validation.data.page,
         pageSize: validation.data.pageSize,
       });
-    } catch (error) {
-      console.error('Get questions error:', error);
+    } catch (err) {
+      console.error('Get questions error:', err);
       res.status(500).json({ error: '服务器内部错误' });
     }
   }
@@ -165,7 +165,7 @@ router.get(
       res.setHeader('Content-Disposition', 'attachment; filename="question_template.xlsx"');
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.send(buffer);
-    } catch (error) {
+    } catch (err) {
       console.error('Download template error:', error);
       res.status(500).json({ error: '下载模板失败' });
     }
@@ -194,8 +194,8 @@ router.get(
         success: true,
         data: question,
       });
-    } catch (error) {
-      console.error('Get question error:', error);
+    } catch (err) {
+      console.error('Get question error:', err);
       res.status(500).json({ error: '服务器内部错误' });
     }
   }
@@ -218,8 +218,8 @@ router.post(
         success: true,
         ...result,
       });
-    } catch (error) {
-      console.error('Batch import error:', error);
+    } catch (err) {
+      console.error('Batch import error:', err);
       res.status(500).json({ error: '批量导入失败' });
     }
   }

@@ -17,8 +17,8 @@ router.post('/practice', authMiddleware, async (req, res) => {
       code: 0,
       data: result,
     });
-  } catch (error) {
-    console.error('Sync practice error:', error);
+  } catch (err) {
+    console.error('Sync practice error:', err);
     res.status(500).json({
       code: -1,
       message: '同步失败',

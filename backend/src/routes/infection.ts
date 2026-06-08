@@ -44,8 +44,8 @@ router.get('/status', authMiddleware, async (req, res) => {
       requiredCount,
       completedCount,
     });
-  } catch (error) {
-    console.error('Get infection status error:', error);
+  } catch (err) {
+    console.error('Get infection status error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -120,8 +120,8 @@ router.post('/check-unlock', authMiddleware, async (req, res) => {
         completedCount,
       },
     });
-  } catch (error) {
-    console.error('Check unlock error:', error);
+  } catch (err) {
+    console.error('Check unlock error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -153,8 +153,8 @@ router.post('/scenario/record', authMiddleware, async (req, res) => {
       message: '答题记录保存成功',
       record,
     });
-  } catch (error) {
-    console.error('Save scenario record error:', error);
+  } catch (err) {
+    console.error('Save scenario record error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -174,8 +174,8 @@ router.get('/scenarios', authMiddleware, async (req, res) => {
       success: true,
       data: scenarios,
     });
-  } catch (error) {
-    console.error('Get scenarios error:', error);
+  } catch (err) {
+    console.error('Get scenarios error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -200,8 +200,8 @@ router.get('/scenarios/:id', authMiddleware, async (req, res) => {
       success: true,
       data: scenario,
     });
-  } catch (error) {
-    console.error('Get scenario error:', error);
+  } catch (err) {
+    console.error('Get scenario error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -234,8 +234,8 @@ router.post('/scenarios', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER
       message: '场景创建成功',
       data: scenario,
     });
-  } catch (error) {
-    console.error('Create scenario error:', error);
+  } catch (err) {
+    console.error('Create scenario error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -276,7 +276,7 @@ router.put('/scenarios/:id', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFI
       message: '场景更新成功',
       data: scenario,
     });
-  } catch (error) {
+  } catch (err) {
     console.error('Update scenario error:', error);
     res.status(500).json({ error: '服务器内部错误' });
   }
@@ -295,7 +295,7 @@ router.delete('/scenarios/:id', authMiddleware, roleGuard(['ADMIN', 'INFECTION_O
       success: true,
       message: '场景已停用',
     });
-  } catch (error) {
+  } catch (err) {
     console.error('Delete scenario error:', error);
     res.status(500).json({ error: '服务器内部错误' });
   }
@@ -326,7 +326,7 @@ router.post('/drill/submit', authMiddleware, async (req, res) => {
       message: '演练记录保存成功',
       record,
     });
-  } catch (error) {
+  } catch (err) {
     console.error('Save drill record error:', error);
     res.status(500).json({ error: '服务器内部错误' });
   }
@@ -356,7 +356,7 @@ router.get('/drill/records', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFI
       success: true,
       data: records,
     });
-  } catch (error) {
+  } catch (err) {
     console.error('Get drill records error:', error);
     res.status(500).json({ error: '服务器内部错误' });
   }
@@ -388,8 +388,8 @@ router.get('/drill/unparticipated', authMiddleware, roleGuard(['ADMIN', 'INFECTI
       success: true,
       data: unparticipatedUsers,
     });
-  } catch (error) {
-    console.error('Get unparticipated users error:', error);
+  } catch (err) {
+    console.error('Get unparticipated users error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -421,7 +421,7 @@ router.get('/drill/stats', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICE
         scoreDistribution,
       },
     });
-  } catch (error) {
+  } catch (err) {
     console.error('Get drill stats error:', error);
     res.status(500).json({ error: '服务器内部错误' });
   }
@@ -471,8 +471,8 @@ router.get('/dashboard/kpi', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFI
         totalPractice,
       },
     });
-  } catch (error) {
-    console.error('Get dashboard KPI error:', error);
+  } catch (err) {
+    console.error('Get dashboard KPI error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -528,7 +528,7 @@ router.get('/dashboard/dept-ranking', authMiddleware, roleGuard(['ADMIN', 'INFEC
       success: true,
       data: result,
     });
-  } catch (error) {
+  } catch (err) {
     console.error('Get dept ranking error:', error);
     res.status(500).json({ error: '服务器内部错误' });
   }
@@ -593,8 +593,8 @@ router.get('/dashboard/weak-points', authMiddleware, roleGuard(['ADMIN', 'INFECT
       success: true,
       data: result,
     });
-  } catch (error) {
-    console.error('Get weak points error:', error);
+  } catch (err) {
+    console.error('Get weak points error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -642,8 +642,8 @@ router.get('/dashboard/trend', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OF
       success: true,
       data: result,
     });
-  } catch (error) {
-    console.error('Get trend error:', error);
+  } catch (err) {
+    console.error('Get trend error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -709,8 +709,8 @@ router.get('/unqualified-staff', authMiddleware, roleGuard(['ADMIN', 'INFECTION_
       data: result,
       total,
     });
-  } catch (error) {
-    console.error('Get unqualified staff error:', error);
+  } catch (err) {
+    console.error('Get unqualified staff error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -723,8 +723,8 @@ router.post('/notify/batch', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFI
       success: true,
       message: `已向 ${(ids || []).length} 位用户发送补训通知`,
     });
-  } catch (error) {
-    console.error('Send batch notify error:', error);
+  } catch (err) {
+    console.error('Send batch notify error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -737,8 +737,8 @@ router.post('/notify/:userId', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OF
       success: true,
       message: `已向用户ID ${userId} 发送补训通知`,
     });
-  } catch (error) {
-    console.error('Send notify error:', error);
+  } catch (err) {
+    console.error('Send notify error:', err);
     res.status(500).json({ error: '服务器内部错误' });
   }
 });
@@ -877,8 +877,8 @@ router.get('/report/pdf', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER
     doc.fontSize(9).text('本报告由院感培训系统自动生成', { align: 'center' });
 
     doc.end();
-  } catch (error) {
-    console.error('Generate infection report error:', error);
+  } catch (err) {
+    console.error('Generate infection report error:', err);
     res.status(500).json({ error: '生成报告失败' });
   }
 });

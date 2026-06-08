@@ -15,8 +15,8 @@ router.get('/infection', authMiddleware, async (req, res) => {
   try {
     const config = await getInfectionConfig();
     res.json({ code: 0, data: config });
-  } catch (error) {
-    console.error('Get infection config error:', error);
+  } catch (err) {
+    console.error('Get infection config error:', err);
     res.status(500).json({ code: -1, message: '获取配置失败' });
   }
 });
@@ -33,9 +33,9 @@ router.get('/', authMiddleware, async (req, res) => {
       }
     });
     res.json(configMap);
-  } catch (error) {
-    console.error('Get system config error:', error);
-    res.status(500).json({ error: '获取配置失败', detail: String(error) });
+  } catch (err) {
+    console.error('Get system config error:', err);
+    res.status(500).json({ error: '获取配置失败', detail: String(err) });
   }
 });
 
@@ -68,8 +68,8 @@ router.post('/', authMiddleware, roleGuard(['ADMIN']), async (req, res) => {
     }
 
     res.json({ success: true, message: '配置保存成功' });
-  } catch (error) {
-    console.error('Save system config error:', error);
+  } catch (err) {
+    console.error('Save system config error:', err);
     res.status(500).json({ error: '保存配置失败' });
   }
 });
@@ -122,8 +122,8 @@ router.put('/', authMiddleware, roleGuard(['ADMIN']), async (req, res) => {
 
     const config = await updateInfectionConfig(updates, userId);
     res.json({ code: 0, data: config, message: '配置更新成功' });
-  } catch (error) {
-    console.error('Update config error:', error);
+  } catch (err) {
+    console.error('Update config error:', err);
     res.status(500).json({ code: -1, message: '更新配置失败' });
   }
 });
@@ -135,8 +135,8 @@ router.get('/logs', authMiddleware, roleGuard(['ADMIN']), async (req, res) => {
     
     const result = await getConfigLogs(page, pageSize);
     res.json({ code: 0, data: result });
-  } catch (error) {
-    console.error('Get config logs error:', error);
+  } catch (err) {
+    console.error('Get config logs error:', err);
     res.status(500).json({ code: -1, message: '获取日志失败' });
   }
 });

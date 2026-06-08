@@ -61,7 +61,7 @@ router.post('/exam-summary/data', authMiddleware, roleGuard(['ADMIN', 'INFECTION
       passRate: items.length > 0 ? Math.round((passCount / items.length) * 100) : 0,
       averageScore: items.length > 0 ? Math.round(totalScore / items.length) : 0,
     });
-  } catch (error) {
+  } catch (err) {
     console.error('Get exam summary data error:', error);
     res.status(500).json({ code: -1, message: '获取数据失败' });
   }
@@ -113,8 +113,8 @@ router.post('/practice-records/data', authMiddleware, roleGuard(['ADMIN', 'INFEC
     }));
 
     res.json({ items });
-  } catch (error) {
-    console.error('Get practice records error:', error);
+  } catch (err) {
+    console.error('Get practice records error:', err);
     res.status(500).json({ code: -1, message: '获取数据失败' });
   }
 });
@@ -141,7 +141,7 @@ router.post('/infection-compliance/data', authMiddleware, roleGuard(['ADMIN', 'I
     }));
 
     res.json({ items });
-  } catch (error) {
+  } catch (err) {
     console.error('Get infection compliance error:', error);
     res.status(500).json({ code: -1, message: '获取数据失败' });
   }
@@ -216,7 +216,7 @@ router.post('/user-study/data', authMiddleware, roleGuard(['ADMIN', 'INFECTION_O
     });
 
     res.json({ items });
-  } catch (error) {
+  } catch (err) {
     console.error('Get user study error:', error);
     res.status(500).json({ code: -1, message: '获取数据失败' });
   }
@@ -236,7 +236,7 @@ router.post(
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename=exam_summary_${startDate}_${endDate}.xlsx`);
       res.send(buffer);
-    } catch (error) {
+    } catch (err) {
       console.error('Generate exam summary report error:', error);
       res.status(500).json({ code: -1, message: '生成报表失败' });
     }
@@ -255,7 +255,7 @@ router.post(
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename=unqualified_staff_${currentDate}.xlsx`);
       res.send(buffer);
-    } catch (error) {
+    } catch (err) {
       console.error('Generate unqualified staff report error:', error);
       res.status(500).json({ code: -1, message: '生成报表失败' });
     }
@@ -274,7 +274,7 @@ router.post(
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename=dept_ranking_${startDate}_${endDate}.xlsx`);
       res.send(buffer);
-    } catch (error) {
+    } catch (err) {
       console.error('Generate dept ranking report error:', error);
       res.status(500).json({ code: -1, message: '生成报表失败' });
     }
@@ -293,8 +293,8 @@ router.post(
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename=question_error_rate_${currentDate}.xlsx`);
       res.send(buffer);
-    } catch (error) {
-      console.error('Generate question error rate report error:', error);
+    } catch (err) {
+      console.error('Generate question error rate report error:', err);
       res.status(500).json({ code: -1, message: '生成报表失败' });
     }
   }
@@ -312,7 +312,7 @@ router.post(
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename=activity_report_${startDate}_${endDate}.xlsx`);
       res.send(buffer);
-    } catch (error) {
+    } catch (err) {
       console.error('Generate activity report error:', error);
       res.status(500).json({ code: -1, message: '生成报表失败' });
     }

@@ -90,8 +90,8 @@ router.get('/', async (req, res) => {
     ]);
 
     paginate(res, users, total, page, pageSize);
-  } catch (error) {
-    console.error('获取用户列表失败:', error);
+  } catch (err) {
+    console.error('获取用户列表失败:', err);
     error(res, 500, '获取用户列表失败');
   }
 });
@@ -155,8 +155,8 @@ router.get('/import-template', async (req, res) => {
 
     await workbook.xlsx.write(res);
     res.end();
-  } catch (error) {
-    console.error('生成用户导入模板失败:', error);
+  } catch (err) {
+    console.error('生成用户导入模板失败:', err);
     res.status(500).json({ error: '生成模板失败' });
   }
 });
@@ -223,8 +223,8 @@ router.post('/batch-import', roleGuard(['ADMIN', 'INFECTION_OFFICER']), upload.s
     }
 
     success(res, results, `导入完成: 成功 ${results.success} 条, 失败 ${results.failed} 条`);
-  } catch (error) {
-    console.error('批量导入用户失败:', error);
+  } catch (err) {
+    console.error('批量导入用户失败:', err);
     error(res, 500, '批量导入用户失败');
   }
 });
@@ -244,8 +244,8 @@ router.get('/:id', async (req, res) => {
     }
 
     success(res, user);
-  } catch (error) {
-    console.error('获取用户详情失败:', error);
+  } catch (err) {
+    console.error('获取用户详情失败:', err);
     error(res, 500, '获取用户详情失败');
   }
 });
@@ -310,8 +310,8 @@ router.post('/', roleGuard(['ADMIN', 'INFECTION_OFFICER']), async (req, res) => 
     }
 
     success(res, user);
-  } catch (error) {
-    console.error('创建用户失败:', error);
+  } catch (err) {
+    console.error('创建用户失败:', err);
     error(res, 500, '创建用户失败');
   }
 });
@@ -361,8 +361,8 @@ router.put('/:id', roleGuard(['ADMIN', 'INFECTION_OFFICER']), async (req, res) =
     });
 
     success(res, user);
-  } catch (error) {
-    console.error('更新用户失败:', error);
+  } catch (err) {
+    console.error('更新用户失败:', err);
     error(res, 500, '更新用户失败');
   }
 });
@@ -384,8 +384,8 @@ router.delete('/:id', roleGuard(['ADMIN', 'INFECTION_OFFICER']), async (req, res
     });
 
     success(res, null, '删除成功');
-  } catch (error) {
-    console.error('删除用户失败:', error);
+  } catch (err) {
+    console.error('删除用户失败:', err);
     error(res, 500, '删除用户失败');
   }
 });
@@ -411,8 +411,8 @@ router.post('/:id/reset-password', roleGuard(['ADMIN', 'INFECTION_OFFICER']), as
     });
 
     success(res, { tempPassword }, '密码重置成功');
-  } catch (error) {
-    console.error('重置密码失败:', error);
+  } catch (err) {
+    console.error('重置密码失败:', err);
     error(res, 500, '重置密码失败');
   }
 });
@@ -438,8 +438,8 @@ router.patch('/:id/toggle-lock', roleGuard(['ADMIN', 'INFECTION_OFFICER']), asyn
     });
 
     success(res, user);
-  } catch (error) {
-    console.error('切换锁定状态失败:', error);
+  } catch (err) {
+    console.error('切换锁定状态失败:', err);
     error(res, 500, '切换锁定状态失败');
   }
 });
@@ -566,8 +566,8 @@ router.get('/:id/learning-profile', async (req, res) => {
       },
       wrongQuestionCount,
     });
-  } catch (error) {
-    console.error('获取学习档案失败:', error);
+  } catch (err) {
+    console.error('获取学习档案失败:', err);
     error(res, 500, '获取学习档案失败');
   }
 });
