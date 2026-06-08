@@ -1,0 +1,479 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Hospital {
+  id   Int    @id
+  name String
+  level String // 动态字典 HOSPITAL_LEVEL（原 enum），示例：乡镇/社区/村卫生室
+
+  users User[]
+
+  @@index([name])
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  username   String   @unique
+  password   String
+  realName   String
+  role       String   // 动态字典 ROLE：ADMIN / INFECTION_OFFICER / DEPT_HEAD / DOCTOR / NURSE ...
+  department String   // 动态字典 DEPARTMENT：内科 / 外科 / ICU ...（直接存字典 code 或 name）
+  hospitalId Int
+  isLocked   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  hospital           Hospital              @relation(fields: [hospitalId], references: [id])
+  examRecords        ExamRecord[]
+  learningRecords    LearningRecord[]
+  infectionRequirements InfectionRequirement[]
+  offlineSyncs       OfflineSync[]
+  paperGenerationLogs PaperGenerationLog[]
+  scenarioRecords    ScenarioRecord[]
+  outbreakDrillRecords OutbreakDrillRecord[]
+  wrongQuestions     WrongQuestion[]
+  dailyPractices     DailyPractice[]
+  practiceSyncRecords PracticeSyncRecord[]
+  configLogs         ConfigLog[]
+
+  @@index([hospitalId])
+  @@index([role])
+  @@index([createdAt])
+}
+
+model Question {
+  id             Int             @id @default(autoincrement())
+  content        String          @db.Text
+  type           String          // 动态字典 QUESTION_TYPE：SINGLE / MULTIPLE / JUDGE / CASE
+  category       String          // 动态字典 QUESTION_CATEGORY（一级分类 code）
+  infectionTag   String?         // 兼容保留：二级分类 code（子分类）
+  subCategory    String?         // 二级分类 code（子分类），与 infectionTag 互为补充
+  difficulty     Int             @default(1) // 数字 1~N，前端可结合字典渲染文本
+  analysis       String          @db.Text
+  standardSource String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
+
+  options           QuestionOption[]
+  paperQuestions   PaperQuestion[]
+  answerDetails    AnswerDetail[]
+  wrongQuestions   WrongQuestion[]
+  practiceSyncRecords PracticeSyncRecord[]
+
+  @@index([type])
+  @@index([category])
+  @@index([infectionTag])
+  @@index([subCategory])
+  @@index([createdAt])
+  @@index([deletedAt])
+}
+
+model QuestionOption {
+  id         Int      @id @default(autoincrement())
+  questionId Int
+  optionKey  String
+  content    String
+  isCorrect  Boolean
+
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+}
+
+model Paper {
+  id              Int       @id @default(autoincrement())
+  name            String
+  description     String?
+  totalScore      Int
+  passingScore    Int       @default(60)
+  durationMinutes Int
+  examStartTime   DateTime? // 考试开始时间
+  examEndTime     DateTime? // 考试结束时间
+  isActive        Boolean   @default(false) // 默认未发布
+  isPublished     Boolean   @default(false) // 是否已发布过（发布后不可再发布）
+  createdAt       DateTime  @default(now())
+
+  paperQuestions PaperQuestion[]
+  examRecords    ExamRecord[]
+  paperGenerationLogs PaperGenerationLog[]
+
+  @@index([isActive])
+  @@index([createdAt])
+}
+
+model PaperQuestion {
+  id         Int      @id @default(autoincrement())
+  paperId    Int
+  questionId Int
+  score      Int
+
+  paper      Paper    @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([paperId])
+  @@index([questionId])
+}
+
+model ExamRecord {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  paperId         Int
+  startTime       DateTime @default(now())
+  endTime         DateTime?
+  durationSeconds Int?
+  score           Int?
+  infectionScore  Int?
+  isPassed        Boolean?
+  tabSwitchCount  Int      @default(0)
+  reentryCount    Int      @default(0)
+  clientIp        String?
+  suspiciousLog   String?  @db.Text
+  status          String   // 动态字典 EXAM_STATUS：IN_PROGRESS / SUBMITTED / AUTO_SUBMIT / FORCE_SUBMIT
+  createdAt       DateTime @default(now())
+
+  user          User           @relation(fields: [userId], references: [id])
+  paper         Paper          @relation(fields: [paperId], references: [id])
+  answerDetails AnswerDetail[]
+
+  @@index([userId])
+  @@index([paperId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([userId, status])
+}
+
+model AnswerDetail {
+  id            Int      @id @default(autoincrement())
+  examRecordId  Int
+  questionId    Int
+  userAnswer    String   @db.Text
+  isCorrect     Boolean
+  scoreObtained Int
+
+  examRecord    ExamRecord @relation(fields: [examRecordId], references: [id])
+  question      Question   @relation(fields: [questionId], references: [id])
+
+  @@index([examRecordId])
+  @@index([questionId])
+  @@unique([examRecordId, questionId])
+}
+
+model LearningMaterial {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  type        String   // 动态字典 LEARNING_MATERIAL_TYPE：ARTICLE / VIDEO / PDF / DOC / EXCEL / PPT
+  content     String   @db.Text
+  category    String?  // 动态字典 LEARNING_MATERIAL_CATEGORY 或自由文本
+  thumbnailUrl String?
+  attachmentUrl String?
+  viewCount   Int      @default(0)
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  learningRecords LearningRecord[]
+
+  @@index([isActive])
+  @@index([category])
+  @@index([createdAt])
+}
+
+model LearningRecord {
+  id                  Int      @id @default(autoincrement())
+  userId              Int
+  contentId           Int
+  contentTitle        String
+  studyDurationSeconds Int
+  completedAt         DateTime @default(now())
+
+  user     User             @relation(fields: [userId], references: [id])
+  material LearningMaterial @relation(fields: [contentId], references: [id])
+
+  @@index([userId])
+  @@index([contentId])
+}
+
+model InfectionRequirement {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  month          String
+  requiredCount  Int      @default(20)
+  completedCount Int      @default(0)
+  accuracyRate   Decimal? @db.Decimal(5, 2)
+  isLocked       Boolean  @default(false)
+
+  user           User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([month])
+}
+
+model OfflineSync {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  syncData   Json
+  syncStatus String   // 字典 SYNC_STATUS：PENDING / SUCCESS / FAILED
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([syncStatus])
+}
+
+model PaperGenerationLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  paperId   Int
+  paperName String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  paper     Paper    @relation(fields: [paperId], references: [id])
+
+  @@index([userId])
+  @@index([paperId])
+}
+
+model InfectionScenario {
+  id           Int                 @id @default(autoincrement())
+  title        String
+  description  String              @db.Text
+  imageUrl     String?
+  expertAdvice String              @db.Text
+  isActive     Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  risks        ScenarioRisk[]
+  actions      ScenarioAction[]
+  records      ScenarioRecord[]
+
+  @@index([isActive])
+  @@index([createdAt])
+}
+
+model ScenarioRisk {
+  id         Int              @id @default(autoincrement())
+  scenarioId Int
+  text       String
+  isCorrect  Boolean
+
+  scenario   InfectionScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@index([scenarioId])
+}
+
+model ScenarioAction {
+  id         Int              @id @default(autoincrement())
+  scenarioId Int
+  text       String
+  isCorrect  Boolean
+
+  scenario   InfectionScenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@index([scenarioId])
+}
+
+model ScenarioRecord {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  scenarioId    Int
+  riskAnswers   String   @db.Text
+  actionAnswer  Int
+  riskScore     Int
+  actionScore   Int
+  riskLevel     String
+  completedAt   DateTime @default(now())
+
+  user     User              @relation(fields: [userId], references: [id])
+  scenario InfectionScenario @relation(fields: [scenarioId], references: [id])
+
+  @@index([userId])
+  @@index([scenarioId])
+}
+
+model OutbreakDrill {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String   @db.Text
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  records     OutbreakDrillRecord[]
+
+  @@index([isActive])
+}
+
+model OutbreakDrillRecord {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  drillId      Int
+  stepsResult  Json
+  score        Int
+  reportText   String   @db.Text
+  completedAt  DateTime @default(now())
+
+  user         User          @relation(fields: [userId], references: [id])
+  drill        OutbreakDrill @relation(fields: [drillId], references: [id])
+
+  @@index([userId])
+  @@index([drillId])
+}
+
+model WrongQuestion {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  questionId   Int
+  wrongCount   Int      @default(1)
+  correctCount Int      @default(0)
+  status       String   @default("ACTIVE") // 字典 WRONG_QUESTION_STATUS
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id])
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@index([userId])
+  @@index([questionId])
+  @@index([status])
+  @@index([userId, questionId, status])
+}
+
+model DailyPractice {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  date        String
+  questions   Json
+  answers     Json
+  score       Int      @default(0)
+  isCompleted Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([date])
+  @@index([isCompleted])
+}
+
+model PracticeQuestionRecord {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  questionId Int
+  date       String
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, questionId])
+  @@index([userId])
+}
+
+model PaperQuestionRecord {
+  id         Int      @id @default(autoincrement())
+  paperId    Int
+  questionId Int
+  createdAt  DateTime @default(now())
+
+  @@unique([paperId, questionId])
+  @@index([paperId])
+  @@index([questionId])
+}
+
+model PracticeSyncRecord {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  questionId Int
+  userAnswer String   @db.Text
+  isCorrect  Boolean
+  syncTime   DateTime
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id])
+  question   Question @relation(fields: [questionId], references: [id])
+
+  @@index([userId])
+  @@index([questionId])
+}
+
+model SystemConfig {
+  id          Int      @id @default(autoincrement())
+  configKey   String   @unique
+  configValue String
+  description String
+  updatedAt   DateTime @updatedAt
+
+  @@index([configKey])
+}
+
+model ConfigLog {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  configKey   String
+  oldValue    String?
+  newValue    String
+  action      String
+  description String
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([configKey])
+}
+
+// ============ 全局字典表：所有原先用 enum 的分类全部走字典表 ============
+// 约定的 category 值：
+//   ROLE / DEPARTMENT / HOSPITAL_LEVEL
+//   QUESTION_CATEGORY / INFECTION_TAG / DIFFICULTY
+//   LEARNING_MATERIAL_TYPE / LEARNING_MATERIAL_CATEGORY
+//   EXAM_STATUS / SYNC_STATUS / WRONG_QUESTION_STATUS
+// 还可以按需扩展任意业务分类，前端全部通过 GET /system/dict?category=xxx 获取。
+model SystemDict {
+  id        Int      @id @default(autoincrement())
+  category  String   // 字典分类，例如 ROLE / DEPARTMENT / QUESTION_CATEGORY
+  code      String   // 字典项 code（英文/数字，同一 category 唯一）
+  name      String   // 字典项展示名（中文）
+  color     String?  // 可选：颜色
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  remark    String?
+  parentId  Int?     // 父级字典项 id，null 表示顶级分类
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parent    SystemDict?  @relation("DictChildren", fields: [parentId], references: [id])
+  children  SystemDict[] @relation("DictChildren")
+
+  @@index([category])
+  @@index([isActive])
+  @@index([parentId])
+  @@unique([category, code])
+}
+
+// ============ 知识点分布方案表：通过字典的 QUESTION_CATEGORY 动态配置 ============
+model SystemKnowledgeDistribution {
+  id               Int      @id @default(autoincrement())
+  schemeName       String   // 方案名称，例如 "默认分布" / "内科考核"
+  description      String?
+  categoryCode     String   // 对应 SystemDict.category=QUESTION_CATEGORY 的 code
+  categoryName     String?  // 冗余保存便于前端展示
+  questionCount    Int      @default(5) // 该分类抽取题数
+  scorePerQuestion Int      @default(2) // 每题分值
+  difficultyFrom   Int      @default(1)
+  difficultyTo     Int      @default(3)
+  sortOrder        Int      @default(0)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([sortOrder])
+}

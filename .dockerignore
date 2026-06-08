@@ -1,0 +1,41 @@
+# ====================
+# 项目文件
+# ====================
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.*
+*.log
+npm-debug.log*
+.DS_Store
+.vscode
+.idea
+coverage
+
+# ====================
+# 文档和临时文件
+# ====================
+*.md
+!README.md
+test_*
+check_*
+reset_*
+seed-questions.ts
+deploy.sh
+deploy.ps1
+start-dev.ps1
+restart-frontend.ps1
+test_print*.pdf
+
+# ====================
+# 后端临时文件
+# ====================
+backend/uploads
+backend/data
+
+# ====================
+# GitHub Actions 不需要这些
+# ====================
+.github

@@ -1,0 +1,55 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* 根据屏幕宽度动态调整根字号，适配不同手机分辨率 */
+/* 用户可通过 localStorage.fontScale 调节（0.85 / 1 / 1.15 / 1.3） */
+html {
+  font-size: calc(clamp(16px, 4.8vw, 22px) * var(--font-scale, 1));
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+/* 底导航栏文字放大 */
+nav span.text-xs {
+  font-size: 0.8rem;
+}
+
+/* 卡片内文字最小字号限制，避免过小 */
+.text-xs {
+  font-size: max(0.8rem, 13px);
+}
+
+.text-sm {
+  font-size: max(0.9rem, 15px);
+}
+
+/* 按钮最小高度和字号 */
+button {
+  min-height: 44px;
+  font-size: max(0.9rem, 15px);
+}
+
+/* 输入框最小字号（防止 iOS 缩放） */
+input, select, textarea {
+  font-size: max(1rem, 16px);
+}
+
+/* 字体大小设置页面的按钮不受 min-height 影响 */
+.font-scale-btn {
+  min-height: auto;
+}
