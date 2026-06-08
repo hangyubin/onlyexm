@@ -39,9 +39,27 @@ api.interceptors.response.use(
   (response) => {
     const data = response.data;
     if (data && typeof data === 'object') {
-      if ('success' in data) {
+      // 处理 { code, data, message } 格式
+      if ('code' in data) {
+        if (data.code === 0) {
+          if ('total' in data) {
+            response.data = data;
+          } else {
+            response.data = data.data ?? data;
+          }
+        } else {
+          console.error('API Error:', data.message);
+          return Promise.reject(new Error(data.message || '操作失败'));
+        }
+      }
+      // 处理 { success, data, message } 格式
+      else if ('success' in data) {
         if (data.success) {
-          response.data = data.data ?? data;
+          if ('total' in data) {
+            response.data = data;
+          } else {
+            response.data = data.data ?? data;
+          }
         } else {
           console.error('API Error:', data.message);
           return Promise.reject(new Error(data.message || '操作失败'));

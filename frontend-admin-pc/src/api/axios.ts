@@ -29,7 +29,12 @@ api.interceptors.response.use(
       // 统一处理 { code, data, message } 和 { success, data, message } 格式
       if ('code' in data) {
         if (data.code === 0) {
-          response.data = data.data ?? data;
+          // 如果包含total字段，说明是分页数据，保留原始格式
+          if ('total' in data) {
+            response.data = data;
+          } else {
+            response.data = data.data ?? data;
+          }
         } else {
           const errMsg = data.message || '操作失败';
           message.error(errMsg);
@@ -37,7 +42,12 @@ api.interceptors.response.use(
         }
       } else if ('success' in data) {
         if (data.success) {
-          response.data = data.data ?? data;
+          // 如果包含total字段，说明是分页数据，保留原始格式
+          if ('total' in data) {
+            response.data = data;
+          } else {
+            response.data = data.data ?? data;
+          }
         } else {
           const errMsg = data.message || '操作失败';
           message.error(errMsg);

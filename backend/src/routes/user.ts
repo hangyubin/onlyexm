@@ -20,7 +20,7 @@ const userSelect = {
   hospitalId: true,
   isLocked: true,
   createdAt: true,
-  hospital: { select: { id: true, name: true, level: true } },
+  hospital: { select: { id: true, name: true } },
 };
 
 router.use(authMiddleware);
@@ -89,7 +89,12 @@ router.get('/', async (req, res) => {
       prisma.user.count({ where }),
     ]);
 
-    paginate(res, users, total, page, pageSize);
+    const transformedUsers = users.map(user => ({
+      ...user,
+      hospitalName: user.hospital?.name || '',
+    }));
+
+    paginate(res, transformedUsers, total, page, pageSize);
   } catch (err) {
     console.error('获取用户列表失败:', err);
     error(res, 500, '获取用户列表失败');
