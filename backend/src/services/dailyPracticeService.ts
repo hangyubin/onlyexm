@@ -54,11 +54,12 @@ async function getWeakTags(userId: number): Promise<string[]> {
 }
 
 // ============================================================
-// 获取用户已用过的题目ID集合（从 PracticeQuestionRecord 查询）
+// 获取用户今日已用题目ID（仅当天，跨天不排除）
 // ============================================================
 async function getUsedQuestionIds(userId: number): Promise<Set<number>> {
+  const today = new Date().toISOString().slice(0, 10);
   const records = await prisma.practiceQuestionRecord.findMany({
-    where: { userId },
+    where: { userId, date: today },
     select: { questionId: true },
   });
   return new Set(records.map((r) => r.questionId));

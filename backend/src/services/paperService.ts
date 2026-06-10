@@ -26,11 +26,13 @@ export interface GenerateResult {
 }
 
 // ============================================================
-// 获取当前试卷生成会话中已使用的题目ID
-// 注意：不再全局去重，只按试卷内去重（防止同一试卷重复出题）
+// 获取所有试卷已使用的题目ID（跨试卷去重）
 // ============================================================
 async function getUsedQuestionIdsInPapers(): Promise<Set<number>> {
-  return new Set<number>();
+  const records = await prisma.paperQuestionRecord.findMany({
+    select: { questionId: true },
+  });
+  return new Set(records.map((r) => r.questionId));
 }
 
 // ============================================================
@@ -285,7 +287,9 @@ async function generatePaper(
       // 如果仍然不够，允许使用已用过的题目
       if (selected.length < typeConfig.count) {
         const remainingNeeded = typeConfig.count - selected.length;
-        const fallbackExclude = new Set(selected.map((q) => q.id));
+        const fallbackExclude = new Set(
+              usedQuestionsInPaper.concat(selected.map((q) => q.id)),
+            );
         const fallbackQuestions = await getRandomQuestions(
           { type: typeConfig.typeCode as any },
           fallbackExclude,
@@ -328,7 +332,7 @@ async function generatePaper(
         passingScore: input.passingScore,
         durationMinutes: input.durationMinutes,
         isActive: true,
-        isPublished: false,
+        isPublished: true,
       },
     });
 

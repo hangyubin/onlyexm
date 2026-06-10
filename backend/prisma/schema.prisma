@@ -373,7 +373,7 @@ model PracticeQuestionRecord {
   date       String
   createdAt  DateTime @default(now())
 
-  @@unique([userId, questionId])
+  @@unique([userId, questionId, date])
   @@index([userId])
 }
 
