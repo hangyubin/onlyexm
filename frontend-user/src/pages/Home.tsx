@@ -240,20 +240,20 @@ const Home: React.FC = () => {
           <Flame className="w-5 h-5 text-orange-500" />
           今日任务
         </h2>
-        {tasks.length > 0 ? (
-          tasks.map(task => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onStart={handleStartTask}
-            />
-          ))
-        ) : (
-          <div className="bg-white rounded-lg p-6 text-center">
-            <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm">暂无待办任务</p>
-          </div>
-        )}
+        {(() => {
+          const pendingTasks = tasks.filter(task => task.status === 'pending');
+          if (pendingTasks.length > 0) {
+            return pendingTasks.map(task => (
+              <TaskCard key={task.id} task={task} onStart={handleStartTask} />
+            ));
+          }
+          return (
+            <div className="bg-white rounded-lg p-6 text-center">
+              <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500 text-sm">暂无待办任务</p>
+            </div>
+          );
+        })()}
       </div>
 
       {weakPoints.length > 0 && (
