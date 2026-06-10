@@ -18,6 +18,7 @@ function ConfigTab() {
     try {
       const config = await systemApi.getConfig();
       form.setFieldsValue({
+        monthlyRequiredCount: config.monthlyRequiredCount ?? 20,
         infectionTargetScore: config.infectionTargetScore ?? 60,
         infectionTargetRate: config.infectionTargetRate ?? 80,
         practiceCount: config.practiceCount ?? 3,
@@ -66,6 +67,11 @@ function ConfigTab() {
       <Card title="院感达标配置">
         <Form form={form} layout="vertical">
           <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="monthlyRequiredCount" label="每月院感要求题数" rules={[{ required: true, message: '请输入每月院感要求题数' }]}>
+                <InputNumber min={1} max={100} placeholder="每月院感要求题数" style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
             <Col span={12}>
               <Form.Item name="infectionTargetScore" label="达标分数" rules={[{ required: true, message: '请输入达标分数' }]}>
                 <InputNumber min={0} max={100} placeholder="请输入达标分数" style={{ width: '100%' }} />

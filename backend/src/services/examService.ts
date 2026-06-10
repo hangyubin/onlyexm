@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma';
+import { getInfectionConfig } from './configService';
 
 export const ExamStatus = {
   IN_PROGRESS: 'IN_PROGRESS',
@@ -586,6 +587,7 @@ export async function autoSubmitExam(examRecordId: number, status: string = 'AUT
 
   // 使用事务批量更新
   await prisma.$transaction(async (tx) => {
+    const config = await getInfectionConfig();
     for (const update of answerUpdates) {
       await tx.answerDetail.update({
         where: { id: update.id },
@@ -643,7 +645,7 @@ export async function autoSubmitExam(examRecordId: number, status: string = 'AUT
             data: {
               userId: examRecord.userId,
               month: currentMonth,
-              requiredCount: 20,
+              requiredCount: config.monthlyRequiredCount,
               completedCount: correctCount,
               accuracyRate: infectionAccuracy,
             },

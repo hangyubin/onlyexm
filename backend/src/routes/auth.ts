@@ -4,6 +4,7 @@ import prisma from '../lib/prisma';
 import { signToken } from '../utils/jwt';
 import { authMiddleware } from '../middleware/auth';
 import { roleGuard } from '../middleware/roleGuard';
+import { getInfectionConfig } from '../services/configService';
 import { success, error } from '../utils/response';
 
 const router = express.Router();
@@ -139,11 +140,12 @@ router.post('/register', authMiddleware, roleGuard(['ADMIN']), async (req, res) 
       },
     });
 
+    const config = await getInfectionConfig();
     const infectionRequirement = await prisma.infectionRequirement.create({
       data: {
         userId: user.id,
         month: currentMonth,
-        requiredCount: 20,
+        requiredCount: config.monthlyRequiredCount,
         completedCount: 0,
       },
     });

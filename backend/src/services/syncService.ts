@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma';
+import { getInfectionConfig } from './configService';
 
 export interface SyncRecord {
   questionId: number;
@@ -22,6 +23,7 @@ export async function syncPracticeRecords(userId: number, records: SyncRecord[])
     const currentMonth = new Date().toISOString().slice(0, 7);
 
     await prisma.$transaction(async (tx) => {
+      const config = await getInfectionConfig();
       let correctCount = 0;
       let totalCount = 0;
 
@@ -69,7 +71,7 @@ export async function syncPracticeRecords(userId: number, records: SyncRecord[])
               data: {
                 userId,
                 month: currentMonth,
-                requiredCount: 20,
+                requiredCount: config.monthlyRequiredCount,
                 completedCount: 1,
               },
             });

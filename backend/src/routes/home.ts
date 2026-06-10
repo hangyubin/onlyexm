@@ -4,6 +4,7 @@ import path from 'path';
 import prisma from '../lib/prisma';
 import { authMiddleware } from '../middleware/auth';
 import * as learningMaterialService from '../services/learningMaterialService';
+import { getInfectionConfig } from '../services/configService';
 
 const router = express.Router();
 
@@ -67,10 +68,11 @@ router.get('/infection-status', authMiddleware, async (req, res) => {
     });
 
     if (!requirement) {
+      const config = await getInfectionConfig();
       return res.json({
         isLocked: false,
         completedCount: 0,
-        totalCount: 20,
+        totalCount: config.monthlyRequiredCount,
         correctRate: 0,
         isCompliant: false,
       });

@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma';
+import { getInfectionConfig } from './configService';
 
 export interface PracticeQuestion {
   id: number;
@@ -384,6 +385,7 @@ export async function submitPractice(practiceId: number, answers: SubmitAnswer[]
   console.log('[每日一练] 提交练习 - ID:', practiceId);
 
   return prisma.$transaction(async (tx) => {
+    const config = await getInfectionConfig();
     const safePracticeId = typeof practiceId === 'string' ? parseInt(practiceId) : practiceId;
 
     const practice = await tx.dailyPractice.findUnique({
@@ -492,7 +494,7 @@ export async function submitPractice(practiceId: number, answers: SubmitAnswer[]
           data: {
             userId: practice.userId,
             month: currentMonth,
-            requiredCount: 20,
+            requiredCount: config.monthlyRequiredCount,
             completedCount: 0,
             accuracyRate: 0,
             isLocked: false,

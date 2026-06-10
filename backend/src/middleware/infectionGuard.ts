@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import prisma from '../lib/prisma';
+import { getInfectionConfig } from '../services/configService';
 
 export async function infectionGuard(req: Request, res: Response, next: NextFunction) {
   const user = req.user;
@@ -23,11 +24,12 @@ export async function infectionGuard(req: Request, res: Response, next: NextFunc
     });
 
     if (!requirement) {
+      const config = await getInfectionConfig();
       await prisma.infectionRequirement.create({
         data: {
           userId: user.userId,
           month: currentMonth,
-          requiredCount: 20,
+          requiredCount: config.monthlyRequiredCount,
           completedCount: 0,
         },
       });

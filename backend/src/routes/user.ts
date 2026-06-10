@@ -6,6 +6,7 @@ import multer from 'multer';
 import ExcelJS from 'exceljs';
 import { authMiddleware } from '../middleware/auth';
 import { roleGuard } from '../middleware/roleGuard';
+import { getInfectionConfig } from '../services/configService';
 import { getDictItems } from '../utils/dictCache';
 import { success, error, paginate } from '../utils/response';
 
@@ -302,11 +303,12 @@ router.post('/', roleGuard(['ADMIN', 'INFECTION_OFFICER']), async (req, res) => 
         where: { userId: user.id, month: new Date().toISOString().slice(0, 7) },
       });
       if (!existingReq) {
+        const config = await getInfectionConfig();
         await prisma.infectionRequirement.create({
           data: {
             userId: user.id,
             month: new Date().toISOString().slice(0, 7),
-            requiredCount: 20,
+            requiredCount: config.monthlyRequiredCount,
             completedCount: 0,
             accuracyRate: 0 as any,
             isLocked: false,
