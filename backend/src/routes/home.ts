@@ -72,7 +72,7 @@ router.get('/infection-status', authMiddleware, async (req, res) => {
         completedCount: 0,
         totalCount: 20,
         correctRate: 0,
-        isCompliant: true,
+        isCompliant: false,
       });
     }
 
@@ -280,9 +280,11 @@ router.get('/weak-points', authMiddleware, async (req, res) => {
   try {
     const tagMap: Record<string, string> = {
       HAND_HYGIENE: '手卫生',
-      MEDICAL_WASTE: '医废处理',
-      EXPOSURE: '职业暴露',
+      MEDICAL_WASTE: '医疗废物',
       DISINFECTION: '消毒隔离',
+      EXPOSURE: '职业暴露',
+      ISOLATION: '隔离防护',
+      STERILIZATION: '无菌操作',
       MDRO: '多重耐药菌',
       AIR_QUALITY: '空气质量',
     };

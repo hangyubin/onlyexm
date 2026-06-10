@@ -39,10 +39,8 @@ const LearningMaterials: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await learningMaterialApi.getList();
-      if (response.success) {
-        setMaterials(response.data);
-      }
+      const data = await learningMaterialApi.getList();
+      setMaterials(data);
     } catch (error) {
       console.error('Failed to fetch learning materials:', error);
       setError('加载学习资料失败');

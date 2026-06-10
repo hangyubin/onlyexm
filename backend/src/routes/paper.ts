@@ -14,6 +14,7 @@ function mapPaperItem(item: any) {
     description: item.description || '',
     totalScore: item.totalScore,
     passScore: item.passingScore,
+    duration: item.durationMinutes,
     durationMinutes: item.durationMinutes,
     examStartTime: item.examStartTime ? new Date(item.examStartTime).toISOString() : null,
     examEndTime: item.examEndTime ? new Date(item.examEndTime).toISOString() : null,
@@ -34,6 +35,7 @@ function mapPaperDetail(paper: any) {
     description: paper.description || '',
     totalScore: paper.totalScore,
     passScore: paper.passingScore,
+    duration: paper.durationMinutes,
     durationMinutes: paper.durationMinutes,
     examStartTime: paper.examStartTime ? new Date(paper.examStartTime).toISOString() : null,
     examEndTime: paper.examEndTime ? new Date(paper.examEndTime).toISOString() : null,
@@ -66,10 +68,12 @@ router.get('/', authMiddleware, async (req, res) => {
     }
     if (isActive !== undefined && isActive !== '') {
       where.isActive = isActive === 'true';
-      // 用户端查询 isActive=true 的试卷时，同时要求 isPublished=true
-      if (isActive === 'true') {
-        where.isPublished = true;
-      }
+    }
+
+    // 非管理员角色只能查看已发布的试卷
+    if (req.user?.role && !['ADMIN', 'INFECTION_OFFICER'].includes(req.user.role)) {
+      where.isPublished = true;
+      where.isActive = true;
     }
 
     const [items, total] = await Promise.all([
@@ -253,7 +257,7 @@ router.put('/:id', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER']), as
       return res.status(404).json({ error: '试卷不存在' });
     }
 
-    const { title, description, totalScore, passScore, duration, questions, status, examStartTime, examEndTime } = req.body;
+    const { title, description, totalScore, passScore, duration, questions, examStartTime, examEndTime } = req.body;
 
     // 已发布的试卷不允许编辑
     if (existing.isPublished) {

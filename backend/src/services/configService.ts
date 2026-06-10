@@ -61,6 +61,24 @@ export async function updateInfectionConfig(
   updates: Partial<InfectionConfig>,
   userId: number
 ): Promise<InfectionConfig> {
+  // 输入验证
+  const validationRules: Record<string, { min: number; max: number; label: string }> = {
+    monthlyRequiredCount: { min: 1, max: 100, label: '每月要求题数' },
+    passRateThreshold: { min: 0, max: 100, label: '及格线' },
+    weakPointThreshold: { min: 0, max: 100, label: '薄弱知识点阈值' },
+    unlockAccuracy: { min: 0, max: 100, label: '解锁正确率' },
+    unlockCompletedCount: { min: 1, max: 100, label: '解锁完成数' },
+  };
+
+  for (const [key, value] of Object.entries(updates)) {
+    const rule = validationRules[key];
+    if (rule && typeof value === 'number') {
+      if (value < rule.min || value > rule.max) {
+        throw new Error(`${rule.label}必须在 ${rule.min} 到 ${rule.max} 之间`);
+      }
+    }
+  }
+
   const currentConfig = await getInfectionConfig();
 
   await prisma.$transaction(async (tx) => {
@@ -132,7 +150,7 @@ export async function getConfigLogs(page: number = 1, pageSize: number = 20) {
   const logs = await prisma.configLog.findMany({
     skip,
     take: pageSize,
-    include: { user: true },
+    include: { user: { select: { realName: true } } },
     orderBy: { createdAt: 'desc' },
   });
 

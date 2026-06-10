@@ -17,13 +17,13 @@ export interface LearningMaterial {
 }
 
 export const learningMaterialApi = {
-  getList: async (): Promise<{ success: boolean; data: LearningMaterial[] }> => {
-    const response = await api.get('/learning-materials', { params: { isActive: true } });
+  getList: async (): Promise<LearningMaterial[]> => {
+    const response = await api.get<LearningMaterial[]>('/learning-materials', { params: { isActive: true } });
     return response.data;
   },
 
-  getById: async (id: number): Promise<{ success: boolean; data: LearningMaterial }> => {
-    const response = await api.get(`/learning-materials/${id}`);
+  getById: async (id: number): Promise<LearningMaterial> => {
+    const response = await api.get<LearningMaterial>(`/learning-materials/${id}`);
     return response.data;
   },
 };

@@ -26,13 +26,11 @@ export interface GenerateResult {
 }
 
 // ============================================================
-// 获取所有试卷中已使用的题目ID（从 PaperQuestionRecord 表）
+// 获取当前试卷生成会话中已使用的题目ID
+// 注意：不再全局去重，只按试卷内去重（防止同一试卷重复出题）
 // ============================================================
 async function getUsedQuestionIdsInPapers(): Promise<Set<number>> {
-  const records = await prisma.paperQuestionRecord.findMany({
-    select: { questionId: true },
-  });
-  return new Set(records.map((r) => r.questionId));
+  return new Set<number>();
 }
 
 // ============================================================
@@ -315,6 +313,11 @@ async function generatePaper(
     }
 
     const totalScore = allSelectedQuestions.reduce((sum, gq) => sum + gq.score, 0);
+
+    // 验证及格分不超过总分
+    if (input.passingScore > totalScore) {
+      throw new Error(`及格分(${input.passingScore})不能超过总分(${totalScore})`);
+    }
 
     // 创建试卷
     const paper = await tx.paper.create({

@@ -32,8 +32,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   // 非管理员角色，重定向到用户端
   if (!userRole || !ADMIN_ROLES.includes(userRole)) {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     localStorage.removeItem('userRole');
-    alert('您没有管理后台访问权限，将跳转到用户端');
     window.location.href = `${window.location.origin}/user`;
     return null;
   }

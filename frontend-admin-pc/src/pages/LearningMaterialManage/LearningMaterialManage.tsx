@@ -35,20 +35,16 @@ export default function LearningMaterialManage() {
   }, []);
 
   const fetchData = async () => {
-    setLoading(true);
     try {
+      setLoading(true);
       const params: LearningMaterialListParams = {
         keyword: searchForm.keyword || undefined,
         type: searchForm.type || undefined,
         category: searchForm.category || undefined,
         isActive: searchForm.isActive,
       };
-      const response = await learningMaterialApi.getList(params);
-      if (response.success) {
-        setData(response.data);
-      } else {
-        setData([]);
-      }
+      const data = await learningMaterialApi.getList(params);
+      setData(data);
     } catch (error) {
       message.error('获取学习资料列表失败');
       setData([]);
@@ -261,17 +257,13 @@ export default function LearningMaterialManage() {
         onSubmit={async (data) => {
           try {
             if (editData) {
-              const response = await learningMaterialApi.update(editData.id, data);
-              if (response.success) {
-                message.success(response.message || '更新成功');
-                handleModalSuccess();
-              }
+              await learningMaterialApi.update(editData.id, data);
+              message.success('更新成功');
+              handleModalSuccess();
             } else {
-              const response = await learningMaterialApi.create(data);
-              if (response.success) {
-                message.success(response.message || '创建成功');
-                handleModalSuccess();
-              }
+              await learningMaterialApi.create(data);
+              message.success('创建成功');
+              handleModalSuccess();
             }
           } catch (error) {
             message.error(editData ? '更新失败' : '创建失败');

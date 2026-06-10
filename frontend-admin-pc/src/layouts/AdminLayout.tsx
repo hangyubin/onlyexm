@@ -13,6 +13,7 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   LogoutOutlined,
+  HomeOutlined,
 } from '@ant-design/icons';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 
@@ -40,6 +41,10 @@ export default function AdminLayout() {
     localStorage.removeItem('user');
     localStorage.removeItem('userRole');
     navigate('/login');
+  };
+
+  const goToUserFrontend = () => {
+    window.location.href = `${window.location.origin}/`;
   };
 
   const userMenu = [
@@ -157,6 +162,13 @@ export default function AdminLayout() {
             style={{ marginRight: 16 }}
           />
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <Button
+              icon={<HomeOutlined />}
+              onClick={goToUserFrontend}
+              style={{ color: '#3b82f6' }}
+            >
+              用户端
+            </Button>
             <Dropdown
               menu={{ items: userMenu }}
               placement="bottomRight"

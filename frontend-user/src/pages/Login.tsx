@@ -119,11 +119,6 @@ const Login: React.FC = () => {
           </button>
         </form>
 
-        <div className="mt-6 text-center text-sm text-gray-500 space-y-1">
-          <p>测试账号：doctor / admin123</p>
-          <p>管理员：admin / admin123</p>
-        </div>
-
         <div className="mt-6 pt-6 border-t border-gray-100">
           <p className="text-center text-xs text-gray-400">
             登录即表示您同意我们的服务条款和隐私政策

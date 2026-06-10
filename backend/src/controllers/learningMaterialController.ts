@@ -1,6 +1,7 @@
+import { Request, Response } from 'express';
 import * as learningMaterialService from '../services/learningMaterialService';
 
-export const getLearningMaterials = async (req: any, res: any) => {
+export const getLearningMaterials = async (req: Request, res: Response) => {
   try {
     const { keyword, type, category, isActive } = req.query;
     
@@ -26,7 +27,7 @@ export const getLearningMaterials = async (req: any, res: any) => {
   }
 };
 
-export const getLearningMaterialById = async (req: any, res: any) => {
+export const getLearningMaterialById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const material = await learningMaterialService.getMaterialById(parseInt(id));
@@ -44,7 +45,7 @@ export const getLearningMaterialById = async (req: any, res: any) => {
   }
 };
 
-export const createLearningMaterial = async (req: any, res: any) => {
+export const createLearningMaterial = async (req: Request, res: Response) => {
   try {
     const { title, description, type, content, category, thumbnailUrl, attachmentUrl, sortOrder, isActive } = req.body;
     
@@ -67,7 +68,7 @@ export const createLearningMaterial = async (req: any, res: any) => {
   }
 };
 
-export const updateLearningMaterial = async (req: any, res: any) => {
+export const updateLearningMaterial = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { title, description, type, content, category, thumbnailUrl, attachmentUrl, sortOrder, isActive } = req.body;
@@ -96,7 +97,7 @@ export const updateLearningMaterial = async (req: any, res: any) => {
   }
 };
 
-export const deleteLearningMaterial = async (req: any, res: any) => {
+export const deleteLearningMaterial = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const success = await learningMaterialService.deleteMaterial(parseInt(id));
@@ -112,7 +113,7 @@ export const deleteLearningMaterial = async (req: any, res: any) => {
   }
 };
 
-export const getCategories = async (req: any, res: any) => {
+export const getCategories = async (req: Request, res: Response) => {
   try {
     const categories = await learningMaterialService.getCategories();
     res.json({ success: true, data: categories });

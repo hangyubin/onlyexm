@@ -15,10 +15,14 @@ export default function Login() {
       
       if (response.data.token) {
         localStorage.setItem('token', response.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.user));
+        const user = response.data.user;
+        localStorage.setItem('user', JSON.stringify({
+          realName: user?.realName,
+          role: user?.role,
+        }));
         // 保存用户角色
-        if (response.data.user?.role) {
-          localStorage.setItem('userRole', response.data.user.role);
+        if (user?.role) {
+          localStorage.setItem('userRole', user.role);
         }
         message.success('登录成功');
         navigate('/dashboard');

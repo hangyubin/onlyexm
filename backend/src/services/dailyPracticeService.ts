@@ -19,6 +19,12 @@ export interface DailyPracticeResult {
   isCompleted: boolean;
 }
 
+export interface PracticeOptions {
+  questionCount?: number;
+  category?: string;         // 一级分类筛选，'ALL' 表示全部
+  infectionTags?: string[];  // 院感标签筛选
+}
+
 export interface SubmitAnswer {
   questionId: number;
   answer: string | string[];
@@ -121,98 +127,130 @@ async function getRandomQuestions(
 // ============================================================
 // 生成每日练习题（题目不重复）
 // ============================================================
-async function generateQuestions(userId: number, questionCount: number = 10): Promise<PracticeQuestion[]> {
+async function generateQuestions(userId: number, options?: PracticeOptions): Promise<PracticeQuestion[]> {
+  const questionCount = options?.questionCount || 10;
+  const category = options?.category || null;
+  const infectionTags = options?.infectionTags || [];
   const today = new Date().toISOString().slice(0, 10);
 
   // 从 PracticeQuestionRecord 表获取已用题目ID（精准可靠）
   const usedQuestionIds = await getUsedQuestionIds(userId);
   console.log(`[每日一练] 用户${userId} 已用题目数: ${usedQuestionIds.size}`);
 
+  // 构建基础 where 条件
+  const baseWhere: any = {
+    deletedAt: null,
+    type: { in: ['SINGLE', 'MULTIPLE', 'JUDGE'] },
+  };
+
+  // 分类筛选
+  if (category && category !== 'ALL') {
+    // 检查是否是院感标签（八种标签之一）
+    const allInfectionTags = ['HAND_HYGIENE', 'MEDICAL_WASTE', 'DISINFECTION', 'EXPOSURE', 'ISOLATION', 'STERILIZATION', 'MDRO', 'AIR_QUALITY'];
+    if (allInfectionTags.includes(category)) {
+      // 按具体院感标签筛选
+      baseWhere.OR = [
+        { subCategory: category },
+        { infectionTag: category, subCategory: null },
+      ];
+    } else {
+      // 按一级分类筛选
+      baseWhere.category = category;
+    }
+  } else if (infectionTags.length > 0) {
+    // 多个院感标签筛选
+    baseWhere.OR = [
+      { subCategory: { in: infectionTags } },
+      { infectionTag: { in: infectionTags }, subCategory: null },
+    ];
+  }
+
   // 获取可用题目总数
   const totalAvailable = await prisma.question.count({
-    where: {
-      deletedAt: null,
-      type: { in: ['SINGLE', 'MULTIPLE', 'JUDGE'] },
-    },
+    where: baseWhere,
   });
 
   // 如果所有题目都已用完，清空历史记录，重新开始循环
   if (usedQuestionIds.size >= totalAvailable && totalAvailable > 0) {
-    console.log(`[每日一练] 用户${userId} 已用完所有${totalAvailable}道题，重置记录`);
+    console.log(`[每日一练] 用户${userId} 已用完当前筛选条件下所有${totalAvailable}道题，重置记录`);
     await prisma.practiceQuestionRecord.deleteMany({ where: { userId } });
     usedQuestionIds.clear();
   }
 
   const questions: PracticeQuestion[] = [];
   const usedIdsInBatch = new Set<number>();
-  const weakTags = await getWeakTags(userId);
 
-  // 按比例分配：30%弱标签题，20%院感基础，50%基础题
-  const weakTagCount = Math.round(questionCount * 0.3);
-  const basicInfectionCount = Math.round(questionCount * 0.2);
-  const basicCount = questionCount - weakTagCount - basicInfectionCount;
+  // 当没有指定分类/标签筛选时，使用智能分配策略
+  if (!category && infectionTags.length === 0) {
+    const weakTags = await getWeakTags(userId);
 
-  // 合并排除ID
-  const allExclude = new Set([...usedQuestionIds, ...usedIdsInBatch]);
+    // 按比例分配：30%弱标签题，20%院感基础，50%基础题
+    const weakTagCount = Math.round(questionCount * 0.3);
+    const basicInfectionCount = Math.round(questionCount * 0.2);
+    const basicCount = questionCount - weakTagCount - basicInfectionCount;
 
-  // 1. 弱标签题目
-  if (weakTags.length > 0 && weakTagCount > 0) {
-    const weakQuestions = await getRandomQuestions(
-      {
-        OR: [
-          { subCategory: { in: weakTags } },
-          { infectionTag: { in: weakTags }, subCategory: null },
-        ],
-      },
-      allExclude,
-      weakTagCount,
-    );
-    questions.push(...weakQuestions);
-    weakQuestions.forEach((q) => {
-      allExclude.add(q.id);
-      usedIdsInBatch.add(q.id);
-    });
-  }
+    const allExclude = new Set([...usedQuestionIds, ...usedIdsInBatch]);
 
-  // 2. 院感基础题
-  if (basicInfectionCount > 0) {
-    const remainingTake = basicInfectionCount;
-    const infectionQuestions = await getRandomQuestions(
-      {
-        OR: [
-          { subCategory: { not: null } },
-          { infectionTag: { not: null }, subCategory: null },
-        ],
-      },
-      allExclude,
-      remainingTake,
-    );
-    questions.push(...infectionQuestions);
-    infectionQuestions.forEach((q) => {
-      allExclude.add(q.id);
-      usedIdsInBatch.add(q.id);
-    });
-  }
+    // 1. 弱标签题目
+    if (weakTags.length > 0 && weakTagCount > 0) {
+      const weakQuestions = await getRandomQuestions(
+        {
+          OR: [
+            { subCategory: { in: weakTags } },
+            { infectionTag: { in: weakTags }, subCategory: null },
+          ],
+        },
+        allExclude,
+        weakTagCount,
+      );
+      questions.push(...weakQuestions);
+      weakQuestions.forEach((q) => {
+        allExclude.add(q.id);
+        usedIdsInBatch.add(q.id);
+      });
+    }
 
-  // 3. 剩余基础题
-  const remainingTake = questionCount - questions.length;
-  if (remainingTake > 0) {
-    const basicQuestions = await getRandomQuestions(
-      {},
-      allExclude,
-      remainingTake,
-    );
-    questions.push(...basicQuestions);
-    basicQuestions.forEach((q) => {
-      usedIdsInBatch.add(q.id);
-    });
+    // 2. 院感基础题
+    if (basicInfectionCount > 0) {
+      const infectionQuestions = await getRandomQuestions(
+        {
+          OR: [
+            { subCategory: { not: null } },
+            { infectionTag: { not: null }, subCategory: null },
+          ],
+        },
+        allExclude,
+        basicInfectionCount,
+      );
+      questions.push(...infectionQuestions);
+      infectionQuestions.forEach((q) => {
+        allExclude.add(q.id);
+        usedIdsInBatch.add(q.id);
+      });
+    }
+
+    // 3. 剩余基础题
+    const remainingTake = questionCount - questions.length;
+    if (remainingTake > 0) {
+      const basicQuestions = await getRandomQuestions({}, allExclude, remainingTake);
+      questions.push(...basicQuestions);
+      basicQuestions.forEach((q) => {
+        usedIdsInBatch.add(q.id);
+      });
+    }
+  } else {
+    // 有分类/标签筛选时，直接按筛选条件随机出题
+    const allExclude = new Set([...usedQuestionIds, ...usedIdsInBatch]);
+    const filteredQuestions = await getRandomQuestions(baseWhere, allExclude, questionCount);
+    questions.push(...filteredQuestions);
+    filteredQuestions.forEach((q) => usedIdsInBatch.add(q.id));
   }
 
   // 如果题目不够，允许使用已用过的题目（补充）
   if (questions.length < questionCount) {
     const remainingNeeded = questionCount - questions.length;
     const backupExclude = new Set(questions.map((q) => q.id));
-    const backupQuestions = await getRandomQuestions({}, backupExclude, remainingNeeded);
+    const backupQuestions = await getRandomQuestions(baseWhere, backupExclude, remainingNeeded);
     questions.push(...backupQuestions);
   }
 
@@ -236,23 +274,23 @@ async function generateQuestions(userId: number, questionCount: number = 10): Pr
           questionId: qid,
           date: today,
         })),
-        skipDuplicates: true, // 跳过已存在的记录（防止唯一约束冲突）
+        skipDuplicates: true,
       });
     } catch (e) {
       console.error('[每日一练] 记录题目失败:', e);
     }
   }
 
-  console.log(`[每日一练] 用户${userId} 生成${uniqueQuestions.length}题（去重前${questions.length}）`);
+  console.log(`[每日一练] 用户${userId} 生成${uniqueQuestions.length}题（去重前${questions.length}），筛选条件:`, { category, infectionTags });
   return uniqueQuestions.slice(0, questionCount);
 }
 
 // ============================================================
 // 获取今日练习
 // ============================================================
-export async function getTodayPractice(userId: number, questionCount?: number): Promise<DailyPracticeResult> {
+export async function getTodayPractice(userId: number, options?: PracticeOptions): Promise<DailyPracticeResult> {
   const today = new Date().toISOString().slice(0, 10);
-  console.log('[每日一练] 获取今日练习 - 用户:', userId, '日期:', today);
+  console.log('[每日一练] 获取今日练习 - 用户:', userId, '日期:', today, '选项:', options);
 
   let practice = await prisma.dailyPractice.findFirst({
     where: { userId, date: today },
@@ -260,7 +298,7 @@ export async function getTodayPractice(userId: number, questionCount?: number): 
 
   if (!practice) {
     console.log('[每日一练] 创建新练习');
-    const questions = await generateQuestions(userId, questionCount || 10);
+    const questions = await generateQuestions(userId, options);
 
     practice = await prisma.dailyPractice.create({
       data: {
@@ -290,9 +328,9 @@ export async function getTodayPractice(userId: number, questionCount?: number): 
 // ============================================================
 // 重置今日练习
 // ============================================================
-export async function resetTodayPractice(userId: number, questionCount?: number): Promise<DailyPracticeResult> {
+export async function resetTodayPractice(userId: number, options?: PracticeOptions): Promise<DailyPracticeResult> {
   const today = new Date().toISOString().slice(0, 10);
-  console.log('[每日一练] 重置今日练习 - 用户:', userId);
+  console.log('[每日一练] 重置今日练习 - 用户:', userId, '选项:', options);
 
   // 删除今日练习记录
   await prisma.dailyPractice.deleteMany({
@@ -300,13 +338,12 @@ export async function resetTodayPractice(userId: number, questionCount?: number)
   });
 
   // 删除今日的题目使用记录（允许重新出题）
-  // 注意：保留历史记录，只删除今天的
   await prisma.practiceQuestionRecord.deleteMany({
     where: { userId, date: today },
   });
 
   // 创建新练习
-  const questions = await generateQuestions(userId, questionCount || 10);
+  const questions = await generateQuestions(userId, options);
   const practice = await prisma.dailyPractice.create({
     data: {
       userId,
@@ -373,10 +410,26 @@ export async function submitPractice(practiceId: number, answers: SubmitAnswer[]
     const results: { questionId: number; isCorrect: boolean; correctAnswer: string; userAnswer: string }[] = [];
     let correctCount = 0;
 
-    for (const question of questions) {
-      const options = await tx.questionOption.findMany({
-        where: { questionId: question.id },
-      });
+    // 批量获取所有题目选项（避免 N+1 查询）
+    const questionIds = questions.map(q => q.id);
+    const allOptions = await tx.questionOption.findMany({
+      where: { questionId: { in: questionIds } },
+    });
+    const optionsMap = new Map<number, typeof allOptions>();
+    for (const opt of allOptions) {
+      const arr = optionsMap.get(opt.questionId) || [];
+      arr.push(opt);
+      optionsMap.set(opt.questionId, arr);
+    }
+
+    // 构建问题Map（避免 O(n²) filter）
+    const questionMap = new Map(questions.map(q => [q.id, q]));
+
+    for (const answerItem of answers) {
+      const question = questionMap.get(answerItem.questionId);
+      if (!question) continue;
+
+      const options = optionsMap.get(question.id) || [];
 
       const correctOptions = options.filter((opt) => opt.isCorrect);
       const correctAnswer = correctOptions.map((opt) => opt.optionKey).sort().join(',');
@@ -384,14 +437,11 @@ export async function submitPractice(practiceId: number, answers: SubmitAnswer[]
       let userAnswer = '';
       let isCorrect = false;
 
-      const answerItem = answers.find((a) => a.questionId === question.id);
-      if (answerItem) {
-        userAnswer = Array.isArray(answerItem.answer)
-          ? answerItem.answer.sort().join(',')
-          : answerItem.answer;
-        isCorrect = userAnswer === correctAnswer;
-        if (isCorrect) correctCount++;
-      }
+      userAnswer = Array.isArray(answerItem.answer)
+        ? answerItem.answer.sort().join(',')
+        : answerItem.answer;
+      isCorrect = userAnswer === correctAnswer;
+      if (isCorrect) correctCount++;
 
       results.push({ questionId: question.id, isCorrect, correctAnswer, userAnswer });
     }
@@ -412,9 +462,26 @@ export async function submitPractice(practiceId: number, answers: SubmitAnswer[]
       },
     });
 
-    // 更新月度院感任务
+    // 更新月度院感任务（只统计有院感标签的题目）
     if (!wasAlreadyCompleted && practice.userId) {
       const currentMonth = new Date().toISOString().slice(0, 7);
+
+      // 统计本次练习中的院感标签题目
+      const infectionTaggedQuestions = questions.filter(
+        (q) => q.infectionTag || q.subCategory
+      );
+      const infectionTaggedCount = infectionTaggedQuestions.length;
+
+      // 计算本次院感题目的正确率
+      const infectionTaggedCorrect = results.filter(
+        (r) => {
+          const q = questionMap.get(r.questionId);
+          return (q?.infectionTag || q?.subCategory) && r.isCorrect;
+        }
+      ).length;
+      const currentInfectionAccuracy = infectionTaggedCount > 0
+        ? Math.round((infectionTaggedCorrect / infectionTaggedCount) * 100)
+        : 0;
 
       let requirement = await tx.infectionRequirement.findFirst({
         where: { userId: practice.userId, month: currentMonth },
@@ -433,32 +500,71 @@ export async function submitPractice(practiceId: number, answers: SubmitAnswer[]
         });
       }
 
-      const thisMonthPractices = await tx.dailyPractice.findMany({
-        where: {
-          userId: practice.userId,
-          date: { startsWith: currentMonth },
-          isCompleted: true,
-        },
-      });
-
-      let totalScore = score;
-      let totalPractices = 1;
-      for (const p of thisMonthPractices) {
-        if (p.id !== safePracticeId) {
-          totalScore += p.score || 0;
-          totalPractices += 1;
-        }
-      }
-
-      const newAccuracy = totalPractices > 0 ? Math.round(totalScore / totalPractices) : 0;
+      // 加权平均计算新正确率：(旧正确率 × 旧题数 + 新正确率 × 新题数) / 总题数
+      const oldCompletedCount = requirement.completedCount;
+      const oldAccuracyRate = Number(requirement.accuracyRate || 0);
+      const newCompletedCount = oldCompletedCount + infectionTaggedCount;
+      const newAccuracy = newCompletedCount > 0
+        ? Math.round((oldAccuracyRate * oldCompletedCount + currentInfectionAccuracy * infectionTaggedCount) / newCompletedCount)
+        : 0;
 
       await tx.infectionRequirement.update({
         where: { id: requirement.id },
         data: {
-          completedCount: { increment: totalQuestions },
+          completedCount: newCompletedCount,
           accuracyRate: newAccuracy,
         },
       });
+    }
+
+    // ===== 错题记录（批量查询避免N+1） =====
+    const resultQuestionIds = results.map(r => r.questionId);
+    const existingWrongQuestions = await tx.wrongQuestion.findMany({
+      where: {
+        userId: practice.userId,
+        questionId: { in: resultQuestionIds },
+      },
+    });
+    const wrongQuestionMap = new Map<number, typeof existingWrongQuestions[0]>();
+    for (const wq of existingWrongQuestions) {
+      wrongQuestionMap.set(wq.questionId, wq);
+    }
+
+    for (const result of results) {
+      const existingWrong = wrongQuestionMap.get(result.questionId);
+      if (result.isCorrect) {
+        // 答对了：如果之前有错题记录，增加连续正确次数
+        if (existingWrong && existingWrong.status === 'ACTIVE') {
+          const newCorrectCount = existingWrong.correctCount + 1;
+          const newStatus = newCorrectCount >= 3 ? 'REMOVED' : 'ACTIVE';
+          await tx.wrongQuestion.update({
+            where: { id: existingWrong.id },
+            data: { correctCount: newCorrectCount, status: newStatus },
+          });
+        }
+      } else {
+        // 答错了：创建或更新错题记录
+        if (existingWrong) {
+          await tx.wrongQuestion.update({
+            where: { id: existingWrong.id },
+            data: {
+              wrongCount: existingWrong.wrongCount + 1,
+              correctCount: 0,
+              status: 'ACTIVE',
+            },
+          });
+        } else {
+          await tx.wrongQuestion.create({
+            data: {
+              userId: practice.userId,
+              questionId: result.questionId,
+              wrongCount: 1,
+              correctCount: 0,
+              status: 'ACTIVE',
+            },
+          });
+        }
+      }
     }
 
     let message = '';
@@ -544,10 +650,21 @@ export async function getPracticeResult(practiceId: number): Promise<SubmitResul
   const results: { questionId: number; isCorrect: boolean; correctAnswer: string; userAnswer: string }[] = [];
   let correctCount = 0;
 
+  const questionIds = questions.map(q => q.id);
+
+  // 批量获取所有题目选项（避免 N+1 查询）
+  const allOptions = await prisma.questionOption.findMany({
+    where: { questionId: { in: questionIds } },
+  });
+  const optionsMap = new Map<number, typeof allOptions>();
+  for (const opt of allOptions) {
+    const arr = optionsMap.get(opt.questionId) || [];
+    arr.push(opt);
+    optionsMap.set(opt.questionId, arr);
+  }
+
   for (const question of questions) {
-    const options = await prisma.questionOption.findMany({
-      where: { questionId: question.id },
-    });
+    const options = optionsMap.get(question.id) || [];
 
     const correctOptions = options.filter((opt) => opt.isCorrect);
     const correctAnswer = correctOptions.map((opt) => opt.optionKey).sort().join(',');

@@ -52,7 +52,7 @@ RUN npm run build
 # ---------- 阶段4: 运行时镜像 ----------
 FROM node:20-alpine
 
-RUN apk add --no-cache nginx supervisor
+RUN apk add --no-cache nginx supervisor font-noto-cjk
 
 # 复制后端运行时文件
 COPY --from=backend-builder /app/dist /app/backend/dist

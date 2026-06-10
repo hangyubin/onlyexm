@@ -12,17 +12,6 @@ async function getDeptNameMap(): Promise<Map<string, string>> {
   return map;
 }
 
-// 获取题型字典映射
-async function getQuestionTypeNameMap(): Promise<Map<string, string>> {
-  const typeDict = await prisma.systemDict.findMany({
-    where: { category: 'QUESTION_TYPE', isActive: true },
-    select: { code: true, name: true },
-  });
-  const map = new Map<string, string>();
-  typeDict.forEach(d => map.set(d.code, d.name));
-  return map;
-}
-
 export async function generateExamSummaryReport(startDate: string, endDate: string): Promise<Buffer | ArrayBuffer> {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('考试成绩汇总');
@@ -155,7 +144,7 @@ export async function generateDeptRankingReport(startDate: string, endDate: stri
           lte: new Date(endDate),
         },
       },
-      include: { user: true },
+      include: { user: true, paper: { select: { passingScore: true } } },
     }),
     getDeptNameMap(),
   ]);
@@ -170,7 +159,7 @@ export async function generateDeptRankingReport(startDate: string, endDate: stri
     deptStats[dept].totalScore += record.score || 0;
     deptStats[dept].totalInfectionScore += record.infectionScore || 0;
     deptStats[dept].count++;
-    if ((record.score || 0) >= 60) {
+    if ((record.score || 0) >= (record.paper?.passingScore ?? 60)) {
       deptStats[dept].passed++;
     }
   });
@@ -219,6 +208,7 @@ export async function generateQuestionErrorRateReport(): Promise<Buffer | ArrayB
     where: {
       examRecord: {
         createdAt: { gte: thirtyDaysAgo },
+        status: { in: ['SUBMITTED', 'AUTO_SUBMIT', 'FORCE_SUBMIT'] },
       },
     },
     include: { question: true },

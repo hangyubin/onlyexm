@@ -364,8 +364,8 @@ router.post('/dict/init', roleGuard(['ADMIN']), async (req, res) => {
       }
     }
 
-    if (categories) {
-        categories.split(',').forEach(c => clearDictCache(c.trim()));
+    if (req.body.categories) {
+        targetCategories.forEach(c => clearDictCache(c.trim()));
       } else {
         clearDictCache();
       }

@@ -6,7 +6,7 @@ import multer from 'multer';
 import ExcelJS from 'exceljs';
 import { authMiddleware } from '../middleware/auth';
 import { roleGuard } from '../middleware/roleGuard';
-import { getDictItems, clearDictCache } from '../utils/dictCache';
+import { getDictItems } from '../utils/dictCache';
 import { success, error, paginate } from '../utils/response';
 
 const router = express.Router();
@@ -40,12 +40,6 @@ const normalizeDepartment = async (dept: unknown): Promise<string | undefined> =
   const items = await getDictItems('DEPARTMENT');
   const hit = items.find((i) => i.code === s || i.name === s || i.code.toUpperCase() === s.toUpperCase());
   return hit ? hit.code : s;
-};
-
-const normalizeHospitalId = (hid: unknown): number | undefined => {
-  if (hid === undefined || hid === null || hid === '') return undefined;
-  const n = typeof hid === 'number' ? hid : Number(hid);
-  return Number.isFinite(n) && n > 0 ? n : undefined;
 };
 
 router.get('/', async (req, res) => {
@@ -105,7 +99,7 @@ router.get('/', async (req, res) => {
 const upload = multer({ storage: multer.memoryStorage() });
 
 // 下载用户导入模板
-router.get('/import-template', async (req, res) => {
+router.get('/import-template', async (_req, res) => {
   try {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('用户导入模板');
@@ -151,7 +145,7 @@ router.get('/import-template', async (req, res) => {
     noteSheet.getRow(1).font = { bold: true };
     noteSheet.addRow({ field: '用户名', desc: '必填，登录账号，不可重复' });
     noteSheet.addRow({ field: '姓名', desc: '必填，真实姓名' });
-    noteSheet.addRow({ field: '密码', desc: '选填，默认为 123456' });
+    noteSheet.addRow({ field: '密码', desc: '选填，不填则自动生成随机密码' });
     noteSheet.addRow({ field: '角色', desc: `选填，可选值：${roles.map(r => `${r.name}(${r.code})`).join('、')}，默认 DOCTOR` });
     noteSheet.addRow({ field: '科室', desc: `选填，可选值：${departments.map(d => `${d.name}(${d.code})`).join('、')}` });
 
@@ -186,7 +180,7 @@ router.post('/batch-import', roleGuard(['ADMIN', 'INFECTION_OFFICER']), upload.s
       const row = worksheet.getRow(rowNumber);
       const username = String(row.getCell(1).value || '').trim();
       const realName = String(row.getCell(2).value || '').trim();
-      const password = String(row.getCell(3).value || '').trim() || '123456';
+      const password = String(row.getCell(3).value || '').trim() || crypto.randomBytes(4).toString('hex');
       const role = String(row.getCell(4).value || '').trim() || 'DOCTOR';
       const department = String(row.getCell(5).value || '').trim();
 
@@ -239,7 +233,15 @@ router.get('/:id', async (req, res) => {
     const id = parseInt(req.params.id);
     const user = await prisma.user.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        username: true,
+        realName: true,
+        role: true,
+        department: true,
+        hospitalId: true,
+        isLocked: true,
+        createdAt: true,
         hospital: true,
       },
     });
@@ -284,6 +286,7 @@ router.post('/', roleGuard(['ADMIN', 'INFECTION_OFFICER']), async (req, res) => 
       realName,
       role: nRole || 'DOCTOR',
       department: nDept || '未分配',
+      hospitalId: hospitalId || null,
     };
 
     const user = await prisma.user.create({

@@ -32,12 +32,6 @@ router.get('/stats', authMiddleware, async (req, res) => {
     });
     const totalStudyMinutes = learningRecords.reduce((sum, record) => sum + record.studyDurationSeconds, 0) / 60;
 
-    const examRecords = await prisma.examRecord.findMany({
-      where: { userId, status: 'SUBMITTED' },
-      orderBy: { createdAt: 'desc' },
-      take: 6,
-    });
-
     const pendingExams = await prisma.examRecord.findMany({
       where: { userId, status: 'IN_PROGRESS' },
       include: { paper: true },
@@ -89,33 +83,48 @@ router.get('/radar-data', authMiddleware, async (req, res) => {
       return res.status(401).json({ error: '用户未登录' });
     }
 
-    const infectionTags = ['HAND_HYGIENE', 'MEDICAL_WASTE', 'EXPOSURE', 'DISINFECTION', 'MDRO'];
+    const infectionTags = ['HAND_HYGIENE', 'MEDICAL_WASTE', 'DISINFECTION', 'EXPOSURE', 'ISOLATION', 'STERILIZATION', 'MDRO', 'AIR_QUALITY'];
     const tagLabels: Record<string, string> = {
       HAND_HYGIENE: '手卫生',
-      MEDICAL_WASTE: '医废处理',
-      EXPOSURE: '职业暴露',
+      MEDICAL_WASTE: '医疗废物',
       DISINFECTION: '消毒隔离',
+      EXPOSURE: '职业暴露',
+      ISOLATION: '隔离防护',
+      STERILIZATION: '无菌操作',
       MDRO: '多重耐药菌',
+      AIR_QUALITY: '空气质量',
     };
 
-    const radarData = await Promise.all(
-      infectionTags.map(async (tag) => {
-        const records = await prisma.practiceSyncRecord.findMany({
-          where: {
-            userId,
-            question: { infectionTag: tag as any },
-          },
-        });
+    // 批量查询所有标签，避免 N+1 查询
+    const allRecords = await prisma.practiceSyncRecord.findMany({
+      where: {
+        userId,
+        question: { infectionTag: { in: infectionTags as any[] } },
+      },
+      include: { question: { select: { infectionTag: true } } },
+    });
 
-        if (records.length === 0) {
-          return { tag, label: tagLabels[tag], value: 0 };
-        }
+    // 按标签分组计算正确率
+    const tagRecordsMap = new Map<string, typeof allRecords>();
+    for (const tag of infectionTags) {
+      tagRecordsMap.set(tag, []);
+    }
+    for (const record of allRecords) {
+      const tag = record.question?.infectionTag;
+      if (tag && tagRecordsMap.has(tag)) {
+        tagRecordsMap.get(tag)!.push(record);
+      }
+    }
 
-        const correctCount = records.filter(r => r.isCorrect).length;
-        const accuracy = Math.round((correctCount / records.length) * 100);
-        return { tag, label: tagLabels[tag], value: accuracy };
-      })
-    );
+    const radarData = infectionTags.map((tag) => {
+      const records = tagRecordsMap.get(tag) || [];
+      if (records.length === 0) {
+        return { tag, label: tagLabels[tag], value: 0 };
+      }
+      const correctCount = records.filter(r => r.isCorrect).length;
+      const accuracy = Math.round((correctCount / records.length) * 100);
+      return { tag, label: tagLabels[tag], value: accuracy };
+    });
 
     res.json({ code: 0, data: radarData });
   } catch (err) {
@@ -143,7 +152,7 @@ router.get('/exam-trend', authMiddleware, async (req, res) => {
       paperName: record.paper?.name || `考试${index + 1}`,
       score: record.score || 0,
       date: record.createdAt.toLocaleDateString('zh-CN'),
-      isPassed: (record.score || 0) >= 60,
+      isPassed: (record.score || 0) >= (record.paper?.passingScore ?? record.paper?.totalScore ? record.paper.totalScore * 0.6 : 60),
     }));
 
     res.json({ code: 0, data: trendData });
@@ -178,11 +187,17 @@ router.get('/wrong-heatmap', authMiddleware, async (req, res) => {
         categoryStats[category] = { count: 0, accuracy: 0 };
       }
       categoryStats[category].count += wq.wrongCount;
-      const total = wq.wrongCount + wq.correctCount;
-      categoryStats[category].accuracy = total > 0 
-        ? Math.round((wq.correctCount / total) * 100) 
-        : 0;
+      // 累加正确数，最后统一计算正确率
+      categoryStats[category].accuracy += wq.correctCount;
     });
+
+    // 统一计算各分类的正确率
+    for (const cat of Object.keys(categoryStats)) {
+      const total = categoryStats[cat].count + categoryStats[cat].accuracy;
+      categoryStats[cat].accuracy = total > 0
+        ? Math.round((categoryStats[cat].accuracy / total) * 100)
+        : 0;
+    }
 
     const heatmapData = Object.entries(categoryStats).map(([key, value]) => ({
       category: key,

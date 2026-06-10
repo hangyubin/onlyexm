@@ -305,6 +305,7 @@ export function WrongQuestionBook() {
   const [wrongQuestions, setWrongQuestions] = useState<WrongQuestionItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   
@@ -390,6 +391,7 @@ export function WrongQuestionBook() {
       }
     } catch (error) {
       console.error('Fetch wrong questions failed:', error);
+      setError('加载错题本失败，请重试');
     } finally {
       setLoading(false);
     }
@@ -397,7 +399,7 @@ export function WrongQuestionBook() {
 
   useEffect(() => {
     fetchWrongQuestions();
-  }, [page, filterType, filterCategory, filterTag]);
+  }, [page, filterType, filterCategory, filterTag, fetchWrongQuestions]);
 
   const handlePractice = (item: WrongQuestionItem) => {
     setPracticeMode('single');
@@ -466,6 +468,17 @@ export function WrongQuestionBook() {
 
   return (
     <div className="max-w-md mx-auto px-4 py-6">
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-center">
+          <p className="text-red-600">{error}</p>
+          <button
+            onClick={fetchWrongQuestions}
+            className="mt-2 px-4 py-1 bg-red-500 text-white rounded-lg text-sm"
+          >
+            重试
+          </button>
+        </div>
+      )}
       <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-6 text-white mb-6">
         <h1 className="text-xl font-bold text-center mb-2">错题本</h1>
         <p className="text-center text-orange-100">共 {total} 道错题待练习</p>

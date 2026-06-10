@@ -135,9 +135,13 @@ export const getCategories = async (): Promise<string[]> => {
 export const initSampleData = async () => {
   const totalCount = await prisma.learningMaterial.count();
 
-  // 仅当数据库完全没有学习资料时，初始化样例数据
-  if (totalCount === 0) {
-    const sampleData = [
+  // 清空旧数据并重新初始化（确保数据一致）
+  if (totalCount > 0) {
+    console.log(`检测到 ${totalCount} 条旧学习资料，重新初始化...`);
+    await prisma.learningMaterial.deleteMany();
+  }
+
+  const sampleData = [
       {
         title: '院感防护基础培训',
         description: '医院感染防护的基础知识和操作规范',
@@ -204,5 +208,4 @@ export const initSampleData = async () => {
       data: sampleData,
     });
     console.log(`已初始化 ${sampleData.length} 条学习资料样例数据`);
-  }
 };

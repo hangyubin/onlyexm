@@ -1,7 +1,7 @@
 import { Card, Button, Form, Input, InputNumber, Switch, Select, Row, Col, message, Tabs, Table, Modal, Popconfirm, Tag, Space, ColorPicker } from 'antd';
 import { SaveOutlined, RestOutlined, PlusOutlined, EditOutlined, DeleteOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useState, useEffect, useCallback } from 'react';
-import { systemApi, DictItem, KnowledgeDistributionItem } from '../../api/system';
+import { systemApi, DictItem } from '../../api/system';
 import { pinyin } from 'pinyin-pro';
 
 const { Option } = Select;
@@ -36,10 +36,14 @@ function ConfigTab() {
     try {
       const values = await form.validateFields();
       setLoading(true);
-      await systemApi.saveConfig(values);
-      message.success('配置保存成功');
-    } catch (error) {
-      message.error('配置保存失败');
+      try {
+        await systemApi.saveConfig(values);
+        message.success('配置保存成功');
+      } catch (apiError) {
+        message.error('配置保存失败，请稍后重试');
+      }
+    } catch (validationError) {
+      // 表单验证失败，Ant Design 会自动展示验证错误提示
     } finally {
       setLoading(false);
     }
@@ -322,179 +326,6 @@ function DictManageTab() {
   );
 }
 
-function KnowledgeDistributionTab() {
-  const [items, setItems] = useState<KnowledgeDistributionItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingItem, setEditingItem] = useState<KnowledgeDistributionItem | null>(null);
-  const [form] = Form.useForm();
-
-  const fetchItems = async () => {
-    setLoading(true);
-    try {
-      const result = await systemApi.getKnowledgeDistribution();
-      setItems(result.items);
-    } catch (error) {
-      message.error('获取知识点分布方案失败');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchItems();
-  }, []);
-
-  const handleAdd = () => {
-    setEditingItem(null);
-    form.resetFields();
-    form.setFieldsValue({ isActive: true, sortOrder: 0, questionCount: 10, scorePerQuestion: 1, difficultyFrom: 1, difficultyTo: 5 });
-    setModalVisible(true);
-  };
-
-  const handleEdit = (record: KnowledgeDistributionItem) => {
-    setEditingItem(record);
-    form.setFieldsValue({
-      schemeName: record.schemeName,
-      description: record.description,
-      categoryCode: record.categoryCode,
-      categoryName: record.categoryName,
-      questionCount: record.questionCount,
-      scorePerQuestion: record.scorePerQuestion,
-      difficultyFrom: record.difficultyFrom,
-      difficultyTo: record.difficultyTo,
-      sortOrder: record.sortOrder,
-      isActive: record.isActive,
-    });
-    setModalVisible(true);
-  };
-
-  const handleDelete = async (id: number) => {
-    try {
-      await systemApi.deleteKnowledgeDistribution(id);
-      message.success('删除成功');
-      fetchItems();
-    } catch (error) {
-      message.error('删除失败');
-    }
-  };
-
-  const handleSubmit = async () => {
-    try {
-      const values = await form.validateFields();
-      if (editingItem) {
-        await systemApi.updateKnowledgeDistribution(editingItem.id, values);
-        message.success('编辑成功');
-      } else {
-        await systemApi.createKnowledgeDistribution(values);
-        message.success('创建成功');
-      }
-      setModalVisible(false);
-      form.resetFields();
-      fetchItems();
-    } catch (error) {
-      message.error('操作失败');
-    }
-  };
-
-  const columns = [
-    { title: '方案名称', dataIndex: 'schemeName', key: 'schemeName' },
-    { title: '描述', dataIndex: 'description', key: 'description', render: (v: string | undefined) => v || '-' },
-    { title: '分类编码', dataIndex: 'categoryCode', key: 'categoryCode' },
-    { title: '分类名称', dataIndex: 'categoryName', key: 'categoryName', render: (v: string | undefined) => v || '-' },
-    { title: '题目数量', dataIndex: 'questionCount', key: 'questionCount' },
-    { title: '每题分值', dataIndex: 'scorePerQuestion', key: 'scorePerQuestion' },
-    { title: '难度范围', key: 'difficulty', render: (_: unknown, record: KnowledgeDistributionItem) => `${record.difficultyFrom} ~ ${record.difficultyTo}` },
-    { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder' },
-    { title: '状态', dataIndex: 'isActive', key: 'isActive', render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? '启用' : '禁用'}</Tag> },
-    {
-      title: '操作', key: 'actions', render: (_: unknown, record: KnowledgeDistributionItem) => (
-        <Space>
-          <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)}>编辑</Button>
-          <Popconfirm title="确定删除吗？" onConfirm={() => handleDelete(record.id)}>
-            <Button icon={<DeleteOutlined />} size="small" danger>删除</Button>
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
-
-  return (
-    <div>
-      <div className="flex justify-end mb-4">
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>新增方案项</Button>
-      </div>
-
-      <Table columns={columns} dataSource={items} rowKey="id" loading={loading} />
-
-      <Modal
-        title={editingItem ? '编辑方案项' : '新增方案项'}
-        open={modalVisible}
-        onOk={handleSubmit}
-        onCancel={() => { setModalVisible(false); setEditingItem(null); form.resetFields(); }}
-        width={600}
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item name="schemeName" label="方案名称" rules={[{ required: true, message: '请输入方案名称' }]}>
-            <Input placeholder="请输入方案名称" />
-          </Form.Item>
-          <Form.Item name="description" label="描述">
-            <Input.TextArea rows={2} placeholder="请输入描述" />
-          </Form.Item>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="categoryCode" label="分类编码" rules={[{ required: true, message: '请输入分类编码' }]}>
-                <Input placeholder="请输入分类编码" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="categoryName" label="分类名称">
-                <Input placeholder="请输入分类名称" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="questionCount" label="题目数量" rules={[{ required: true, message: '请输入题目数量' }]}>
-                <InputNumber min={1} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="scorePerQuestion" label="每题分值" rules={[{ required: true, message: '请输入每题分值' }]}>
-                <InputNumber min={0.5} step={0.5} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="difficultyFrom" label="难度下限" rules={[{ required: true, message: '请输入难度下限' }]}>
-                <InputNumber min={1} max={10} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="difficultyTo" label="难度上限" rules={[{ required: true, message: '请输入难度上限' }]}>
-                <InputNumber min={1} max={10} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="sortOrder" label="排序">
-                <InputNumber min={0} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="isActive" label="是否启用" valuePropName="checked">
-                <Switch />
-              </Form.Item>
-            </Col>
-          </Row>
-        </Form>
-      </Modal>
-    </div>
-  );
-}
-
 function HospitalManageTab() {
   const [hospitals, setHospitals] = useState<{ id: number; name: string; level: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -623,7 +454,6 @@ export default function SystemConfig() {
   const tabItems = [
     { key: 'config', label: '系统配置', children: <ConfigTab /> },
     { key: 'dict', label: '字典管理', children: <DictManageTab /> },
-    { key: 'knowledge', label: '知识点分布', children: <KnowledgeDistributionTab /> },
     { key: 'hospital', label: '医院管理', children: <HospitalManageTab /> },
   ];
 

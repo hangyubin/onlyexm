@@ -27,19 +27,21 @@ export default function InfectionDashboard() {
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
-      const [kpi, ranking, points, trend, staff] = await Promise.all([
+      const results = await Promise.allSettled([
         infectionApi.getKPI(),
         infectionApi.getDeptRanking(),
         infectionApi.getWeakPoints(),
         infectionApi.getTrend(6),
         infectionApi.getUnqualifiedStaff(1, 20),
       ]);
-      setKpiData(kpi);
-      setDeptRanking(ranking);
-      setWeakPoints(points);
-      setTrendData(trend);
-      setUnqualifiedStaff(staff.data);
-      setTotalStaff(staff.total);
+      if (results[0].status === 'fulfilled') setKpiData(results[0].value);
+      if (results[1].status === 'fulfilled') setDeptRanking(results[1].value);
+      if (results[2].status === 'fulfilled') setWeakPoints(results[2].value);
+      if (results[3].status === 'fulfilled') setTrendData(results[3].value);
+      if (results[4].status === 'fulfilled') {
+        setUnqualifiedStaff(results[4].value.data);
+        setTotalStaff(results[4].value.total);
+      }
     } catch (error) {
       console.error('获取数据失败:', error);
       message.error('获取数据失败');
@@ -59,10 +61,7 @@ export default function InfectionDashboard() {
       deptChartInstance.current = echarts.init(deptChartRef.current);
     }
     updateDeptChart();
-    return () => {
-      deptChartInstance.current?.dispose();
-      deptChartInstance.current = null;
-    };
+    // 不 dispose/recreate，只 setOption 更新
   }, [deptRanking]);
 
   useEffect(() => {
@@ -70,10 +69,6 @@ export default function InfectionDashboard() {
       weakPointsChartInstance.current = echarts.init(weakPointsChartRef.current);
     }
     updateWeakPointsChart();
-    return () => {
-      weakPointsChartInstance.current?.dispose();
-      weakPointsChartInstance.current = null;
-    };
   }, [weakPoints]);
 
   useEffect(() => {
@@ -81,10 +76,6 @@ export default function InfectionDashboard() {
       trendChartInstance.current = echarts.init(trendChartRef.current);
     }
     updateTrendChart();
-    return () => {
-      trendChartInstance.current?.dispose();
-      trendChartInstance.current = null;
-    };
   }, [trendData]);
 
   useEffect(() => {
@@ -94,9 +85,16 @@ export default function InfectionDashboard() {
       trendChartInstance.current?.resize();
     };
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      deptChartInstance.current?.dispose();
+      weakPointsChartInstance.current?.dispose();
+      trendChartInstance.current?.dispose();
+      deptChartInstance.current = null;
+      weakPointsChartInstance.current = null;
+      trendChartInstance.current = null;
+    };
   }, []);
-
   const updateDeptChart = () => {
     if (!deptChartInstance.current || (deptRanking || []).length === 0) return;
     

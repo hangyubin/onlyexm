@@ -116,24 +116,27 @@ export default function MyProfile() {
         api.get('/user/profile/wrong-heatmap'),
       ]);
 
-      if (statsRes.data.code === 0) {
-        const data = statsRes.data.data;
-        setUserInfo(data.user);
-        setInfectionStatus(data.infectionStatus);
-        setStudyStats(data.studyStats);
-        setPendingTasks(data.pendingTasks);
+      // axios拦截器已提取code===0响应中的data，直接读取数据
+      const statsData = statsRes.data;
+      if (statsData.user) {
+        setUserInfo(statsData.user);
+        setInfectionStatus(statsData.infectionStatus);
+        setStudyStats(statsData.studyStats);
+        setPendingTasks(statsData.pendingTasks);
       }
 
-      if (radarRes.data.code === 0) {
-        setRadarData(radarRes.data.data);
+      if (radarRes.data?.radar || radarRes.data?.dimensions) {
+        setRadarData(radarRes.data);
       }
 
-      if (trendRes.data.code === 0) {
-        setExamTrend(trendRes.data.data);
+      if (Array.isArray(trendRes.data)) {
+        setExamTrend(trendRes.data);
+      } else if (trendRes.data?.trend) {
+        setExamTrend(trendRes.data.trend);
       }
 
-      if (heatmapRes.data.code === 0) {
-        setHeatmapData(heatmapRes.data.data);
+      if (heatmapRes.data?.categories || heatmapRes.data?.heatmap) {
+        setHeatmapData(heatmapRes.data);
       }
     } catch (error) {
       console.error('Fetch profile data error:', error);
@@ -529,6 +532,7 @@ export default function MyProfile() {
           onClick={() => {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
+            localStorage.removeItem('userRole');
             navigate('/login');
           }}
           className="w-full py-3 bg-red-50 text-red-600 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-red-100 transition-colors"

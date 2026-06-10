@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { Countdown } from '../components/Countdown';
@@ -104,12 +104,6 @@ export function ExamTaking() {
     initExam();
   }, [paperId]);
 
-  useEffect(() => {
-    if (isAutoSubmit && examData) {
-      handleSubmit();
-    }
-  }, [isAutoSubmit, examData]);
-
   // 防止误操作：浏览器关闭/刷新提醒
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -153,19 +147,25 @@ export function ExamTaking() {
     []
   );
 
-  const saveAnswer = async (questionId: number, answer: AnswerType) => {
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const saveAnswer = useCallback(async (questionId: number, answer: AnswerType) => {
     try {
       if (!examData) return;
 
-      await api.post('/exam/save-answer', {
-        examRecordId: examData.examRecordId,
-        questionId,
-        answer,
-      });
+      // 防抖：清除之前的定时器，只保留最新的
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(async () => {
+        await api.post('/exam/save-answer', {
+          examRecordId: examData.examRecordId,
+          questionId,
+          answer,
+        });
+      }, 300);
     } catch (err) {
       console.error('Save answer failed:', err);
     }
-  };
+  }, [examData]);
 
   const toggleMark = useCallback(() => {
     setMarkedQuestions((prev) => {
@@ -230,6 +230,13 @@ export function ExamTaking() {
       setIsSubmitting(false);
     }
   }, [answers, examData, tabSwitchCount, suspiciousLog, navigate]);
+
+  // 自动提交（倒计时结束后触发）
+  useEffect(() => {
+    if (isAutoSubmit && examData && !isSubmitting) {
+      handleSubmit();
+    }
+  }, [isAutoSubmit, examData, handleSubmit, isSubmitting]);
 
   const confirmSubmit = () => {
     const unanswered = examData?.questions.filter((q) => !answers.has(q.id)).length || 0;

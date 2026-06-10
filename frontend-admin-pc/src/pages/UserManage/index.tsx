@@ -121,7 +121,9 @@ export default function UserManage() {
   const handleAdd = () => {
     setEditingUser(null);
     form.resetFields();
-    form.setFieldsValue({ password: '123456' });
+    // 生成随机默认密码（8位字母数字）
+    const randomPassword = Math.random().toString(36).slice(-8) + '1';
+    form.setFieldsValue({ password: randomPassword });
     setModalVisible(true);
   };
 
@@ -148,8 +150,16 @@ export default function UserManage() {
 
   const handleResetPassword = async (id: number) => {
     try {
-      await userApi.resetPassword(id);
-      message.success('密码已重置为 123456');
+      const response = await userApi.resetPassword(id);
+      const tempPassword = response?.tempPassword || '';
+      if (tempPassword) {
+        Modal.success({
+          title: '密码已重置',
+          content: `新密码为：${tempPassword}，请通知用户及时修改密码。`,
+        });
+      } else {
+        message.success('密码已重置成功');
+      }
     } catch (error) {
       message.error('重置失败');
     }
@@ -199,8 +209,10 @@ export default function UserManage() {
       setModalVisible(false);
       form.resetFields();
       fetchUsers();
-    } catch (error) {
+    } catch (error: any) {
       console.error('表单提交失败:', error);
+      const msg = error?.response?.data?.error || error?.response?.data?.message || '操作失败';
+      message.error(msg);
     }
   };
 
@@ -484,7 +496,7 @@ export default function UserManage() {
               <li>• 请下载Excel模板，按格式填写用户信息</li>
               <li>• 模板字段：用户名、姓名、密码、角色、科室</li>
               <li>• 角色可选：{roleOptions.map(r => r.label).join('、')}</li>
-              <li>• 默认密码为：123456</li>
+              <li>• 请为每个用户设置安全的密码</li>
             </ul>
           </div>
 

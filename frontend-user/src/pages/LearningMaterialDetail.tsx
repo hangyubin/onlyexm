@@ -60,8 +60,11 @@ const LearningMaterialDetail: React.FC = () => {
   const [docxContent, setDocxContent] = useState<string>('');
 
   useEffect(() => {
-    if (id) {
-      fetchMaterial(parseInt(id));
+    const materialId = id ? parseInt(id) : NaN;
+    if (id && !isNaN(materialId)) {
+      fetchMaterial(materialId);
+    } else if (id) {
+      setError('无效的素材ID');
     }
   }, [id]);
 
@@ -69,12 +72,8 @@ const LearningMaterialDetail: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await learningMaterialApi.getById(materialId);
-      if (response.success) {
-        setMaterial(response.data);
-      } else {
-        setError('加载学习资料失败');
-      }
+      const data = await learningMaterialApi.getById(materialId);
+      setMaterial(data);
     } catch (error) {
       console.error('Failed to fetch learning material:', error);
       setError('加载学习资料失败');
@@ -216,7 +215,7 @@ const LearningMaterialDetail: React.FC = () => {
                   </div>
                 ) : (
                   <div
-                    className="bg-white p-6 sm:p-10 rounded-lg shadow mx-auto max-w-4xl my-4 prose prose-blue max-w-none"
+                    className="bg-white p-6 sm:p-10 rounded-lg shadow mx-auto max-w-4xl my-4 prose prose-blue"
                     style={{ lineHeight: '1.8' }}
                     dangerouslySetInnerHTML={{ __html: docxContent }}
                   />

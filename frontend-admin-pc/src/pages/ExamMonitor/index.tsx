@@ -99,7 +99,7 @@ export default function ExamMonitor() {
 
   const handleSearch = () => {
     setPage(1);
-    fetchRecords();
+    // fetchRecords 会由 useEffect([page, paperId]) 自动触发，无需手动调用
   };
 
   const handleViewDetail = async (record: ExamRecordItem) => {

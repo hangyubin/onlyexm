@@ -170,7 +170,13 @@ export default function Reports() {
           </div>
           <RangePicker
             value={dateRange}
-            onChange={(dates) => setDateRange(dates as unknown as [Dayjs, Dayjs])}
+            onChange={(dates) => {
+              if (dates) {
+                setDateRange(dates as [Dayjs, Dayjs]);
+              } else {
+                setDateRange(null);
+              }
+            }}
             placeholder={['开始日期', '结束日期']}
           />
           <Button icon={<DownloadOutlined />} onClick={fetchReport} loading={loading}>查询</Button>

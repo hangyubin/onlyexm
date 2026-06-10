@@ -135,6 +135,10 @@ router.post('/scenario/record', authMiddleware, async (req, res) => {
 
   const { scenarioId, riskAnswers, actionAnswer, riskScore, actionScore, riskLevel } = req.body;
 
+  if (scenarioId === undefined || !riskAnswers) {
+    return res.status(400).json({ error: '缺少必填字段：场景ID和风险评估答案' });
+  }
+
   try {
     const record = await prisma.scenarioRecord.create({
       data: {
@@ -208,6 +212,10 @@ router.get('/scenarios/:id', authMiddleware, async (req, res) => {
 
 router.post('/scenarios', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER']), async (req, res) => {
   const { title, description, imageUrl, expertAdvice, risks, actions } = req.body;
+
+  if (!title || !title.trim()) {
+    return res.status(400).json({ error: '场景标题不能为空' });
+  }
 
   try {
     const scenario = await prisma.infectionScenario.create({
@@ -309,6 +317,10 @@ router.post('/drill/submit', authMiddleware, async (req, res) => {
   }
 
   const { drillId, stepsResult, score, reportText } = req.body;
+
+  if (!stepsResult || score === undefined || score === null) {
+    return res.status(400).json({ error: '缺少必填字段：演练步骤结果和评分' });
+  }
 
   try {
     const record = await prisma.outbreakDrillRecord.create({
@@ -541,7 +553,10 @@ router.get('/dashboard/weak-points', authMiddleware, roleGuard(['ADMIN', 'INFECT
     nextMonth.setMonth(nextMonth.getMonth() + 1);
     const nextMonthStr = nextMonth.toISOString().slice(0, 7);
 
-    const wrongAnswers = await prisma.answerDetail.findMany({
+    const tagCount = new Map<string, number>();
+
+    // 数据源1：考试错题（answerDetail）
+    const examWrongAnswers = await prisma.answerDetail.findMany({
       where: {
         isCorrect: false,
         examRecord: { createdAt: { gte: new Date(`${currentMonth}-01`), lt: new Date(`${nextMonthStr}-01`) } },
@@ -549,24 +564,36 @@ router.get('/dashboard/weak-points', authMiddleware, roleGuard(['ADMIN', 'INFECT
       include: { question: { select: { infectionTag: true } } },
     });
 
-    const tagCount = new Map<string, number>();
-    let otherCount = 0;
-
-    wrongAnswers.forEach((answer) => {
+    examWrongAnswers.forEach((answer) => {
       const tag = answer.question?.infectionTag;
       if (tag) {
         tagCount.set(tag, (tagCount.get(tag) || 0) + 1);
-      } else {
-        otherCount++;
       }
     });
 
-    const total = wrongAnswers.length;
+    // 数据源2：每日一练错题（wrongQuestion）
+    const dailyWrongQuestions = await prisma.wrongQuestion.findMany({
+      where: {
+        status: 'ACTIVE',
+      },
+      include: { question: { select: { infectionTag: true } } },
+    });
+
+    dailyWrongQuestions.forEach((wq) => {
+      const tag = wq.question?.infectionTag;
+      if (tag) {
+        tagCount.set(tag, (tagCount.get(tag) || 0) + wq.wrongCount);
+      }
+    });
+
+    const total = Array.from(tagCount.values()).reduce((sum, v) => sum + v, 0);
     const tagMap: Record<string, string> = {
       HAND_HYGIENE: '手卫生',
-      MEDICAL_WASTE: '医废处理',
+      MEDICAL_WASTE: '医疗废物',
+      DISINFECTION: '消毒隔离',
       EXPOSURE: '职业暴露',
-      DISINFECTION: '消毒灭菌',
+      ISOLATION: '隔离防护',
+      STERILIZATION: '无菌操作',
       MDRO: '多重耐药菌',
       AIR_QUALITY: '空气质量',
     };
@@ -579,15 +606,6 @@ router.get('/dashboard/weak-points', authMiddleware, roleGuard(['ADMIN', 'INFECT
         tag,
       }))
       .sort((a, b) => b.value - a.value);
-
-    if (otherCount > 0) {
-      result.push({
-        name: '其他',
-        value: Math.round((otherCount / total) * 100),
-        count: otherCount,
-        tag: 'OTHER',
-      });
-    }
 
     res.json({
       success: true,
@@ -603,40 +621,55 @@ router.get('/dashboard/trend', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OF
   const months = parseInt(req.query.months as string) || 6;
 
   try {
-    const result: { month: string; avgScore: number; qualifiedRate: number }[] = [];
-    
+    // 计算所有月份的起止时间
+    const monthRanges: { month: string; start: Date; end: Date }[] = [];
     for (let i = months - 1; i >= 0; i--) {
       const date = new Date();
       date.setMonth(date.getMonth() - i);
       const monthStr = date.toISOString().slice(0, 7);
-      
-      const nextDate = new Date(date);
-      nextDate.setMonth(nextDate.getMonth() + 1);
-      const nextMonthStr = nextDate.toISOString().slice(0, 7);
+      const start = new Date(`${monthStr}-01`);
+      const end = new Date(start);
+      end.setMonth(end.getMonth() + 1);
+      monthRanges.push({
+        month: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
+        start,
+        end,
+      });
+    }
 
-      const avgScore = await prisma.examRecord.aggregate({
+    const allDoctors = await prisma.user.count({ where: { role: 'DOCTOR' } });
+
+    // 批量获取所有月份的考试平均分
+    const scorePromises = monthRanges.map(({ start, end }) =>
+      prisma.examRecord.aggregate({
         _avg: { score: true },
         where: {
           status: 'SUBMITTED',
-          createdAt: { gte: new Date(`${monthStr}-01`), lt: new Date(`${nextMonthStr}-01`) },
+          createdAt: { gte: start, lt: end },
         },
-      });
+      })
+    );
 
-      const allDoctors = await prisma.user.count({ where: { role: 'DOCTOR' } });
-      const qualifiedDoctors = await prisma.infectionRequirement.count({
-        where: {
-          month: monthStr,
-          accuracyRate: { gte: 70 },
-          completedCount: { gte: 20 },
-        },
-      });
+    // 批量获取所有月份的院感达标人数
+    const monthKeys = monthRanges.map(r => r.month);
+    const infectionCounts = await prisma.infectionRequirement.groupBy({
+      by: ['month'],
+      where: {
+        month: { in: monthKeys },
+        accuracyRate: { gte: 70 },
+        completedCount: { gte: 20 },
+      },
+      _count: { id: true },
+    });
+    const infectionCountMap = new Map(infectionCounts.map(c => [c.month, c._count.id]));
 
-      result.push({
-        month: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`,
-        avgScore: avgScore._avg?.score ? Math.round(avgScore._avg.score) : 0,
-        qualifiedRate: allDoctors > 0 ? Math.round((qualifiedDoctors / allDoctors) * 100) : 0,
-      });
-    }
+    const scoreResults = await Promise.all(scorePromises);
+
+    const result = monthRanges.map(({ month }, i) => ({
+      month,
+      avgScore: scoreResults[i]._avg?.score ? Math.round(scoreResults[i]._avg.score!) : 0,
+      qualifiedRate: allDoctors > 0 ? Math.round(((infectionCountMap.get(month) || 0) / allDoctors) * 100) : 0,
+    }));
 
     res.json({
       success: true,
@@ -719,9 +752,20 @@ router.post('/notify/batch', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFI
   const { ids } = req.body;
 
   try {
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: '请提供有效的用户ID列表' });
+    }
+
+    // 验证用户是否存在
+    const users = await prisma.user.findMany({
+      where: { id: { in: ids.map((id: any) => parseInt(id)) } },
+      select: { id: true, realName: true },
+    });
+
     res.json({
       success: true,
-      message: `已向 ${(ids || []).length} 位用户发送补训通知`,
+      message: `已向 ${users.length} 位用户发送补训通知`,
+      notifiedUsers: users.map((u: any) => ({ id: u.id, name: u.realName })),
     });
   } catch (err) {
     console.error('Send batch notify error:', err);
@@ -733,9 +777,23 @@ router.post('/notify/:userId', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OF
   const { userId } = req.params;
 
   try {
+    const uid = parseInt(userId);
+    if (isNaN(uid)) {
+      return res.status(400).json({ error: '无效的用户ID' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: uid },
+      select: { id: true, realName: true },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: '用户不存在' });
+    }
+
     res.json({
       success: true,
-      message: `已向用户ID ${userId} 发送补训通知`,
+      message: `已向用户 ${user.realName} 发送补训通知`,
     });
   } catch (err) {
     console.error('Send notify error:', err);

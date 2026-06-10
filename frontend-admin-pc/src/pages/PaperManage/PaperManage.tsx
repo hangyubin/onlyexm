@@ -6,11 +6,12 @@ import {
 } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined,
-  PlayCircleOutlined, PauseCircleOutlined, CopyOutlined, ApiOutlined,
+  PlayCircleOutlined, PauseCircleOutlined, ApiOutlined,
   PrinterOutlined
 } from '@ant-design/icons';
 import { Paper, paperApi, SmartGenerateParams } from '../../api/paper';
 import { questionApi, Question } from '../../api/question';
+import api from '../../api/axios';
 import { useMultiDictData } from '../../hooks/useDictData';
 
 const { Option } = Select;
@@ -71,7 +72,15 @@ export default function PaperManage() {
     difficultyRatio: '5:3:2',
   });
 
-  const [publishResult, setPublishResult] = useState<{ url: string; qrCode: string } | null>(null);
+  // 当考试开始时间或时长变化时，自动计算结束时间
+  useEffect(() => {
+    if (basicInfo.examStartTime && basicInfo.duration) {
+      const endTime = dayjs(basicInfo.examStartTime).add(basicInfo.duration, 'minute').format('YYYY-MM-DD HH:mm');
+      setBasicInfo((prev) => (prev.examEndTime !== endTime ? { ...prev, examEndTime: endTime } : prev));
+    } else {
+      setBasicInfo((prev) => (prev.examEndTime !== null ? { ...prev, examEndTime: null } : prev));
+    }
+  }, [basicInfo.examStartTime, basicInfo.duration]);
 
   // 初始化智能组卷分类数量
   useEffect(() => {
@@ -91,6 +100,7 @@ export default function PaperManage() {
       setTotal(response.total);
     } catch (error) {
       console.error('获取试卷列表失败:', error);
+      message.error('获取试卷列表失败');
     } finally {
       setLoading(false);
     }
@@ -142,7 +152,7 @@ export default function PaperManage() {
     { title: '试卷名称', dataIndex: 'title', key: 'title' },
     { title: '总分', dataIndex: 'totalScore', key: 'totalScore', render: (score: number) => `${score}分` },
     { title: '及格线', dataIndex: 'passScore', key: 'passScore', render: (score: number) => `${score}分` },
-    { title: '时长', dataIndex: 'duration', key: 'duration', render: (min: number) => `${min}分钟` },
+    { title: '时长', dataIndex: 'duration', key: 'duration', render: (min: number) => `${min ?? '-'}分钟` },
     {
       title: '考试时间',
       key: 'examTime',
@@ -268,17 +278,9 @@ export default function PaperManage() {
   const handlePrint = async (record: Paper) => {
     const loadingMessage = message.loading('正在生成试卷...', 0);
     try {
-      const response = await fetch(`/api/papers/${record.id}/print`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
+      const response = await api.get(`/papers/${record.id}/print`, { responseType: 'blob' });
       loadingMessage();
-      if (!response.ok) {
-        throw new Error('生成失败');
-      }
-      const blob = await response.blob();
+      const blob = response.data;
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -297,7 +299,6 @@ export default function PaperManage() {
 
   const handlePublish = (record: Paper) => {
     setSelectedPaper(record);
-    setPublishResult(null);
     setPublishModalVisible(true);
   };
 
@@ -428,9 +429,10 @@ export default function PaperManage() {
   const handlePublishSubmit = async () => {
     if (!selectedPaper) return;
     try {
-      const response = await paperApi.publish(selectedPaper.id, { action: 'publish' });
-      setPublishResult(response);
+      await paperApi.publish(selectedPaper.id, { action: 'publish' });
       message.success('发布成功');
+      setPublishModalVisible(false);
+      setSelectedPaper(null);
       fetchPapers();
     } catch (error: any) {
       const msg = error?.response?.data?.error || '发布失败';
@@ -446,13 +448,6 @@ export default function PaperManage() {
     } catch (error: any) {
       const msg = error?.response?.data?.error || '取消发布失败';
       message.error(msg);
-    }
-  };
-
-  const handleCopyUrl = () => {
-    if (publishResult) {
-      navigator.clipboard.writeText(publishResult.url);
-      message.success('链接已复制');
     }
   };
 
@@ -579,13 +574,13 @@ export default function PaperManage() {
                   </FormItem>
                 </Col>
                 <Col span={12}>
-                  <FormItem label="考试结束时间">
+                  <FormItem label="考试结束时间（自动计算）">
                     <DatePicker
                       showTime
                       format="YYYY-MM-DD HH:mm"
                       value={basicInfo.examEndTime ? dayjs(basicInfo.examEndTime) : undefined}
-                      onChange={(_date: any, dateString: string | string[]) => setBasicInfo({ ...basicInfo, examEndTime: (typeof dateString === 'string' ? dateString : dateString[0]) || null })}
-                      placeholder="选择结束时间"
+                      disabled
+                      placeholder={basicInfo.examStartTime ? '自动根据开始时间+时长计算' : '请先设置开始时间和时长'}
                       className="w-full"
                     />
                   </FormItem>
@@ -1056,34 +1051,14 @@ export default function PaperManage() {
         onCancel={() => {
           setPublishModalVisible(false);
           setSelectedPaper(null);
-          setPublishResult(null);
         }}
-        footer={null}
-        width={500}
+        onOk={handlePublishSubmit}
+        okText="确认发布"
+        cancelText="取消"
       >
-        {!publishResult ? (
-          <div>
-            <p className="text-sm text-gray-600 mb-4">确认发布该试卷？发布后考生即可参加考试。</p>
-            <Button type="primary" onClick={handlePublishSubmit} className="w-full mt-4">
-              确认发布
-            </Button>
-          </div>
-        ) : (
-          <div>
-            <Card>
-              <h4 className="font-medium mb-2">考试链接</h4>
-              <div className="flex items-center gap-2 mb-4">
-                <Input value={publishResult.url} readOnly className="flex-1" />
-                <Button icon={<CopyOutlined />} onClick={handleCopyUrl}>复制</Button>
-              </div>
-              <h4 className="font-medium mb-2">考试二维码</h4>
-              <div className="w-40 h-40 bg-gray-100 rounded-lg flex items-center justify-center mb-4">
-                <span className="text-gray-400">二维码区域</span>
-              </div>
-              <p className="text-sm text-gray-500">考生可扫码或复制链接参加考试</p>
-            </Card>
-          </div>
-        )}
+        <p className="text-sm text-gray-600">
+          确认发布试卷 {selectedPaper?.title ? `"${selectedPaper.title}"` : ''}？发布后考生即可参加考试。
+        </p>
       </Modal>
 
       <Modal
@@ -1100,7 +1075,7 @@ export default function PaperManage() {
           <Card>
             <h3 className="text-lg font-bold mb-2">{selectedPaper.title}</h3>
             <p className="text-gray-500 mb-4">
-              时长：{selectedPaper.duration}分钟 | 总分：{selectedPaper.totalScore}分 | 及格线：{selectedPaper.passScore}分
+              时长：{selectedPaper.duration ?? '-'}分钟 | 总分：{selectedPaper.totalScore}分 | 及格线：{selectedPaper.passScore}分
             </p>
             {selectedPaper.description && <p className="mb-4">{selectedPaper.description}</p>}
             <Divider />

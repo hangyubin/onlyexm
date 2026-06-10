@@ -27,7 +27,8 @@ router.get('/stats', async (req, res) => {
     const qualifiedDoctors = await prisma.infectionRequirement.count({
       where: {
         month: currentMonth,
-        isLocked: false,
+        completedCount: { gte: 20 },
+        accuracyRate: { gte: 70 },
       },
     });
     const complianceRate = allDoctors > 0 ? Math.round((qualifiedDoctors / allDoctors) * 100) : 0;
@@ -205,7 +206,11 @@ router.get('/progress', async (req, res) => {
 
     const allDoctors = await prisma.user.count({ where: { role: 'DOCTOR' } });
     const qualifiedDoctors = await prisma.infectionRequirement.count({
-      where: { month: currentMonth, isLocked: false },
+      where: {
+        month: currentMonth,
+        completedCount: { gte: 20 },
+        accuracyRate: { gte: 70 },
+      },
     });
     const complianceProgress = allDoctors > 0 ? Math.round((qualifiedDoctors / allDoctors) * 100) : 0;
 

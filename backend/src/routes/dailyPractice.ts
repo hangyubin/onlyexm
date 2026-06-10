@@ -1,14 +1,32 @@
 import express from 'express';
 import { authMiddleware } from '../middleware/auth';
-import { getTodayPractice, submitPractice, getUserPracticeHistory, resetTodayPractice, SubmitAnswer, getPracticeResult } from '../services/dailyPracticeService';
+import { getTodayPractice, submitPractice, getUserPracticeHistory, resetTodayPractice, SubmitAnswer, getPracticeResult, PracticeOptions } from '../services/dailyPracticeService';
 
 const router = express.Router();
+
+/** 从请求中解析练习选项 */
+function parsePracticeOptions(req: express.Request): PracticeOptions | undefined {
+  const options: PracticeOptions = {};
+  if (req.query.questionCount || req.body.questionCount) {
+    options.questionCount = parseInt((req.query.questionCount || req.body.questionCount) as string);
+  }
+  if (req.query.category || req.body.category) {
+    options.category = (req.query.category || req.body.category) as string;
+  }
+  const tagsRaw = req.query.infectionTags || req.body.infectionTags;
+  if (tagsRaw) {
+    options.infectionTags = Array.isArray(tagsRaw)
+      ? tagsRaw as string[]
+      : (tagsRaw as string).split(',');
+  }
+  return Object.keys(options).length > 0 ? options : undefined;
+}
 
 router.get('/today', authMiddleware, async (req, res) => {
   try {
     const userId = req.user?.userId || 0;
-    const questionCount = req.query.questionCount ? parseInt(req.query.questionCount as string) : undefined;
-    const practice = await getTodayPractice(userId, questionCount);
+    const options = parsePracticeOptions(req);
+    const practice = await getTodayPractice(userId, options);
     
     res.json({
       success: true,
@@ -44,10 +62,10 @@ router.post('/submit', authMiddleware, async (req, res) => {
 router.post('/reset', authMiddleware, async (req, res) => {
   try {
     const userId = req.user?.userId || 0;
-    const questionCount = req.body.questionCount ? parseInt(req.body.questionCount as string) : undefined;
-    console.log('重置今日练习 - 用户ID:', userId, '题目数量:', questionCount || 10);
+    const options = parsePracticeOptions(req);
+    console.log('重置今日练习 - 用户ID:', userId, '选项:', options);
     
-    const practice = await resetTodayPractice(userId, questionCount);
+    const practice = await resetTodayPractice(userId, options);
     
     res.json({
       success: true,
@@ -91,13 +109,7 @@ router.get('/result/:practiceId', authMiddleware, async (req, res) => {
     console.error('获取练习详情失败:', err);
     res.status(500).json({
       success: false,
-      score: 0,
-      totalQuestions: 0,
-      correctCount: 0,
-      accuracy: 0,
-      earnedBonus: false,
       message: '获取练习详情失败',
-      results: [],
     });
   }
 });

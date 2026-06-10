@@ -12,6 +12,8 @@ import {
 
 const router = express.Router();
 
+const MAX_REPORT_LIMIT = 5000;
+
 // ============ JSON 数据接口（前端表格展示） ============
 
 // 考试成绩汇总
@@ -80,7 +82,7 @@ router.post('/practice-records/data', authMiddleware, roleGuard(['ADMIN', 'INFEC
       where,
       include: { user: { select: { realName: true, department: true } } },
       orderBy: { syncTime: 'desc' },
-      take: 500,
+      take: MAX_REPORT_LIMIT,
     });
 
     // 按用户聚合

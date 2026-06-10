@@ -397,21 +397,19 @@ router.post('/submit', authMiddleware, async (req, res) => {
         suspiciousLog: suspiciousLog || [],
       });
 
-      // 保存 suspiciousLog
+      // 保存 suspiciousLog 和状态更新在一个事务中
       if (result.code === 0) {
-        await prisma.examRecord.update({
-          where: { id: examRecordId },
-          data: {
-            suspiciousLog: suspiciousLog && suspiciousLog.length > 0 ? JSON.stringify(suspiciousLog) : null,
-          },
-        });
-      }
-
-      // 更新状态为 AUTO_SUBMIT
-      if (result.code === 0) {
-        await prisma.examRecord.update({
-          where: { id: examRecordId },
-          data: { status: 'AUTO_SUBMIT' as any },
+        await prisma.$transaction(async (tx) => {
+          await tx.examRecord.update({
+            where: { id: examRecordId },
+            data: {
+              suspiciousLog: suspiciousLog && suspiciousLog.length > 0 ? JSON.stringify(suspiciousLog) : null,
+            },
+          });
+          await tx.examRecord.update({
+            where: { id: examRecordId },
+            data: { status: 'AUTO_SUBMIT' as any },
+          });
         });
       }
       return success(res, { ...result.data, autoSubmitted: true });
@@ -613,24 +611,26 @@ router.post('/:examRecordId/force-submit', authMiddleware, roleGuard(['ADMIN', '
     );
     const isPassed = totalScore >= (examRecord.paper?.passingScore ?? 60);
 
-    // 更新已有的答案详情的得分
-    for (const pa of processedAnswers) {
-      await prisma.answerDetail.updateMany({
-        where: { examRecordId: pa.examRecordId, questionId: pa.questionId },
-        data: { isCorrect: pa.isCorrect, scoreObtained: pa.scoreObtained },
-      });
-    }
+    // 更新已有的答案详情的得分（使用事务保证一致性）
+    await prisma.$transaction(async (tx) => {
+      for (const pa of processedAnswers) {
+        await tx.answerDetail.updateMany({
+          where: { examRecordId: pa.examRecordId, questionId: pa.questionId },
+          data: { isCorrect: pa.isCorrect, scoreObtained: pa.scoreObtained },
+        });
+      }
 
-    await prisma.examRecord.update({
-      where: { id: examRecordId },
-      data: {
-        endTime: new Date(),
-        durationSeconds,
-        score: totalScore,
-        infectionScore,
-        isPassed,
-        status: 'FORCE_SUBMIT' as any,
-      },
+      await tx.examRecord.update({
+        where: { id: examRecordId },
+        data: {
+          endTime: new Date(),
+          durationSeconds,
+          score: totalScore,
+          infectionScore,
+          isPassed,
+          status: 'FORCE_SUBMIT' as any,
+        },
+      });
     });
 
     success(res, { examRecordId, score: totalScore, isPassed, status: 'FORCE_SUBMIT' }, '强制交卷成功');

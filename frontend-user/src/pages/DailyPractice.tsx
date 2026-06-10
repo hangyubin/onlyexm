@@ -53,7 +53,7 @@ type AnswerType = string | string[];
 
 export function DailyPractice() {
   const navigate = useNavigate();
-  const { getName, getItems } = useDicts([DICT_CATEGORY.QUESTION_TYPE]);
+  const { getName, getItems } = useDicts([DICT_CATEGORY.QUESTION_TYPE, DICT_CATEGORY.QUESTION_CATEGORY, DICT_CATEGORY.INFECTION_TAG]);
   const [practiceData, setPracticeData] = useState<DailyPracticeData | null>(null);
   const [answers, setAnswers] = useState<Map<number, AnswerType>>(new Map());
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -68,9 +68,11 @@ export function DailyPractice() {
   const [showQuestionCountSelector, setShowQuestionCountSelector] = useState(false);
   const [selectedQuestionCount, setSelectedQuestionCount] = useState(10);
   const [customQuestionCount, setCustomQuestionCount] = useState('');
-  const [needsQuestionCount, setNeedsQuestionCount] = useState(true); // 是否需要选择题目数量
+  const [needsQuestionCount, setNeedsQuestionCount] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState('ALL'); // 分类筛选
+  const [selectedInfectionTags, setSelectedInfectionTags] = useState<string[]>([]); // 院感标签筛选
 
-  const fetchTodayPractice = useCallback(async (questionCount?: number) => {
+  const fetchTodayPractice = useCallback(async (questionCount?: number, category?: string, infectionTags?: string[]) => {
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -78,7 +80,10 @@ export function DailyPractice() {
         return;
       }
 
-      const params = questionCount ? { questionCount } : {};
+      const params: any = {};
+      if (questionCount) params.questionCount = questionCount;
+      if (category && category !== 'ALL') params.category = category;
+      if (infectionTags && infectionTags.length > 0) params.infectionTags = infectionTags.join(',');
       const response = await api.get('/daily-practice/today', { params });
 
       if (response.data.success) {
@@ -634,51 +639,140 @@ export function DailyPractice() {
     );
   };
 
-  const renderQuestionCountSelector = () => (
+  const renderQuestionCountSelector = () => {
+    const categoryItems = getItems(DICT_CATEGORY.QUESTION_CATEGORY);
+    const infectionTagItems = getItems(DICT_CATEGORY.INFECTION_TAG);
+
+    const toggleInfectionTag = (code: string) => {
+      setSelectedInfectionTags((prev) => {
+        if (prev.includes(code)) {
+          return prev.filter((t) => t !== code);
+        }
+        return [...prev, code];
+      });
+    };
+
+    const buildApiParams = () => {
+      const params: any = {};
+      params.questionCount = selectedQuestionCount;
+      if (selectedCategory && selectedCategory !== 'ALL') {
+        // 检查是否是院感标签
+        const isInfectionTag = infectionTagItems.some((item) => item.code === selectedCategory);
+        if (isInfectionTag) {
+          params.infectionTags = [selectedCategory];
+        } else {
+          params.category = selectedCategory;
+        }
+      }
+      if (selectedInfectionTags.length > 0) {
+        const existing = params.infectionTags || [];
+        params.infectionTags = [...existing, ...selectedInfectionTags.filter((t) => t !== selectedCategory)];
+      }
+      return params;
+    };
+
+    return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-6 max-w-md mx-4 w-full">
-        <h2 className="text-xl font-bold text-gray-800 mb-6 text-center">选择题目数量</h2>
-        <div className="grid grid-cols-3 gap-4 mb-4">
-          {[5, 10, 15, 20, 25, 30].map((count) => (
+      <div className="bg-white rounded-2xl p-6 max-w-md mx-4 w-full max-h-[90vh] overflow-y-auto">
+        <h2 className="text-xl font-bold text-gray-800 mb-4 text-center">选择练习设置</h2>
+        
+        {/* 分类选择 */}
+        <div className="mb-4">
+          <label className="text-sm font-medium text-gray-700 mb-2 block">题目分类：</label>
+          <div className="flex flex-wrap gap-2">
             <button
-              key={count}
-              onClick={() => { setSelectedQuestionCount(count); setCustomQuestionCount(''); }}
-              className={`py-4 rounded-xl font-bold text-lg transition-all ${
-                selectedQuestionCount === count && !customQuestionCount
+              onClick={() => { setSelectedCategory('ALL'); setSelectedInfectionTags([]); }}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                selectedCategory === 'ALL' && selectedInfectionTags.length === 0
                   ? 'bg-blue-500 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              {count}题
+              全部
             </button>
-          ))}
-        </div>
-        <div className="mb-6">
-          <label className="text-sm text-gray-600 mb-2 block">自定义题目数量：</label>
-          <div className="flex gap-2">
-            <input
-              type="number"
-              min={1}
-              max={100}
-              value={customQuestionCount}
-              onChange={(e) => {
-                setCustomQuestionCount(e.target.value);
-                if (e.target.value) setSelectedQuestionCount(parseInt(e.target.value) || 10);
-              }}
-              placeholder="输入自定义数量"
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-xl text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={() => {
-                const count = parseInt(customQuestionCount);
-                if (count > 0) setSelectedQuestionCount(count);
-              }}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200"
-            >
-              确定
-            </button>
+            {categoryItems.map((item) => (
+              <button
+                key={item.code}
+                onClick={() => { setSelectedCategory(item.code); setSelectedInfectionTags([]); }}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                  selectedCategory === item.code && selectedInfectionTags.length === 0
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {item.name}
+              </button>
+            ))}
           </div>
         </div>
+
+        {/* 院感标签细分（仅当选择院感知识时显示） */}
+        {selectedCategory === 'INFECTION_KNOWLEDGE' && infectionTagItems.length > 0 && (
+          <div className="mb-4 p-3 bg-orange-50 rounded-xl">
+            <label className="text-sm font-medium text-gray-700 mb-2 block">院感标签（可多选，不选则全部院感题目）：</label>
+            <div className="flex flex-wrap gap-2">
+              {infectionTagItems.map((tag) => (
+                <button
+                  key={tag.code}
+                  onClick={() => toggleInfectionTag(tag.code)}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all border ${
+                    selectedInfectionTags.includes(tag.code)
+                      ? 'bg-orange-500 text-white border-orange-500'
+                      : 'bg-white text-gray-600 border-gray-300 hover:border-orange-300'
+                  }`}
+                >
+                  {tag.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 题目数量 */}
+        <div className="mb-4">
+          <label className="text-sm font-medium text-gray-700 mb-2 block">题目数量：</label>
+          <div className="grid grid-cols-3 gap-2">
+            {[5, 10, 15, 20, 25, 30].map((count) => (
+              <button
+                key={count}
+                onClick={() => { setSelectedQuestionCount(count); setCustomQuestionCount(''); }}
+                className={`py-3 rounded-xl font-bold text-base transition-all ${
+                  selectedQuestionCount === count && !customQuestionCount
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {count}题
+              </button>
+            ))}
+          </div>
+          <div className="mt-2">
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min={1}
+                max={100}
+                value={customQuestionCount}
+                onChange={(e) => {
+                  setCustomQuestionCount(e.target.value);
+                  if (e.target.value) setSelectedQuestionCount(parseInt(e.target.value) || 10);
+                }}
+                placeholder="自定义数量"
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-xl text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                onClick={() => {
+                  const count = parseInt(customQuestionCount);
+                  if (count > 0) setSelectedQuestionCount(count);
+                }}
+                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200"
+              >
+                确定
+              </button>
+            </div>
+          </div>
+        </div>
+
         <div className="flex gap-4">
           {needsQuestionCount && (
             <button
@@ -701,20 +795,19 @@ export function DailyPractice() {
               try {
                 setShowQuestionCountSelector(false);
                 setLoading(true);
+                const params = buildApiParams();
                 if (needsQuestionCount) {
-                  // 首次进入，获取新练习
-                  const response = await api.get('/daily-practice/today', {
-                    params: { questionCount: selectedQuestionCount },
-                  });
+                  const response = await api.get('/daily-practice/today', { params });
                   if (response.data.success) {
                     setPracticeData(response.data);
                     setNeedsQuestionCount(false);
                     setLoading(false);
                   }
                 } else {
-                  // 重新练习
                   const response = await api.post('/daily-practice/reset', {
-                    questionCount: selectedQuestionCount,
+                    questionCount: params.questionCount,
+                    category: params.category,
+                    infectionTags: params.infectionTags,
                   });
                   if (response.data.success) {
                     setPracticeData(response.data);
@@ -739,6 +832,7 @@ export function DailyPractice() {
       </div>
     </div>
   );
+  };
 
   const renderCalendar = () => (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">

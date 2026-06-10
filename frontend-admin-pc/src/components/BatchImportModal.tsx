@@ -77,6 +77,13 @@ export default function BatchImportModal({ open, onCancel, onSuccess }: BatchImp
     >
       {!result ? (
         <div>
+          <Alert
+            message="院感标签必填提醒"
+            description="分类为「院感知识」的题目，必须在「二级分类/院感标签」列填写院感标签（手卫生、医疗废物、消毒隔离、职业暴露、隔离防护、无菌操作、多重耐药菌、空气质量），否则导入失败！"
+            type="warning"
+            showIcon
+            className="mb-4"
+          />
           <div className="mb-4">
             <Button
               type="primary"

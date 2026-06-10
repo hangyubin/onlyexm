@@ -25,6 +25,7 @@ const Home: React.FC = () => {
   const [dailyDone, setDailyDone] = useState(false);
   const [pendingExamCount, setPendingExamCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<boolean | null>(null);
 
   useEffect(() => {
     fetchAllData();
@@ -33,21 +34,38 @@ const Home: React.FC = () => {
 
   const fetchAllData = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const [status, tasksRes, wrongRes, weakRes] = await Promise.all([
+      const results = await Promise.allSettled([
         homeApi.getInfectionStatus(),
         homeApi.getTasks(),
         homeApi.getWrongCount(),
         homeApi.getWeakPoints(),
       ]);
-      setInfectionStatus(status);
-      setTasks(tasksRes);
-      const pendingExams = tasksRes.filter((t: Task) => t.type === 'exam' && t.status === 'pending');
-      setPendingExamCount(pendingExams.length);
-      setWrongCount(wrongRes.count);
-      setWeakPoints(weakRes);
+      
+      // 每个API独立处理，单个失败不影响其他
+      if (results[0].status === 'fulfilled') {
+        setInfectionStatus(results[0].value);
+      }
+      if (results[1].status === 'fulfilled') {
+        setTasks(results[1].value);
+        const pendingExams = results[1].value.filter((t: Task) => t.type === 'exam' && t.status === 'pending');
+        setPendingExamCount(pendingExams.length);
+      }
+      if (results[2].status === 'fulfilled') {
+        setWrongCount(results[2].value.count);
+      }
+      if (results[3].status === 'fulfilled') {
+        setWeakPoints(results[3].value);
+      }
+      
+      // 检查是否所有请求都失败了
+      if (results.every(r => r.status === 'rejected')) {
+        setError(true);
+      }
     } catch (error) {
       console.error('Failed to fetch home data:', error);
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -127,6 +145,23 @@ const Home: React.FC = () => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center px-4">
+          <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-3" />
+          <p className="text-gray-500 mb-4">数据加载失败，请检查网络后重试</p>
+          <button
+            onClick={() => { setError(null); fetchAllData(); }}
+            className="px-6 py-2 bg-blue-500 text-white rounded-full text-sm"
+          >
+            重新加载
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       {infectionStatus?.isLocked && (
@@ -138,7 +173,7 @@ const Home: React.FC = () => {
 
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-6">
         <h1 className="text-xl font-bold">
-            {getGreeting()}，{JSON.parse(localStorage.getItem('user') || '{}').realName || '用户'}
+            {getGreeting()}，{(() => { try { return JSON.parse(localStorage.getItem('user') || '{}').realName || '用户'; } catch { return '用户'; } })()}
           </h1>
         <p className="text-blue-100 text-sm mt-1">欢迎回来，今天也要认真学习院感知识哦</p>
       </div>
@@ -180,9 +215,9 @@ const Home: React.FC = () => {
       <div className="px-4 mt-6">
         <h2 className="text-lg font-bold text-gray-800 mb-4">快捷入口</h2>
         <div className="grid grid-cols-2 gap-3">
-          {quickAccessItems.map((item, index) => (
+          {quickAccessItems.map((item) => (
             <NavLink
-              key={index}
+              key={item.path}
               to={item.path}
               className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col items-center gap-2 active:opacity-70 transition-opacity"
             >

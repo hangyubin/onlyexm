@@ -70,7 +70,7 @@ export default function Dashboard() {
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     try {
-      const [statsRes, examsRes, activitiesRes, progressRes, weeklyRes] = await Promise.all([
+      const results = await Promise.allSettled([
         api.get<DashboardStats>('/dashboard/stats'),
         api.get<RecentExam[]>('/dashboard/recent-exams'),
         api.get<RecentActivity[]>('/dashboard/recent-activities'),
@@ -78,27 +78,28 @@ export default function Dashboard() {
         api.get<WeeklyStat[]>('/dashboard/weekly-stats'),
       ]);
 
-      setStats(statsRes.data);
-      setExamData(examsRes.data);
-      setRecentActivities(activitiesRes.data);
-      setProgressItems(progressRes.data);
+      if (results[0].status === 'fulfilled') setStats(results[0].value.data);
+      if (results[1].status === 'fulfilled') setExamData(results[1].value.data);
+      if (results[2].status === 'fulfilled') setRecentActivities(results[2].value.data);
+      if (results[3].status === 'fulfilled') setProgressItems(results[3].value.data);
 
       if (chartRef.current) {
         if (!chartInstanceRef.current) {
           chartInstanceRef.current = echarts.init(chartRef.current);
         }
-        if (weeklyRes.data.length > 0) {
+        const weeklyRes = results[4];
+        if (weeklyRes.status === 'fulfilled' && weeklyRes.value.data.length > 0) {
           chartInstanceRef.current.setOption({
             title: { text: '本周学习数据', left: 'center', textStyle: { fontSize: 14 } },
             tooltip: { trigger: 'axis' },
             legend: { data: ['学习人数', '考试次数', '练习次数'], top: 30 },
             grid: { left: '3%', right: '4%', bottom: '3%', top: 60, containLabel: true },
-            xAxis: { type: 'category', data: weeklyRes.data.map((d) => d.day) },
+            xAxis: { type: 'category', data: weeklyRes.value.data.map((d: WeeklyStat) => d.day) },
             yAxis: { type: 'value' },
             series: [
-              { name: '学习人数', type: 'bar', data: weeklyRes.data.map((d) => d.learningUsers) },
-              { name: '考试次数', type: 'bar', data: weeklyRes.data.map((d) => d.examCount) },
-              { name: '练习次数', type: 'line', data: weeklyRes.data.map((d) => d.practiceCount) },
+              { name: '学习人数', type: 'bar', data: weeklyRes.value.data.map((d: WeeklyStat) => d.learningUsers) },
+              { name: '考试次数', type: 'bar', data: weeklyRes.value.data.map((d: WeeklyStat) => d.examCount) },
+              { name: '练习次数', type: 'line', data: weeklyRes.value.data.map((d: WeeklyStat) => d.practiceCount) },
             ],
           });
         }
@@ -122,6 +123,8 @@ export default function Dashboard() {
     window.addEventListener('resize', handleResize);
     return () => {
       window.removeEventListener('resize', handleResize);
+      chartInstanceRef.current?.dispose();
+      chartInstanceRef.current = null;
     };
   }, []);
 
@@ -136,7 +139,7 @@ export default function Dashboard() {
     { title: '考试名称', dataIndex: 'name', key: 'name', ellipsis: true },
     { title: '参与人数', dataIndex: 'participants', key: 'participants', width: 100 },
     { title: '通过率', dataIndex: 'passRate', key: 'passRate', width: 80, render: (rate: string) => (
-      <Tag color={parseInt(rate) >= 80 ? 'green' : 'orange'}>{rate}</Tag>
+      <Tag color={(parseInt(rate) || 0) >= 80 ? 'green' : 'orange'}>{rate}</Tag>
     )},
     { title: '状态', dataIndex: 'status', key: 'status', width: 80, render: (status: string) => (
       <Tag color={status === '进行中' ? 'blue' : 'gray'}>{status}</Tag>
@@ -212,9 +215,9 @@ export default function Dashboard() {
           <Col xs={24} lg={12}>
             <Card title="最近动态">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {recentActivities.map((activity, index) => (
+                {recentActivities.map((activity) => (
                   <div
-                    key={index}
+                    key={`${activity.user}-${activity.time}`}
                     style={{
                       display: 'flex',
                       alignItems: 'center',

@@ -40,13 +40,16 @@ router.get('/:id', async (req, res) => {
 
 router.post('/', roleGuard(['ADMIN']), async (req, res) => {
   try {
-    const { id, name, level } = req.body;
+    const { name, level } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ error: '医院名称不能为空' });
+    }
 
     const hospital = await prisma.hospital.create({
       data: {
-        id: parseInt(id),
         name,
-        level,
+        level: level || 'COUNTY',
       },
     });
 

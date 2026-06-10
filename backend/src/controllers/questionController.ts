@@ -307,7 +307,7 @@ export async function downloadTemplate(): Promise<any> {
     { header: '题目内容', key: 'content', width: 40 },
     { header: `题型（支持: ${typeItems.map((i) => i.name).join('/')}）`, key: 'type', width: 20 },
     { header: `分类（支持: ${categoryItems.filter((i) => !['HAND_HYGIENE','MEDICAL_WASTE','DISINFECTION','EXPOSURE','ISOLATION','STERILIZATION','MDRO','AIR_QUALITY'].includes(i.code)).map((i) => i.name).join('/')}）`, key: 'category', width: 20 },
-    { header: `二级分类/院感标签（可选，支持: ${subCategoryItems.filter((i) => ['HAND_HYGIENE','MEDICAL_WASTE','DISINFECTION','EXPOSURE','ISOLATION','STERILIZATION','MDRO','AIR_QUALITY'].includes(i.code)).map((i) => i.name).join('/')}）`, key: 'subCategory', width: 20 },
+    { header: `二级分类/院感标签（支持: ${subCategoryItems.filter((i) => ['HAND_HYGIENE','MEDICAL_WASTE','DISINFECTION','EXPOSURE','ISOLATION','STERILIZATION','MDRO','AIR_QUALITY'].includes(i.code)).map((i) => i.name).join('/')}）⚠️分类为「院感知识」时必填！`, key: 'subCategory', width: 20 },
     { header: '难度（1-5数字）', key: 'difficulty', width: 10 },
     { header: '解析', key: 'analysis', width: 40 },
     { header: '选项A', key: 'optionA', width: 30 },
@@ -336,6 +336,29 @@ export async function downloadTemplate(): Promise<any> {
   worksheet.addRow(example);
 
   worksheet.getRow(1).font = { bold: true };
+
+  // 添加填写说明 sheet
+  const noteSheet = workbook.addWorksheet('填写说明');
+  noteSheet.columns = [
+    { header: '字段', key: 'field', width: 25 },
+    { header: '说明', key: 'desc', width: 60 },
+  ];
+  noteSheet.getRow(1).font = { bold: true };
+
+  // ⚠️ 重要提醒行（红色加粗）
+  const warnRow = noteSheet.addRow({ field: '⚠️ 重要提醒', desc: '分类为「院感知识」的题目，必须在「二级分类/院感标签」列填写院感标签，否则导入失败！' });
+  warnRow.font = { color: { argb: 'FFFF0000' }, bold: true };
+  warnRow.height = 25;
+
+  noteSheet.addRow({ field: '', desc: '' }); // 空行分隔
+  noteSheet.addRow({ field: '题目内容', desc: '必填，题目正文' });
+  noteSheet.addRow({ field: '题型', desc: '必填，支持：单选题、多选题、判断题' });
+  noteSheet.addRow({ field: '分类', desc: '必填，支持：基础理论、基础知识、基本技能、院感知识、公共卫生、中医药学' });
+  noteSheet.addRow({ field: '二级分类/院感标签', desc: '【院感知识必填】八种院感标签：手卫生、医疗废物、消毒隔离、职业暴露、隔离防护、无菌操作、多重耐药菌、空气质量。其他分类可留空。' });
+  noteSheet.addRow({ field: '难度', desc: '1-5 数字，1最简单' });
+  noteSheet.addRow({ field: '解析', desc: '必填，答案解析' });
+  noteSheet.addRow({ field: '选项A-E', desc: '至少填写A、B两个选项' });
+  noteSheet.addRow({ field: '正确答案', desc: '必填，多个正确答案用逗号分隔，如 A,B' });
 
   const buffer = await workbook.xlsx.writeBuffer();
   return buffer;
@@ -374,6 +397,7 @@ export async function batchImportQuestions(buffer: any): Promise<{
     return hit ? hit.code : null;
   };
 
+  const questionsToCreate: any[] = [];
   let success = 0;
   let failed = 0;
   const failedDetails: string[] = [];
@@ -404,6 +428,14 @@ export async function batchImportQuestions(buffer: any): Promise<{
 
       const category = lookup(categoryItems, categoryStr) || categoryItems[0]?.code || 'BASIC_KNOWLEDGE';
       const subCategory = lookup(categoryItems, subCategoryStr);
+
+      // 校验：院感知识分类必须填写院感标签
+      const infectionKnowledgeCode = 'INFECTION_KNOWLEDGE';
+      if (category === infectionKnowledgeCode && !subCategory) {
+        failedDetails.push(`第${rowNumber}行：分类为「院感知识」，必须填写「二级分类/院感标签」！可选：手卫生、医疗废物、消毒隔离、职业暴露、隔离防护、无菌操作、多重耐药菌、空气质量`);
+        failed++;
+        continue;
+      }
 
       const options: { optionKey: string; content: string; isCorrect: boolean }[] = [];
       const letters = ['A', 'B', 'C', 'D', 'E'];
@@ -453,12 +485,19 @@ export async function batchImportQuestions(buffer: any): Promise<{
         data.subCategory = subCategory;
       }
 
-      await prisma.question.create({ data });
-      success++;
+      questionsToCreate.push({ data });
     } catch (error) {
       failedDetails.push(`第${rowNumber}行：${(error as Error).message}`);
       failed++;
     }
+  }
+
+  // 批量创建题目（使用事务确保一致性）
+  if (questionsToCreate.length > 0) {
+    await prisma.$transaction(
+      questionsToCreate.map((q) => prisma.question.create(q))
+    );
+    success = questionsToCreate.length;
   }
 
   return { success, failed, failedDetails };

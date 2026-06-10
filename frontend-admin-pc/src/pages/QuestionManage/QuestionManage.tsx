@@ -60,11 +60,10 @@ export default function QuestionManage() {
 
   useEffect(() => {
     fetchData();
-  }, [pagination, debouncedSearchContent]);
+  }, [pagination, debouncedSearchContent, searchForm.type, searchForm.category, searchForm.infectionTag, searchForm.difficulty]);
 
   const handleSearch = () => {
-    setPagination({ ...pagination, page: 1 });
-    fetchData();
+    setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
   const handleReset = () => {
@@ -75,8 +74,7 @@ export default function QuestionManage() {
       infectionTag: '',
       difficulty: undefined,
     });
-    setPagination({ ...pagination, page: 1 });
-    fetchData();
+    setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
   const handleAdd = () => {

@@ -49,6 +49,7 @@ function LayoutWrapper() {
       try {
         const token = localStorage.getItem('token');
         if (!token) return;
+        // 在线同步逻辑：后续可在此处实现与服务器的数据同步
       } catch (error) {
         console.error('Failed to sync questions:', error);
       }
@@ -62,9 +63,12 @@ function LayoutWrapper() {
   const handleCheckUnlock = async () => {
     const result = await checkUnlock();
     if (result.success) {
-      alert('解锁成功！');
-    } else {
-      alert(result.message);
+      // 使用 DOM 方式显示解锁成功提示，避免引入额外依赖
+      const el = document.createElement('div');
+      el.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#52c41a;color:#fff;padding:12px 24px;border-radius:8px;z-index:9999;';
+      el.textContent = '解锁成功！';
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 3000);
     }
     return result;
   };

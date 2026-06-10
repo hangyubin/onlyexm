@@ -59,6 +59,8 @@ router.post('/login', async (req, res) => {
     });
 
     if (!user) {
+      // 记录失败尝试，防止用户名枚举攻击
+      recordLoginFailure(clientIp);
       return error(res, 401, '用户名或密码错误');
     }
 

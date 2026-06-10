@@ -57,7 +57,7 @@ export interface UserApi {
   create: (data: Omit<User, 'id' | 'createdAt' | 'hospitalName'> & { password?: string }) => Promise<User>;
   update: (id: number, data: Partial<Omit<User, 'id' | 'createdAt' | 'hospitalName'>>) => Promise<User>;
   delete: (id: number) => Promise<void>;
-  resetPassword: (id: number) => Promise<void>;
+  resetPassword: (id: number) => Promise<{ tempPassword: string }>;
   toggleLock: (id: number) => Promise<User>;
   getLearningProfile: (id: number) => Promise<LearningProfile>;
   batchImport: (file: File) => Promise<BatchImportResult>;
@@ -90,8 +90,9 @@ export const userApi: UserApi = {
     await api.delete(`/users/${id}`);
   },
 
-  resetPassword: async (id: number): Promise<void> => {
-    await api.post(`/users/${id}/reset-password`);
+  resetPassword: async (id: number): Promise<{ tempPassword: string }> => {
+    const response = await api.post<{ tempPassword: string }>(`/users/${id}/reset-password`);
+    return response.data;
   },
 
   toggleLock: async (id: number): Promise<User> => {

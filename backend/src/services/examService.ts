@@ -179,7 +179,10 @@ export async function submitExam(input: SubmitExamInput): Promise<SubmitResult> 
 
       totalScore += result.score;
 
-      if (question.infectionTag) {
+      const knownInfectionTags = ['HAND_HYGIENE', 'MEDICAL_WASTE', 'DISINFECTION', 'EXPOSURE', 'ISOLATION', 'STERILIZATION', 'MDRO', 'AIR_QUALITY'];
+      const isInfectionQuestion = knownInfectionTags.includes(question.infectionTag) || knownInfectionTags.includes(question.subCategory);
+      
+      if (isInfectionQuestion) {
         infectionScore += result.score;
         infectionTotal += questionScore;
         if (result.isCorrect) infectionCorrectCount++;
@@ -239,13 +242,19 @@ export async function submitExam(input: SubmitExamInput): Promise<SubmitResult> 
       });
 
       if (requirement && infectionAccuracy >= 70) {
+        const infectionQuestionCount = infectionTotal > 0 ? Math.round((infectionTotal * infectionCorrectCount) / infectionTotal) : 0;
+        // 加权平均正确率：(旧正确率 × 旧题数 + 新正确率 × 新题数) / 总题数
+        const oldCompletedCount = requirement.completedCount;
+        const oldAccuracy = Number(requirement.accuracyRate || 0);
+        const newCompletedCount = oldCompletedCount + infectionCorrectCount;
+        const newAccuracy = newCompletedCount > 0
+          ? Math.round((oldAccuracy * oldCompletedCount + infectionAccuracy * infectionCorrectCount) / newCompletedCount)
+          : 0;
         await tx.infectionRequirement.update({
           where: { id: requirement.id },
           data: {
-            completedCount: { increment: infectionCorrectCount }, // 按答对的院感题目数增加
-            accuracyRate: {
-              set: ((requirement.completedCount * Number(requirement.accuracyRate || 0) + infectionAccuracy) / (requirement.completedCount + infectionCorrectCount)),
-            },
+            completedCount: newCompletedCount,
+            accuracyRate: newAccuracy,
           },
         });
       }
@@ -543,6 +552,7 @@ export async function autoSubmitExam(examRecordId: number, status: string = 'AUT
   let totalScore = 0;
   let infectionScore = 0;
   let infectionTotal = 0;
+  const answerUpdates: { id: number; isCorrect: boolean; scoreObtained: number }[] = [];
 
   for (const detail of examRecord.answerDetails) {
     const qInfo = questionMap.get(detail.questionId);
@@ -563,30 +573,84 @@ export async function autoSubmitExam(examRecordId: number, status: string = 'AUT
     const obtainedScore = isCorrect ? questionScore : 0;
     totalScore += obtainedScore;
 
-    if (question.infectionTag) {
+    if (question.infectionTag || question.subCategory) {
       infectionScore += obtainedScore;
       infectionTotal += questionScore;
     }
 
-    await prisma.answerDetail.update({
-      where: { id: detail.id },
-      data: { isCorrect, scoreObtained: obtainedScore },
-    });
+    answerUpdates.push({ id: detail.id, isCorrect, scoreObtained: obtainedScore });
   }
 
   const durationSeconds = Math.floor((Date.now() - new Date(examRecord.startTime).getTime()) / 1000);
   const isPassed = totalScore >= (examRecord.paper?.passingScore ?? 60);
 
-  await prisma.examRecord.update({
-    where: { id: examRecordId },
-    data: {
-      endTime: new Date(),
-      durationSeconds,
-      score: totalScore,
-      infectionScore,
-      isPassed,
-      status: status as any,
-    },
+  // 使用事务批量更新
+  await prisma.$transaction(async (tx) => {
+    for (const update of answerUpdates) {
+      await tx.answerDetail.update({
+        where: { id: update.id },
+        data: { isCorrect: update.isCorrect, scoreObtained: update.scoreObtained },
+      });
+    }
+
+    await tx.examRecord.update({
+      where: { id: examRecordId },
+      data: {
+        endTime: new Date(),
+        durationSeconds,
+        score: totalScore,
+        infectionScore,
+        isPassed,
+        status: status as any,
+      },
+    });
+
+    // 更新院感达标（自动提交也需要计入）
+    if (examRecord.userId) {
+      const knownInfectionTags = ['HAND_HYGIENE', 'MEDICAL_WASTE', 'DISINFECTION', 'EXPOSURE', 'ISOLATION', 'STERILIZATION', 'MDRO', 'AIR_QUALITY'];
+      const infectionAccuracy = infectionTotal > 0 ? Math.round((infectionScore / infectionTotal) * 100) : 0;
+
+      if (infectionAccuracy >= 70) {
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        let correctCount = 0;
+        for (const update of answerUpdates) {
+          const detail = examRecord.answerDetails.find((d) => d.id === update.id);
+          if (detail) {
+            const qInfo = questionMap.get(detail.questionId);
+            if (qInfo && (knownInfectionTags.includes(qInfo.question.infectionTag) || knownInfectionTags.includes(qInfo.question.subCategory)) && update.isCorrect) {
+              correctCount++;
+            }
+          }
+        }
+
+        const requirement = await tx.infectionRequirement.findFirst({
+          where: { userId: examRecord.userId, month: currentMonth },
+        });
+
+        if (requirement) {
+          const oldCompletedCount = requirement.completedCount;
+          const oldAccuracy = Number(requirement.accuracyRate || 0);
+          const newCompletedCount = oldCompletedCount + correctCount;
+          const newAccuracy = newCompletedCount > 0
+            ? Math.round((oldAccuracy * oldCompletedCount + infectionAccuracy * correctCount) / newCompletedCount)
+            : 0;
+          await tx.infectionRequirement.update({
+            where: { id: requirement.id },
+            data: { completedCount: newCompletedCount, accuracyRate: newAccuracy },
+          });
+        } else {
+          await tx.infectionRequirement.create({
+            data: {
+              userId: examRecord.userId,
+              month: currentMonth,
+              requiredCount: 20,
+              completedCount: correctCount,
+              accuracyRate: infectionAccuracy,
+            },
+          });
+        }
+      }
+    }
   });
 }
 
@@ -596,28 +660,24 @@ export async function saveAnswer(
   answer: string | string[]
 ): Promise<boolean> {
   try {
-    const existing = await prisma.answerDetail.findFirst({
-      where: { examRecordId, questionId },
-    });
-
-    if (existing) {
-      await prisma.answerDetail.update({
-        where: { id: existing.id },
-        data: {
-          userAnswer: JSON.stringify(answer),
-        },
-      });
-    } else {
-      await prisma.answerDetail.create({
-        data: {
+    await prisma.answerDetail.upsert({
+      where: {
+        examRecordId_questionId: {
           examRecordId,
           questionId,
-          userAnswer: JSON.stringify(answer),
-          isCorrect: false,
-          scoreObtained: 0,
         },
-      });
-    }
+      },
+      create: {
+        examRecordId,
+        questionId,
+        userAnswer: JSON.stringify(answer),
+        isCorrect: false,
+        scoreObtained: 0,
+      },
+      update: {
+        userAnswer: JSON.stringify(answer),
+      },
+    });
     return true;
   } catch {
     return false;
