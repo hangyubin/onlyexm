@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 import { systemApi, DictItem } from '../api/system';
@@ -374,8 +374,9 @@ export function WrongQuestionBook() {
     }
   };
 
-  const fetchWrongQuestions = async () => {
+  const fetchWrongQuestions = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const params: Record<string, string> = {};
       if (filterType) params.type = filterType;
@@ -389,17 +390,17 @@ export function WrongQuestionBook() {
         setWrongQuestions(response.data.data);
         setTotal(response.data.total);
       }
-    } catch (error) {
-      console.error('Fetch wrong questions failed:', error);
+    } catch (err) {
+      console.error('Fetch wrong questions failed:', err);
       setError('加载错题本失败，请重试');
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, filterType, filterCategory, filterTag, pageSize]);
 
   useEffect(() => {
     fetchWrongQuestions();
-  }, [page, filterType, filterCategory, filterTag, fetchWrongQuestions]);
+  }, [fetchWrongQuestions]);
 
   const handlePractice = (item: WrongQuestionItem) => {
     setPracticeMode('single');
