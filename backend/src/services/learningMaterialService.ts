@@ -135,10 +135,10 @@ export const getCategories = async (): Promise<string[]> => {
 export const initSampleData = async () => {
   const totalCount = await prisma.learningMaterial.count();
 
-  // 清空旧数据并重新初始化（确保数据一致）
+  // 仅在没有任何数据时初始化样例数据，避免覆盖用户数据
   if (totalCount > 0) {
-    console.log(`检测到 ${totalCount} 条旧学习资料，重新初始化...`);
-    await prisma.learningMaterial.deleteMany();
+    console.log(`检测到 ${totalCount} 条学习资料，跳过初始化`);
+    return;
   }
 
   const sampleData = [

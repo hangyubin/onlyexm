@@ -37,12 +37,11 @@ export default function LearningMaterialManage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const params: LearningMaterialListParams = {
-        keyword: searchForm.keyword || undefined,
-        type: searchForm.type || undefined,
-        category: searchForm.category || undefined,
-        isActive: searchForm.isActive,
-      };
+      const params: LearningMaterialListParams = {};
+      if (searchForm.keyword) params.keyword = searchForm.keyword.trim();
+      if (searchForm.type) params.type = searchForm.type;
+      if (searchForm.category) params.category = searchForm.category.trim();
+      if (searchForm.isActive !== undefined) params.isActive = searchForm.isActive;
       const data = await learningMaterialApi.getList(params);
       setData(data);
     } catch (error) {
