@@ -12,9 +12,9 @@ export const getLearningMaterials = async (req: Request, res: Response) => {
       isActive?: boolean;
     } = {};
     
-    if (keyword) filters.keyword = keyword;
-    if (type) filters.type = type;
-    if (category) filters.category = category;
+    if (keyword) filters.keyword = String(keyword);
+    if (type) filters.type = String(type);
+    if (category) filters.category = String(category);
     if (isActive !== undefined && isActive !== '') {
       filters.isActive = isActive === 'true';
     }
