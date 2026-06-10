@@ -87,6 +87,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({ data }) => {
       option={option} 
       style={{ height: 200, width: '100%' }}
       opts={{ renderer: 'canvas' }}
+      notMerge={true}
       onEvents={{ click: handleClick }}
     />
   );

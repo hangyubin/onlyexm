@@ -213,7 +213,7 @@ export default function ExamMonitor() {
       <Row gutter={16}>
         <Col span={12}>
           <Card title="实时考试人数趋势">
-            <ReactECharts option={realtimeOption} style={{ height: 250 }} />
+            <ReactECharts option={realtimeOption} style={{ height: 250 }} notMerge={true} />
           </Card>
         </Col>
         <Col span={12}>

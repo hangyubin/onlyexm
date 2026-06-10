@@ -328,9 +328,15 @@ export default function MyProfile() {
             <TrendingUp className="w-5 h-5 text-blue-500" />
             院感能力雷达图
           </h2>
-          <div className="h-64">
-            <ReactECharts option={radarOption} style={{ height: '100%' }} />
-          </div>
+          {radarData.length > 0 ? (
+            <div className="h-64">
+              <ReactECharts option={radarOption} style={{ height: '100%' }} notMerge={true} />
+            </div>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-gray-400">
+              加载中...
+            </div>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
