@@ -50,7 +50,7 @@ export default function UserManage() {
         role: searchRole || undefined,
         department: searchDepartment || undefined,
       });
-      setUsers(response.data);
+      setUsers(response.items);
       setTotal(response.total);
     } catch (error) {
       console.error('获取用户列表失败:', error);

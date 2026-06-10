@@ -52,7 +52,7 @@ export interface BatchImportResult {
 }
 
 export interface UserApi {
-  getList: (params?: { page?: number; pageSize?: number; search?: string; role?: string; department?: string }) => Promise<{ data: User[]; total: number }>;
+  getList: (params?: { page?: number; pageSize?: number; search?: string; role?: string; department?: string }) => Promise<{ items: User[]; total: number }>;
   getById: (id: number) => Promise<User>;
   create: (data: Omit<User, 'id' | 'createdAt' | 'hospitalName'> & { password?: string }) => Promise<User>;
   update: (id: number, data: Partial<Omit<User, 'id' | 'createdAt' | 'hospitalName'>>) => Promise<User>;
@@ -66,8 +66,8 @@ export interface UserApi {
 }
 
 export const userApi: UserApi = {
-  getList: async (params?: { page?: number; pageSize?: number; search?: string; role?: string; department?: string }): Promise<{ data: User[]; total: number }> => {
-    const response = await api.get<{ data: User[]; total: number }>('/users', { params });
+  getList: async (params?: { page?: number; pageSize?: number; search?: string; role?: string; department?: string }): Promise<{ items: User[]; total: number }> => {
+    const response = await api.get<{ items: User[]; total: number }>('/users', { params });
     return response.data;
   },
 
