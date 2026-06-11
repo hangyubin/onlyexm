@@ -16,7 +16,6 @@ import {
 import { homeApi, InfectionStatus, Task, WeakPoint, StudyStats } from '../api/home';
 import { RadarChart } from '../components/RadarChart';
 import { TaskCard } from '../components/TaskCard';
-import { ProgressBar } from '../components/ProgressBar';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -219,37 +218,24 @@ const Home: React.FC = () => {
         </div>
       )}
 
-      {studyStats && (
-        <div className="px-4 mt-6">
-          <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-green-500" />
-            学习统计
-          </h2>
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-blue-50 rounded-xl p-4">
-                <p className="text-blue-600 text-2xl font-bold">{studyStats.totalStudyHours}</p>
-                <p className="text-blue-600/70 text-sm">总学习时长(小时)</p>
-              </div>
-              <div className="bg-green-50 rounded-xl p-4">
-                <p className="text-green-600 text-2xl font-bold">{studyStats.totalPracticeCount}</p>
-                <p className="text-green-600/70 text-sm">总练习题目数</p>
-              </div>
+      <div className="px-4 mt-6">
+        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <Clock className="w-5 h-5 text-green-500" />
+          学习统计
+        </h2>
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-blue-50 rounded-xl p-4">
+              <p className="text-blue-600 text-2xl font-bold">{studyStats?.totalStudyHours ?? 0}</p>
+              <p className="text-blue-600/70 text-sm">总学习时长(小时)</p>
             </div>
-            <div className="mt-4">
-              <div className="flex justify-between text-sm text-gray-600 mb-2">
-                <span>本月院感练习完成度</span>
-                <span>{studyStats.monthlyInfectionProgress.completed}/{studyStats.monthlyInfectionProgress.total}</span>
-              </div>
-              <ProgressBar 
-                progress={studyStats.monthlyInfectionProgress.completed}
-                total={studyStats.monthlyInfectionProgress.total}
-                color="bg-blue-500"
-              />
+            <div className="bg-green-50 rounded-xl p-4">
+              <p className="text-green-600 text-2xl font-bold">{studyStats?.totalPracticeCount ?? 0}</p>
+              <p className="text-green-600/70 text-sm">总练习题目数</p>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       <div className="px-4 mt-6">
         <h2 className="text-lg font-bold text-gray-800 mb-4">快捷入口</h2>

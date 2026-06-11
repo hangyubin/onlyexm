@@ -385,13 +385,6 @@ export interface SubmitResult {
 export async function submitPractice(practiceId: number, answers: SubmitAnswer[]): Promise<SubmitResult> {
   console.log('[每日一练] 提交练习 - ID:', practiceId);
 
-  // 错题更新数据（在事务外收集，事务后执行）
-  let wrongQuestionUpdates: {
-    correctUpdates: { id: number; correctCount: number; status: string }[];
-    wrongUpdates: { id: number; wrongCount: number }[];
-    newWrongQuestions: { userId: number; questionId: number; wrongCount: number; correctCount: number; status: string }[];
-  } | null = null;
-
   const result = await prisma.$transaction(async (tx) => {
     const config = await getInfectionConfig();
     const safePracticeId = typeof practiceId === 'string' ? parseInt(practiceId) : practiceId;
@@ -568,8 +561,32 @@ export async function submitPractice(practiceId: number, answers: SubmitAnswer[]
       }
     }
 
-    // 收集错题更新数据（不在事务内执行，避免事务超时）
-    wrongQuestionUpdates = { correctUpdates, wrongUpdates, newWrongQuestions };
+    // 事务内并行执行错题更新（Promise.all 避免串行 N+1）
+    const updatePromises: Promise<any>[] = [];
+    for (const u of correctUpdates) {
+      updatePromises.push(
+        tx.wrongQuestion.update({
+          where: { id: u.id },
+          data: { correctCount: u.correctCount, status: u.status },
+        })
+      );
+    }
+    for (const u of wrongUpdates) {
+      updatePromises.push(
+        tx.wrongQuestion.update({
+          where: { id: u.id },
+          data: { wrongCount: u.wrongCount, correctCount: 0, status: 'ACTIVE' },
+        })
+      );
+    }
+    if (newWrongQuestions.length > 0) {
+      updatePromises.push(
+        tx.wrongQuestion.createMany({ data: newWrongQuestions })
+      );
+    }
+    if (updatePromises.length > 0) {
+      await Promise.all(updatePromises);
+    }
 
     let message = '';
     if (accuracy >= 90) {
@@ -586,34 +603,7 @@ export async function submitPractice(practiceId: number, answers: SubmitAnswer[]
       success: true, score, totalQuestions, correctCount,
       accuracy, earnedBonus, message, results,
     };
-  }, { timeout: 15000 });
-
-  // 事务外异步更新错题记录（不阻塞响应，避免超时）
-  if (wrongQuestionUpdates) {
-    const { correctUpdates, wrongUpdates, newWrongQuestions } = wrongQuestionUpdates;
-    // 不 await，直接启动异步更新
-    (async () => {
-      try {
-        for (const u of correctUpdates) {
-          await prisma.wrongQuestion.update({
-            where: { id: u.id },
-            data: { correctCount: u.correctCount, status: u.status },
-          });
-        }
-        for (const u of wrongUpdates) {
-          await prisma.wrongQuestion.update({
-            where: { id: u.id },
-            data: { wrongCount: u.wrongCount, correctCount: 0, status: 'ACTIVE' },
-          });
-        }
-        if (newWrongQuestions.length > 0) {
-          await prisma.wrongQuestion.createMany({ data: newWrongQuestions });
-        }
-      } catch (err) {
-        console.error('[每日一练] 错题记录更新失败（不影响提交结果）:', err);
-      }
-    })();
-  }
+  }, { timeout: 30000 });
 
   return result;
 }

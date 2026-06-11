@@ -60,19 +60,26 @@ router.get('/infection-status', authMiddleware, async (req, res) => {
   const currentMonth = new Date().toISOString().slice(0, 7);
 
   try {
-    const requirement = await prisma.infectionRequirement.findFirst({
-      where: {
-        userId: user.userId,
-        month: currentMonth,
-      },
-    });
+    let requirement = null;
+    try {
+      requirement = await prisma.infectionRequirement.findFirst({
+        where: { userId: user.userId, month: currentMonth },
+      });
+    } catch (e: any) {
+      console.warn('[infection-status] infectionRequirement 查询失败（可能未 migrate）:', e?.message);
+    }
 
     if (!requirement) {
-      const config = await getInfectionConfig();
+      let monthlyRequiredCount = 20;
+      try {
+        const config = await getInfectionConfig();
+        monthlyRequiredCount = config.monthlyRequiredCount;
+      } catch (_) {}
+      
       return res.json({
         isLocked: false,
         completedCount: 0,
-        totalCount: config.monthlyRequiredCount,
+        totalCount: monthlyRequiredCount,
         correctRate: 0,
         isCompliant: false,
       });
@@ -335,31 +342,58 @@ router.get('/study-stats', authMiddleware, async (req, res) => {
   if (!user) return res.status(401).json({ error: '未授权' });
 
   try {
-    const totalPracticeRecords = await prisma.practiceSyncRecord.count({
-      where: { userId: user.userId },
-    });
+    let totalPracticeCount = 0;
+    let totalStudyMinutes = 0;
+    let monthlyCompleted = 0;
+    let monthlyTotal = 20;
 
-    const learningRecords = await prisma.learningRecord.findMany({
-      where: { userId: user.userId },
-    });
-    const totalStudyMinutes = learningRecords.reduce((sum, record) => sum + record.studyDurationSeconds, 0) / 60;
+    // 每项查询独立容错，某张表不存在时不影响其他
+    try {
+      totalPracticeCount = await prisma.practiceSyncRecord.count({
+        where: { userId: user.userId },
+      });
+    } catch (e: any) {
+      console.warn('[study-stats] practiceSyncRecord 查询失败:', e?.message);
+    }
 
-    const currentMonth = new Date().toISOString().slice(0, 7);
-    const infectionRequirement = await prisma.infectionRequirement.findFirst({
-      where: { userId: user.userId, month: currentMonth },
-    });
+    try {
+      const learningRecords = await prisma.learningRecord.findMany({
+        where: { userId: user.userId },
+      });
+      totalStudyMinutes = learningRecords.reduce((sum, record) => sum + record.studyDurationSeconds, 0) / 60;
+    } catch (e: any) {
+      console.warn('[study-stats] learningRecord 查询失败:', e?.message);
+    }
+
+    try {
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      const infectionRequirement = await prisma.infectionRequirement.findFirst({
+        where: { userId: user.userId, month: currentMonth },
+      });
+      if (infectionRequirement) {
+        monthlyCompleted = infectionRequirement.completedCount;
+        monthlyTotal = infectionRequirement.requiredCount;
+      }
+    } catch (e: any) {
+      console.warn('[study-stats] infectionRequirement 查询失败:', e?.message);
+    }
 
     res.json({
       totalStudyHours: Math.round(totalStudyMinutes / 60 * 10) / 10,
-      totalPracticeCount: totalPracticeRecords,
+      totalPracticeCount,
       monthlyInfectionProgress: {
-        completed: infectionRequirement?.completedCount || 0,
-        total: infectionRequirement?.requiredCount || 20,
+        completed: monthlyCompleted,
+        total: monthlyTotal,
       },
     });
   } catch (err) {
     console.error('Get study stats error:', err);
-    res.status(500).json({ error: '服务器内部错误' });
+    // 返回0值而非500，避免前端整个模块不显示
+    res.json({
+      totalStudyHours: 0,
+      totalPracticeCount: 0,
+      monthlyInfectionProgress: { completed: 0, total: 20 },
+    });
   }
 });
 
