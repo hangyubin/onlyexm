@@ -25,6 +25,8 @@ model User {
   realName   String
   role       String   // 动态字典 ROLE：ADMIN / INFECTION_OFFICER / DEPT_HEAD / DOCTOR / NURSE ...
   department String   // 动态字典 DEPARTMENT：内科 / 外科 / ICU ...（直接存字典 code 或 name）
+  phone      String?  // 手机号
+  email      String?  // 邮箱
   hospitalId Int?
   isLocked   Boolean  @default(false)
   createdAt  DateTime @default(now())

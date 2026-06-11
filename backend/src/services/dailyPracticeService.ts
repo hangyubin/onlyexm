@@ -533,41 +533,53 @@ export async function submitPractice(practiceId: number, answers: SubmitAnswer[]
       wrongQuestionMap.set(wq.questionId, wq);
     }
 
+    // 批量处理错题记录
+    const correctUpdates: { id: number; correctCount: number; status: string }[] = [];
+    const wrongUpdates: { id: number; wrongCount: number }[] = [];
+    const newWrongQuestions: { userId: number; questionId: number; wrongCount: number; correctCount: number; status: string }[] = [];
+
     for (const result of results) {
       const existingWrong = wrongQuestionMap.get(result.questionId);
       if (result.isCorrect) {
-        // 答对了：如果之前有错题记录，增加连续正确次数
         if (existingWrong && existingWrong.status === 'ACTIVE') {
           const newCorrectCount = existingWrong.correctCount + 1;
           const newStatus = newCorrectCount >= 3 ? 'REMOVED' : 'ACTIVE';
-          await tx.wrongQuestion.update({
-            where: { id: existingWrong.id },
-            data: { correctCount: newCorrectCount, status: newStatus },
-          });
+          correctUpdates.push({ id: existingWrong.id, correctCount: newCorrectCount, status: newStatus });
         }
       } else {
-        // 答错了：创建或更新错题记录
         if (existingWrong) {
-          await tx.wrongQuestion.update({
-            where: { id: existingWrong.id },
-            data: {
-              wrongCount: existingWrong.wrongCount + 1,
-              correctCount: 0,
-              status: 'ACTIVE',
-            },
-          });
+          wrongUpdates.push({ id: existingWrong.id, wrongCount: existingWrong.wrongCount + 1 });
         } else {
-          await tx.wrongQuestion.create({
-            data: {
-              userId: practice.userId,
-              questionId: result.questionId,
-              wrongCount: 1,
-              correctCount: 0,
-              status: 'ACTIVE',
-            },
+          newWrongQuestions.push({
+            userId: practice.userId,
+            questionId: result.questionId,
+            wrongCount: 1,
+            correctCount: 0,
+            status: 'ACTIVE',
           });
         }
       }
+    }
+
+    // 批量更新答对的错题（重置连续正确计数）
+    for (const update of correctUpdates) {
+      await tx.wrongQuestion.update({
+        where: { id: update.id },
+        data: { correctCount: update.correctCount, status: update.status },
+      });
+    }
+
+    // 批量更新答错的错题
+    for (const update of wrongUpdates) {
+      await tx.wrongQuestion.update({
+        where: { id: update.id },
+        data: { wrongCount: update.wrongCount, correctCount: 0, status: 'ACTIVE' },
+      });
+    }
+
+    // 批量创建新错题记录
+    if (newWrongQuestions.length > 0) {
+      await tx.wrongQuestion.createMany({ data: newWrongQuestions });
     }
 
     let message = '';

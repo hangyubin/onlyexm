@@ -18,6 +18,8 @@ const userSelect = {
   realName: true,
   role: true,
   department: true,
+  phone: true,
+  email: true,
   hospitalId: true,
   isLocked: true,
   createdAt: true,

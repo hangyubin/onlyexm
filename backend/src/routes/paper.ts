@@ -142,13 +142,9 @@ router.post('/', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER']), asyn
       return res.status(400).json({ error: '试卷名称不能为空' });
     }
 
-    if (!examStartTime || !examEndTime) {
-      return res.status(400).json({ error: '请设置考试开始和结束时间' });
-    }
-
-    const startTime = new Date(examStartTime);
-    const endTime = new Date(examEndTime);
-    if (endTime <= startTime) {
+    const startTime = examStartTime ? new Date(examStartTime) : null;
+    const endTime = examEndTime ? new Date(examEndTime) : null;
+    if (startTime && endTime && endTime <= startTime) {
       return res.status(400).json({ error: '考试结束时间必须晚于开始时间' });
     }
 
@@ -259,9 +255,41 @@ router.put('/:id', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER']), as
 
     const { title, description, totalScore, passScore, duration, questions, examStartTime, examEndTime } = req.body;
 
-    // 已发布的试卷不允许编辑
+    // 已发布的试卷只允许修改考试时间/时长，不允许修改题目和其他内容
     if (existing.isPublished) {
-      return res.status(400).json({ error: '已发布的试卷不允许编辑' });
+      const data: any = {};
+      if (duration !== undefined) data.durationMinutes = duration;
+      if (examStartTime !== undefined) data.examStartTime = examStartTime ? new Date(examStartTime) : null;
+      if (examEndTime !== undefined) data.examEndTime = examEndTime ? new Date(examEndTime) : null;
+
+      if (Object.keys(data).length === 0) {
+        return res.status(400).json({ error: '已发布的试卷只允许修改考试时间和时长' });
+      }
+
+      const updated = await prisma.paper.update({
+        where: { id },
+        data,
+      });
+
+      const fullPaper = await prisma.paper.findUnique({
+        where: { id },
+        include: {
+          paperQuestions: {
+            include: {
+              question: {
+                select: {
+                  id: true,
+                  content: true,
+                  type: true,
+                },
+              },
+            },
+            orderBy: { id: 'asc' },
+          },
+        },
+      });
+
+      return res.json(mapPaperDetail(fullPaper));
     }
 
     const paper = await prisma.$transaction(async (tx) => {
@@ -271,8 +299,8 @@ router.put('/:id', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER']), as
       if (totalScore !== undefined) data.totalScore = totalScore;
       if (passScore !== undefined) data.passingScore = passScore;
       if (duration !== undefined) data.durationMinutes = duration;
-      if (examStartTime !== undefined) data.examStartTime = new Date(examStartTime);
-      if (examEndTime !== undefined) data.examEndTime = new Date(examEndTime);
+      if (examStartTime !== undefined) data.examStartTime = examStartTime ? new Date(examStartTime) : null;
+      if (examEndTime !== undefined) data.examEndTime = examEndTime ? new Date(examEndTime) : null;
 
       const updated = await tx.paper.update({
         where: { id },

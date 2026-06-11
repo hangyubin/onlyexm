@@ -331,8 +331,8 @@ async function generatePaper(
         totalScore,
         passingScore: input.passingScore,
         durationMinutes: input.durationMinutes,
-        isActive: true,
-        isPublished: true,
+        isActive: false,
+        isPublished: false,
       },
     });
 

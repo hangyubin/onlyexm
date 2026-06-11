@@ -22,7 +22,7 @@ interface UserInfo {
 
 export default function MyProfile() {
   const navigate = useNavigate();
-  const { getName } = useDicts([DICT_CATEGORY.ROLE]);
+  const { getName, getItems } = useDicts([DICT_CATEGORY.ROLE, DICT_CATEGORY.DEPARTMENT]);
   const [userInfo, setUserInfo] = useState<UserInfo>({
     realName: '',
     department: '',
@@ -153,7 +153,7 @@ export default function MyProfile() {
           <div className="flex-1">
             <h1 className="text-xl font-bold">{userInfo.realName}</h1>
             <p className="text-blue-100 text-sm">
-              {userInfo.department} · {getName(DICT_CATEGORY.ROLE, userInfo.role)}
+              {getName(DICT_CATEGORY.DEPARTMENT, userInfo.department)} · {getName(DICT_CATEGORY.ROLE, userInfo.role)}
             </p>
             <p className="text-blue-200 text-xs mt-1">{userInfo.hospitalName}</p>
           </div>
@@ -174,7 +174,7 @@ export default function MyProfile() {
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-50">
               <span className="text-sm text-gray-500">科室</span>
-              <span className="text-sm text-gray-800">{userInfo.department || '-'}</span>
+              <span className="text-sm text-gray-800">{getName(DICT_CATEGORY.DEPARTMENT, userInfo.department) || '-'}</span>
             </div>
             <div className="flex items-center justify-between py-2 border-b border-gray-50">
               <span className="text-sm text-gray-500">角色</span>
@@ -307,13 +307,16 @@ export default function MyProfile() {
               </div>
               <div>
                 <label className="block text-sm text-gray-500 mb-1">科室</label>
-                <input
-                  type="text"
-                  placeholder="科室"
+                <select
                   value={profileForm.department}
                   onChange={(e) => setProfileForm({ ...profileForm, department: e.target.value })}
-                  className="w-full p-3 border border-gray-200 rounded-xl"
-                />
+                  className="w-full p-3 border border-gray-200 rounded-xl bg-white"
+                >
+                  <option value="">请选择科室</option>
+                  {getItems(DICT_CATEGORY.DEPARTMENT).map((item) => (
+                    <option key={item.value} value={item.value}>{item.label}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-sm text-gray-500 mb-1">手机号</label>

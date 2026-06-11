@@ -44,6 +44,8 @@ router.get('/stats', authMiddleware, async (req, res) => {
         department: user?.department || '',
         role: user?.role || '',
         hospitalName: user?.hospital?.name || '',
+        phone: (user as any)?.phone || '',
+        email: (user as any)?.email || '',
       },
       infectionStatus: {
         isQualified: (infectionRequirement?.completedCount || 0) >= 20 && Number(infectionRequirement?.accuracyRate || 0) >= 70,
@@ -233,10 +235,12 @@ router.put('/update', authMiddleware, async (req, res) => {
       updateData.department = String(department).trim();
     }
     if (phone !== undefined) {
-      updateData.phone = String(phone).trim();
+      const trimmed = String(phone).trim();
+      updateData.phone = trimmed || null;
     }
     if (email !== undefined) {
-      updateData.email = String(email).trim();
+      const trimmed = String(email).trim();
+      updateData.email = trimmed || null;
     }
     if (password !== undefined && String(password).trim()) {
       updateData.password = await bcrypt.hash(String(password), 10);

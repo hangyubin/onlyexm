@@ -27,8 +27,16 @@ export default function PaperManage() {
   const [modalVisible, setModalVisible] = useState(false);
   const [publishModalVisible, setPublishModalVisible] = useState(false);
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
+  const [examSettingModalVisible, setExamSettingModalVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
+
+  const [examSettingInfo, setExamSettingInfo] = useState({
+    paperId: 0,
+    duration: 60,
+    examStartTime: null as string | null,
+    examEndTime: null as string | null,
+  });
 
   const [basicInfo, setBasicInfo] = useState({
     title: '',
@@ -81,6 +89,16 @@ export default function PaperManage() {
       setBasicInfo((prev) => (prev.examEndTime !== null ? { ...prev, examEndTime: null } : prev));
     }
   }, [basicInfo.examStartTime, basicInfo.duration]);
+
+  // 编辑考试设置时，自动计算结束时间
+  useEffect(() => {
+    if (examSettingInfo.examStartTime && examSettingInfo.duration) {
+      const endTime = dayjs(examSettingInfo.examStartTime).add(examSettingInfo.duration, 'minute').format('YYYY-MM-DD HH:mm');
+      setExamSettingInfo((prev) => (prev.examEndTime !== endTime ? { ...prev, examEndTime: endTime } : prev));
+    } else {
+      setExamSettingInfo((prev) => (prev.examEndTime !== null ? { ...prev, examEndTime: null } : prev));
+    }
+  }, [examSettingInfo.examStartTime, examSettingInfo.duration]);
 
   // 初始化智能组卷分类数量
   useEffect(() => {
@@ -186,8 +204,9 @@ export default function PaperManage() {
       render: (_: unknown, record: Paper) => (
         <Space>
           {!record.isPublished && (
-            <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)} />
+            <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)} title="编辑试卷" />
           )}
+          <Button icon={<EditOutlined />} size="small" type="dashed" onClick={() => handleExamSetting(record)} title="考试设置" />
           {/* 未发布或已结束的试卷可以删除 */}
           {!record.isPublished || !record.isActive ? (
             <Popconfirm title="确定删除该试卷吗？此操作不可撤销，且会删除相关考试记录。" onConfirm={() => handleDelete(record.id)}>
@@ -469,6 +488,37 @@ export default function PaperManage() {
     } catch (error: any) {
       const msg = error?.response?.data?.error || '取消发布失败';
       message.error(msg);
+    }
+  };
+
+  const handleExamSetting = async (record: Paper) => {
+    try {
+      const detail = await paperApi.getById(record.id);
+      setExamSettingInfo({
+        paperId: detail.id,
+        duration: detail.duration,
+        examStartTime: detail.examStartTime,
+        examEndTime: detail.examEndTime,
+      });
+      setExamSettingModalVisible(true);
+    } catch (error) {
+      message.error('获取试卷信息失败');
+    }
+  };
+
+  const handleExamSettingSubmit = async () => {
+    try {
+      await paperApi.update(examSettingInfo.paperId, {
+        duration: examSettingInfo.duration,
+        examStartTime: examSettingInfo.examStartTime,
+        examEndTime: examSettingInfo.examEndTime,
+      });
+      message.success('考试设置已更新');
+      setExamSettingModalVisible(false);
+      fetchPapers();
+    } catch (error: any) {
+      const errMsg = error?.response?.data?.message || error?.response?.data?.error || '保存失败';
+      message.error(errMsg);
     }
   };
 
@@ -1080,6 +1130,50 @@ export default function PaperManage() {
         <p className="text-sm text-gray-600">
           确认发布试卷 {selectedPaper?.title ? `"${selectedPaper.title}"` : ''}？发布后考生即可参加考试。
         </p>
+      </Modal>
+
+      <Modal
+        title="考试设置"
+        open={examSettingModalVisible}
+        onCancel={() => setExamSettingModalVisible(false)}
+        onOk={handleExamSettingSubmit}
+        okText="保存"
+        cancelText="取消"
+      >
+        <FormItem label="考试时长（分钟）">
+          <InputNumber
+            value={examSettingInfo.duration}
+            onChange={(value) => setExamSettingInfo({ ...examSettingInfo, duration: value || 60 })}
+            min={5}
+            max={300}
+          />
+        </FormItem>
+        <Row gutter={16}>
+          <Col span={12}>
+            <FormItem label="考试开始时间">
+              <DatePicker
+                showTime
+                format="YYYY-MM-DD HH:mm"
+                value={examSettingInfo.examStartTime ? dayjs(examSettingInfo.examStartTime) : undefined}
+                onChange={(_date: any, dateString: string | string[]) => setExamSettingInfo({ ...examSettingInfo, examStartTime: (typeof dateString === 'string' ? dateString : dateString[0]) || null })}
+                placeholder="选择开始时间"
+                className="w-full"
+              />
+            </FormItem>
+          </Col>
+          <Col span={12}>
+            <FormItem label="考试结束时间（自动计算）">
+              <DatePicker
+                showTime
+                format="YYYY-MM-DD HH:mm"
+                value={examSettingInfo.examEndTime ? dayjs(examSettingInfo.examEndTime) : undefined}
+                disabled
+                placeholder={examSettingInfo.examStartTime ? '自动根据开始时间+时长计算' : '请先设置开始时间和时长'}
+                className="w-full"
+              />
+            </FormItem>
+          </Col>
+        </Row>
       </Modal>
 
       <Modal
