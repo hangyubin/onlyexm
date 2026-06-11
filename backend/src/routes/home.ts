@@ -330,4 +330,37 @@ router.get('/weak-points', authMiddleware, async (req, res) => {
   }
 });
 
+router.get('/study-stats', authMiddleware, async (req, res) => {
+  const user = req.user;
+  if (!user) return res.status(401).json({ error: '未授权' });
+
+  try {
+    const totalPracticeRecords = await prisma.practiceSyncRecord.count({
+      where: { userId: user.userId },
+    });
+
+    const learningRecords = await prisma.learningRecord.findMany({
+      where: { userId: user.userId },
+    });
+    const totalStudyMinutes = learningRecords.reduce((sum, record) => sum + record.studyDurationSeconds, 0) / 60;
+
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const infectionRequirement = await prisma.infectionRequirement.findFirst({
+      where: { userId: user.userId, month: currentMonth },
+    });
+
+    res.json({
+      totalStudyHours: Math.round(totalStudyMinutes / 60 * 10) / 10,
+      totalPracticeCount: totalPracticeRecords,
+      monthlyInfectionProgress: {
+        completed: infectionRequirement?.completedCount || 0,
+        total: infectionRequirement?.requiredCount || 20,
+      },
+    });
+  } catch (err) {
+    console.error('Get study stats error:', err);
+    res.status(500).json({ error: '服务器内部错误' });
+  }
+});
+
 export default router;

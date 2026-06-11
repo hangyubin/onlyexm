@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ReactECharts from 'echarts-for-react';
-import { User, BookOpen, Clock, AlertCircle, Award, TrendingUp, CheckCircle, XCircle, LogOut, Settings, Type, Lock } from 'lucide-react';
+import { User, LogOut, Settings, Type, Lock, Edit3 } from 'lucide-react';
 import api from '../api/axios';
-import { ProgressBar } from '../components/ProgressBar';
 import { useDicts, DICT_CATEGORY } from '../hooks/useDict';
 
 const FONT_SCALES = [
@@ -18,54 +16,8 @@ interface UserInfo {
   department: string;
   role: string;
   hospitalName: string;
-}
-
-interface InfectionStatus {
-  isQualified: boolean;
-  completedCount: number;
-  requiredCount: number;
-  accuracyRate: number;
-  remainingCount: number;
-}
-
-interface StudyStats {
-  totalStudyHours: number;
-  totalPracticeCount: number;
-  monthlyInfectionProgress: {
-    completed: number;
-    total: number;
-  };
-}
-
-interface PendingTasks {
-  pendingExams: Array<{
-    id: number;
-    paperName: string;
-    startTime: string;
-  }>;
-  pendingCourses: any[];
-}
-
-interface RadarDataItem {
-  tag: string;
-  label: string;
-  value: number;
-}
-
-interface ExamTrendItem {
-  id: number;
-  paperName: string;
-  score: number;
-  date: string;
-  isPassed: boolean;
-}
-
-interface HeatmapDataItem {
-  category: string;
-  label: string;
-  wrongCount: number;
-  accuracy: number;
-  intensity: number;
+  phone?: string;
+  email?: string;
 }
 
 export default function MyProfile() {
@@ -76,168 +28,46 @@ export default function MyProfile() {
     department: '',
     role: '',
     hospitalName: '',
+    phone: '',
+    email: '',
   });
-  const [infectionStatus, setInfectionStatus] = useState<InfectionStatus>({
-    isQualified: false,
-    completedCount: 0,
-    requiredCount: 20,
-    accuracyRate: 0,
-    remainingCount: 20,
-  });
-  const [studyStats, setStudyStats] = useState<StudyStats>({
-    totalStudyHours: 0,
-    totalPracticeCount: 0,
-    monthlyInfectionProgress: { completed: 0, total: 20 },
-  });
-  const [pendingTasks, setPendingTasks] = useState<PendingTasks>({
-    pendingExams: [],
-    pendingCourses: [],
-  });
-  const [radarData, setRadarData] = useState<RadarDataItem[]>([]);
-  const [examTrend, setExamTrend] = useState<ExamTrendItem[]>([]);
-  const [heatmapData, setHeatmapData] = useState<HeatmapDataItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentFontScale, setCurrentFontScale] = useState(() => localStorage.getItem('fontScale') || '1');
+
+  // 修改密码
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
   const [passwordLoading, setPasswordLoading] = useState(false);
 
+  // 修改个人资料
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileForm, setProfileForm] = useState({ realName: '', department: '', phone: '', email: '' });
+  const [profileLoading, setProfileLoading] = useState(false);
+
   useEffect(() => {
-    fetchData();
+    fetchUserInfo();
   }, []);
 
-  const fetchData = async () => {
+  const fetchUserInfo = async () => {
     setLoading(true);
     try {
-      const [statsRes, radarRes, trendRes, heatmapRes] = await Promise.all([
-        api.get('/user/profile/stats'),
-        api.get('/user/profile/radar-data'),
-        api.get('/user/profile/exam-trend'),
-        api.get('/user/profile/wrong-heatmap'),
-      ]);
-
-      // axios拦截器已提取code===0响应中的data，直接读取数据
-      const statsData = statsRes.data;
-      if (statsData.user) {
-        setUserInfo(statsData.user);
-        setInfectionStatus(statsData.infectionStatus);
-        setStudyStats(statsData.studyStats);
-        setPendingTasks(statsData.pendingTasks);
-      }
-
-      if (radarRes.data?.radar || radarRes.data?.dimensions) {
-        setRadarData(radarRes.data);
-      }
-
-      if (Array.isArray(trendRes.data)) {
-        setExamTrend(trendRes.data);
-      } else if (trendRes.data?.trend) {
-        setExamTrend(trendRes.data.trend);
-      }
-
-      if (heatmapRes.data?.categories || heatmapRes.data?.heatmap) {
-        setHeatmapData(heatmapRes.data);
+      const res = await api.get('/user/profile/stats');
+      const data = res.data;
+      if (data.user) {
+        setUserInfo({
+          realName: data.user.realName || '',
+          department: data.user.department || '',
+          role: data.user.role || '',
+          hospitalName: data.user.hospitalName || '',
+          phone: data.user.phone || '',
+          email: data.user.email || '',
+        });
       }
     } catch (error) {
-      console.error('Fetch profile data error:', error);
+      console.error('Fetch user info error:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const radarOption = {
-    radar: {
-      indicator: radarData.map(item => ({ name: item.label, max: 100 })),
-      shape: 'polygon',
-      splitNumber: 5,
-      axisName: {
-        color: '#333',
-        fontSize: 12,
-      },
-      splitArea: {
-        areaStyle: {
-          color: ['rgba(59, 130, 246, 0.05)', 'rgba(59, 130, 246, 0.1)'],
-        },
-      },
-      axisLine: {
-        lineStyle: { color: '#e5e7eb' },
-      },
-      splitLine: {
-        lineStyle: { color: '#e5e7eb' },
-      },
-    },
-    series: [
-      {
-        type: 'radar',
-        data: [
-          {
-            value: radarData.map(item => item.value),
-            name: '院感能力',
-            symbol: 'circle',
-            symbolSize: 6,
-            lineStyle: { color: '#3b82f6', width: 2 },
-            areaStyle: { color: 'rgba(59, 130, 246, 0.3)' },
-            itemStyle: { color: '#3b82f6' },
-          },
-        ],
-      },
-    ],
-  };
-
-  const trendOption = {
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-      borderColor: '#e5e7eb',
-      textStyle: { color: '#374151' },
-    },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      containLabel: true,
-    },
-    xAxis: {
-      type: 'category',
-      data: examTrend.map(item => item.date),
-      axisLine: { lineStyle: { color: '#e5e7eb' } },
-      axisLabel: { color: '#6b7280', fontSize: 11 },
-    },
-    yAxis: {
-      type: 'value',
-      min: 0,
-      max: 100,
-      axisLine: { lineStyle: { color: '#e5e7eb' } },
-      axisLabel: { color: '#6b7280', fontSize: 11 },
-      splitLine: { lineStyle: { color: '#f3f4f6' } },
-    },
-    series: [
-      {
-        name: '成绩',
-        type: 'line',
-        smooth: true,
-        data: examTrend.map(item => item.score),
-        lineStyle: { color: '#3b82f6', width: 3 },
-        itemStyle: { color: '#3b82f6' },
-        areaStyle: { color: 'rgba(59, 130, 246, 0.1)' },
-        symbol: 'circle',
-        symbolSize: 8,
-      },
-      {
-        name: '及格线',
-        type: 'line',
-        data: examTrend.map(() => 60),
-        lineStyle: { color: '#ef4444', width: 2, type: 'dashed' },
-        symbol: 'none',
-      },
-    ],
-  };
-
-  const getHeatmapColor = (intensity: number) => {
-    if (intensity >= 0.7) return 'bg-red-500';
-    if (intensity >= 0.4) return 'bg-yellow-500';
-    if (intensity > 0) return 'bg-orange-400';
-    return 'bg-gray-300';
   };
 
   const handleFontScaleChange = (value: string) => {
@@ -275,6 +105,35 @@ export default function MyProfile() {
     }
   };
 
+  const openProfileModal = () => {
+    setProfileForm({
+      realName: userInfo.realName,
+      department: userInfo.department,
+      phone: userInfo.phone || '',
+      email: userInfo.email || '',
+    });
+    setShowProfileModal(true);
+  };
+
+  const handleUpdateProfile = async () => {
+    if (!profileForm.realName.trim()) {
+      alert('请输入真实姓名');
+      return;
+    }
+    setProfileLoading(true);
+    try {
+      await api.put('/user/profile/update', profileForm);
+      alert('个人资料修改成功');
+      setShowProfileModal(false);
+      // Refresh user info
+      fetchUserInfo();
+    } catch (err: any) {
+      alert(err.response?.data?.message || '修改失败');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -285,165 +144,63 @@ export default function MyProfile() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
+      {/* 用户信息头部 */}
       <div className="bg-gradient-to-br from-blue-600 to-blue-800 text-white px-4 pt-8 pb-6 rounded-b-3xl">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
             <User className="w-8 h-8" />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-xl font-bold">{userInfo.realName}</h1>
-            <p className="text-blue-100 text-sm">{userInfo.department} · {getName(DICT_CATEGORY.ROLE, userInfo.role)}</p>
+            <p className="text-blue-100 text-sm">
+              {userInfo.department} · {getName(DICT_CATEGORY.ROLE, userInfo.role)}
+            </p>
             <p className="text-blue-200 text-xs mt-1">{userInfo.hospitalName}</p>
           </div>
         </div>
+      </div>
 
-        <div className="mt-4 p-4 bg-white/10 rounded-2xl">
-          <div className="flex items-center justify-between">
-            <span className="text-blue-100 text-sm">院感达标状态</span>
-            <div className="flex items-center gap-2">
-              {infectionStatus.isQualified ? (
-                <>
-                  <CheckCircle className="w-5 h-5 text-green-400" />
-                  <span className="text-green-300 font-medium">已达标</span>
-                </>
-              ) : (
-                <>
-                  <XCircle className="w-5 h-5 text-red-400" />
-                  <span className="text-red-300 font-medium">未达标</span>
-                </>
-              )}
+      {/* 修改个人资料 */}
+      <div className="px-4 mt-4">
+        <div className="bg-white rounded-2xl shadow-sm p-4">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <Edit3 className="w-5 h-5 text-blue-500" />
+            个人资料
+          </h2>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between py-2 border-b border-gray-50">
+              <span className="text-sm text-gray-500">姓名</span>
+              <span className="text-sm text-gray-800">{userInfo.realName || '-'}</span>
+            </div>
+            <div className="flex items-center justify-between py-2 border-b border-gray-50">
+              <span className="text-sm text-gray-500">科室</span>
+              <span className="text-sm text-gray-800">{userInfo.department || '-'}</span>
+            </div>
+            <div className="flex items-center justify-between py-2 border-b border-gray-50">
+              <span className="text-sm text-gray-500">角色</span>
+              <span className="text-sm text-gray-800">
+                {getName(DICT_CATEGORY.ROLE, userInfo.role)}
+              </span>
+            </div>
+            <div className="flex items-center justify-between py-2 border-b border-gray-50">
+              <span className="text-sm text-gray-500">手机号</span>
+              <span className="text-sm text-gray-800">{userInfo.phone || '-'}</span>
+            </div>
+            <div className="flex items-center justify-between py-2">
+              <span className="text-sm text-gray-500">邮箱</span>
+              <span className="text-sm text-gray-800">{userInfo.email || '-'}</span>
             </div>
           </div>
-          <div className="mt-2 text-xs text-blue-200">
-            {infectionStatus.isQualified 
-              ? `正确率 ${infectionStatus.accuracyRate}%，已完成 ${infectionStatus.completedCount} 题`
-              : `还需完成 ${infectionStatus.remainingCount} 道院感题目，当前正确率 ${infectionStatus.accuracyRate}%`}
-          </div>
+          <button
+            onClick={openProfileModal}
+            className="w-full mt-4 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-medium hover:bg-blue-100 transition-colors"
+          >
+            修改个人资料
+          </button>
         </div>
       </div>
 
-      <div className="px-4 -mt-4">
-        <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-blue-500" />
-            院感能力雷达图
-          </h2>
-          {radarData.length > 0 ? (
-            <div className="h-64">
-              <ReactECharts option={radarOption} style={{ height: '100%' }} notMerge={true} />
-            </div>
-          ) : (
-            <div className="h-64 flex items-center justify-center text-gray-400">
-              加载中...
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            <Award className="w-5 h-5 text-yellow-500" />
-            考试成绩趋势
-          </h2>
-          {examTrend.length > 0 ? (
-            <div className="h-48">
-              <ReactECharts option={trendOption} style={{ height: '100%' }} />
-            </div>
-          ) : (
-            <div className="h-48 flex items-center justify-center text-gray-400">
-              暂无考试记录
-            </div>
-          )}
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-red-500" />
-            错题热力图
-          </h2>
-          <div className="grid grid-cols-3 gap-3">
-            {heatmapData.map((item) => (
-              <div 
-                key={item.category}
-                className="relative p-3 rounded-xl text-center"
-                style={{ backgroundColor: `rgba(239, 68, 68, ${item.intensity * 0.2})` }}
-              >
-                <div className={`w-8 h-8 mx-auto rounded-full ${getHeatmapColor(item.intensity)} flex items-center justify-center text-white text-sm font-bold`}>
-                  {item.wrongCount}
-                </div>
-                <p className="text-sm text-gray-700 mt-2">{item.label}</p>
-                <p className="text-xs text-gray-500">正确率 {item.accuracy}%</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
-          <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-green-500" />
-            学习统计
-          </h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-blue-50 rounded-xl p-4">
-              <p className="text-blue-600 text-2xl font-bold">{studyStats.totalStudyHours}</p>
-              <p className="text-blue-600/70 text-sm">总学习时长(小时)</p>
-            </div>
-            <div className="bg-green-50 rounded-xl p-4">
-              <p className="text-green-600 text-2xl font-bold">{studyStats.totalPracticeCount}</p>
-              <p className="text-green-600/70 text-sm">总练习题目数</p>
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="flex justify-between text-sm text-gray-600 mb-2">
-              <span>本月院感练习完成度</span>
-              <span>{studyStats.monthlyInfectionProgress.completed}/{studyStats.monthlyInfectionProgress.total}</span>
-            </div>
-            <ProgressBar 
-              progress={studyStats.monthlyInfectionProgress.completed}
-              total={studyStats.monthlyInfectionProgress.total}
-              color="bg-blue-500"
-            />
-          </div>
-        </div>
-
-        {(pendingTasks.pendingExams.length > 0 || pendingTasks.pendingCourses.length > 0) && (
-          <div className="bg-white rounded-2xl shadow-sm p-4">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-orange-500" />
-              待办事项
-            </h2>
-            
-            {pendingTasks.pendingExams.length > 0 && (
-              <div className="mb-4">
-                <h3 className="text-sm font-medium text-gray-700 mb-2">未完成的考试</h3>
-                <div className="space-y-2">
-                  {pendingTasks.pendingExams.map((exam) => (
-                    <div key={exam.id} className="flex items-center justify-between p-3 bg-orange-50 rounded-xl">
-                      <span className="text-sm text-gray-700">{exam.paperName}</span>
-                      <span className="text-xs text-gray-500">进行中</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {pendingTasks.pendingCourses.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-2">未学习的课程</h3>
-                <div className="space-y-2">
-                  {pendingTasks.pendingCourses.map((course, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-blue-50 rounded-xl">
-                      <span className="text-sm text-gray-700">{course.name}</span>
-                      <span className="text-xs text-gray-500">待学习</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* 设置区域 */}
+      {/* 设置 */}
       <div className="px-4 mt-4">
         <div className="bg-white rounded-2xl shadow-sm p-4">
           <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
@@ -526,6 +283,72 @@ export default function MyProfile() {
                 className="flex-1 py-3 rounded-xl font-medium bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50"
               >
                 {passwordLoading ? '提交中...' : '确认修改'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 修改个人资料弹窗 */}
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6">
+            <h3 className="text-lg font-bold mb-4">修改个人资料</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm text-gray-500 mb-1">姓名</label>
+                <input
+                  type="text"
+                  placeholder="真实姓名"
+                  value={profileForm.realName}
+                  onChange={(e) => setProfileForm({ ...profileForm, realName: e.target.value })}
+                  className="w-full p-3 border border-gray-200 rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-500 mb-1">科室</label>
+                <input
+                  type="text"
+                  placeholder="科室"
+                  value={profileForm.department}
+                  onChange={(e) => setProfileForm({ ...profileForm, department: e.target.value })}
+                  className="w-full p-3 border border-gray-200 rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-500 mb-1">手机号</label>
+                <input
+                  type="text"
+                  placeholder="手机号"
+                  value={profileForm.phone}
+                  onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                  className="w-full p-3 border border-gray-200 rounded-xl"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-500 mb-1">邮箱</label>
+                <input
+                  type="email"
+                  placeholder="邮箱"
+                  value={profileForm.email}
+                  onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                  className="w-full p-3 border border-gray-200 rounded-xl"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-4">
+              <button
+                onClick={() => setShowProfileModal(false)}
+                className="flex-1 py-3 rounded-xl font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleUpdateProfile}
+                disabled={profileLoading}
+                className="flex-1 py-3 rounded-xl font-medium bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50"
+              >
+                {profileLoading ? '提交中...' : '保存'}
               </button>
             </div>
           </div>

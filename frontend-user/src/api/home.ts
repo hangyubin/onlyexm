@@ -49,6 +49,16 @@ export interface HomeApi {
   completeTask: (taskId: number) => Promise<{ success: boolean }>;
   getWrongCount: () => Promise<{ count: number }>;
   getWeakPoints: () => Promise<WeakPoint[]>;
+  getStudyStats: () => Promise<StudyStats>;
+}
+
+export interface StudyStats {
+  totalStudyHours: number;
+  totalPracticeCount: number;
+  monthlyInfectionProgress: {
+    completed: number;
+    total: number;
+  };
 }
 
 export const homeApi: HomeApi = {
@@ -79,5 +89,10 @@ export const homeApi: HomeApi = {
     } catch {
       return await fetchDefaultWeakPoints();
     }
+  },
+
+  getStudyStats: async (): Promise<StudyStats> => {
+    const response = await api.get('/home/study-stats');
+    return response.data;
   },
 };

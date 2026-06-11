@@ -1,6 +1,7 @@
 import express from 'express';
 import prisma from '../lib/prisma';
 import { authMiddleware } from '../middleware/auth';
+import bcrypt from 'bcryptjs';
 
 const router = express.Router();
 
@@ -211,6 +212,49 @@ router.get('/wrong-heatmap', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('Get wrong heatmap error:', err);
     res.status(500).json({ code: -1, message: '获取数据失败' });
+  }
+});
+
+router.put('/update', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: '用户未登录' });
+    }
+
+    const { realName, department, phone, email, password } = req.body;
+
+    const updateData: Record<string, any> = {};
+
+    if (realName !== undefined && String(realName).trim()) {
+      updateData.realName = String(realName).trim();
+    }
+    if (department !== undefined && String(department).trim()) {
+      updateData.department = String(department).trim();
+    }
+    if (phone !== undefined) {
+      updateData.phone = String(phone).trim();
+    }
+    if (email !== undefined) {
+      updateData.email = String(email).trim();
+    }
+    if (password !== undefined && String(password).trim()) {
+      updateData.password = await bcrypt.hash(String(password), 10);
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.json({ code: 0, message: '没有需要更新的数据' });
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+    });
+
+    res.json({ code: 0, message: '更新成功' });
+  } catch (err) {
+    console.error('Update profile error:', err);
+    res.status(500).json({ code: -1, message: '更新失败' });
   }
 });
 
