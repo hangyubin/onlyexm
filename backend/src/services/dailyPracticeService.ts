@@ -380,40 +380,30 @@ export interface SubmitResult {
 }
 
 // ============================================================
-// 提交练习
+// 提交练习（核心事务只做原子操作，错题/院感异步处理）
 // ============================================================
 export async function submitPractice(practiceId: number, answers: SubmitAnswer[]): Promise<SubmitResult> {
   console.log('[每日一练] 提交练习 - ID:', practiceId);
 
-  const result = await prisma.$transaction(async (tx) => {
-    const config = await getInfectionConfig();
-    const safePracticeId = typeof practiceId === 'string' ? parseInt(practiceId) : practiceId;
+  const safePracticeId = typeof practiceId === 'string' ? parseInt(practiceId) : practiceId;
 
+  // 阶段1：核心事务 —— 只做读题→判分→标记完成（原子防重复提交）
+  const coreResult = await prisma.$transaction(async (tx) => {
     const practice = await tx.dailyPractice.findUnique({
       where: { id: safePracticeId },
     });
 
     if (!practice) {
-      return {
-        success: false, score: 0, totalQuestions: 0,
-        correctCount: 0, accuracy: 0, earnedBonus: false,
-        message: '练习不存在', results: [],
-      };
+      return { status: 'not_found' as const };
     }
 
     if (practice.isCompleted) {
-      return {
-        success: false, score: 0, totalQuestions: 0,
-        correctCount: 0, accuracy: 0, earnedBonus: false,
-        message: '练习已完成', results: [],
-      };
+      return { status: 'already_completed' as const };
     }
 
     const questions: PracticeQuestion[] = JSON.parse(practice.questions as string);
-    const results: { questionId: number; isCorrect: boolean; correctAnswer: string; userAnswer: string }[] = [];
-    let correctCount = 0;
 
-    // 批量获取所有题目选项（避免 N+1 查询）
+    // 批量获取所有题目选项
     const questionIds = questions.map(q => q.id);
     const allOptions = await tx.questionOption.findMany({
       where: { questionId: { in: questionIds } },
@@ -425,25 +415,21 @@ export async function submitPractice(practiceId: number, answers: SubmitAnswer[]
       optionsMap.set(opt.questionId, arr);
     }
 
-    // 构建问题Map（避免 O(n²) filter）
     const questionMap = new Map(questions.map(q => [q.id, q]));
+    const results: { questionId: number; isCorrect: boolean; correctAnswer: string; userAnswer: string }[] = [];
+    let correctCount = 0;
 
     for (const answerItem of answers) {
       const question = questionMap.get(answerItem.questionId);
       if (!question) continue;
 
       const options = optionsMap.get(question.id) || [];
-
       const correctOptions = options.filter((opt) => opt.isCorrect);
       const correctAnswer = correctOptions.map((opt) => opt.optionKey).sort().join(',');
-
-      let userAnswer = '';
-      let isCorrect = false;
-
-      userAnswer = Array.isArray(answerItem.answer)
+      const userAnswer = Array.isArray(answerItem.answer)
         ? answerItem.answer.sort().join(',')
         : answerItem.answer;
-      isCorrect = userAnswer === correctAnswer;
+      const isCorrect = userAnswer === correctAnswer;
       if (isCorrect) correctCount++;
 
       results.push({ questionId: question.id, isCorrect, correctAnswer, userAnswer });
@@ -451,11 +437,9 @@ export async function submitPractice(practiceId: number, answers: SubmitAnswer[]
 
     const totalQuestions = questions.length;
     const accuracy = Math.round((correctCount / totalQuestions) * 100);
-    const score = Math.round((correctCount / totalQuestions) * 100);
-    const earnedBonus = accuracy >= 80;
+    const score = accuracy;
 
-    const wasAlreadyCompleted = practice.isCompleted;
-
+    // 原子操作：保存答案并标记完成
     await tx.dailyPractice.update({
       where: { id: safePracticeId },
       data: {
@@ -465,147 +449,160 @@ export async function submitPractice(practiceId: number, answers: SubmitAnswer[]
       },
     });
 
-    // 更新月度院感任务（只统计有院感标签的题目）
-    if (!wasAlreadyCompleted && practice.userId) {
-      const currentMonth = new Date().toISOString().slice(0, 7);
+    return {
+      status: 'success' as const,
+      userId: practice.userId,
+      questions,
+      results,
+      correctCount,
+      totalQuestions,
+      accuracy,
+      score,
+      questionMap,
+    };
+  }, { timeout: 15000 });
 
-      // 统计本次练习中的院感标签题目
-      const infectionTaggedQuestions = questions.filter(
-        (q) => q.infectionTag || q.subCategory
-      );
-      const infectionTaggedCount = infectionTaggedQuestions.length;
+  // 阶段2：处理异常情况
+  if (coreResult.status === 'not_found') {
+    return { success: false, score: 0, totalQuestions: 0, correctCount: 0, accuracy: 0, earnedBonus: false, message: '练习不存在', results: [] };
+  }
+  if (coreResult.status === 'already_completed') {
+    return { success: false, score: 0, totalQuestions: 0, correctCount: 0, accuracy: 0, earnedBonus: false, message: '练习已完成', results: [] };
+  }
 
-      // 计算本次院感题目的正确率
-      const infectionTaggedCorrect = results.filter(
-        (r) => {
-          const q = questionMap.get(r.questionId);
-          return (q?.infectionTag || q?.subCategory) && r.isCorrect;
-        }
-      ).length;
-      const currentInfectionAccuracy = infectionTaggedCount > 0
-        ? Math.round((infectionTaggedCorrect / infectionTaggedCount) * 100)
-        : 0;
+  const { userId, questions, results, correctCount, totalQuestions, accuracy, score } = coreResult;
+  const earnedBonus = accuracy >= 80;
 
-      let requirement = await tx.infectionRequirement.findFirst({
-        where: { userId: practice.userId, month: currentMonth },
-      });
+  // 阶段3：副作用异步处理（不阻塞用户响应）
+  // 使用 setImmediate 确保在响应返回后执行
+  setImmediate(() => {
+    syncWrongQuestions(userId, results).catch(e =>
+      console.error('[每日一练] 错题同步失败:', e?.message || e)
+    );
+  });
+  setImmediate(() => {
+    syncInfectionRequirement(userId, questions, results).catch(e =>
+      console.error('[每日一练] 院感指标同步失败:', e?.message || e)
+    );
+  });
 
-      if (!requirement) {
-        requirement = await tx.infectionRequirement.create({
-          data: {
-            userId: practice.userId,
-            month: currentMonth,
-            requiredCount: config.monthlyRequiredCount,
-            completedCount: 0,
-            accuracyRate: 0,
-            isLocked: false,
-          },
-        });
+  let message = '';
+  if (accuracy >= 90) message = '太棒了！你今天表现出色！';
+  else if (accuracy >= 80) message = '不错！继续保持，已获得额外奖励积分！';
+  else if (accuracy >= 60) message = '还可以，再接再厉！';
+  else message = '加油！多多练习会更好！';
+
+  return { success: true, score, totalQuestions, correctCount, accuracy, earnedBonus, message, results };
+}
+
+// ============================================================
+// 异步：同步错题记录
+// ============================================================
+async function syncWrongQuestions(
+  userId: number,
+  results: { questionId: number; isCorrect: boolean }[],
+): Promise<void> {
+  const resultQuestionIds = results.map(r => r.questionId);
+
+  const existingWrongQuestions = await prisma.wrongQuestion.findMany({
+    where: { userId, questionId: { in: resultQuestionIds } },
+  });
+  const wrongQuestionMap = new Map(existingWrongQuestions.map(wq => [wq.questionId, wq]));
+
+  const correctUpdates: { id: number; correctCount: number; status: string }[] = [];
+  const wrongUpdates: { id: number; wrongCount: number }[] = [];
+  const newWrongQuestions: { userId: number; questionId: number; wrongCount: number; correctCount: number; status: string }[] = [];
+
+  for (const r of results) {
+    const existingWrong = wrongQuestionMap.get(r.questionId);
+    if (r.isCorrect) {
+      if (existingWrong && existingWrong.status === 'ACTIVE') {
+        const newCorrectCount = existingWrong.correctCount + 1;
+        const newStatus = newCorrectCount >= 3 ? 'REMOVED' : 'ACTIVE';
+        correctUpdates.push({ id: existingWrong.id, correctCount: newCorrectCount, status: newStatus });
       }
-
-      // 加权平均计算新正确率：(旧正确率 × 旧题数 + 新正确率 × 新题数) / 总题数
-      const oldCompletedCount = requirement.completedCount;
-      const oldAccuracyRate = Number(requirement.accuracyRate || 0);
-      const newCompletedCount = oldCompletedCount + infectionTaggedCount;
-      const newAccuracy = newCompletedCount > 0
-        ? Math.round((oldAccuracyRate * oldCompletedCount + currentInfectionAccuracy * infectionTaggedCount) / newCompletedCount)
-        : 0;
-
-      await tx.infectionRequirement.update({
-        where: { id: requirement.id },
-        data: {
-          completedCount: newCompletedCount,
-          accuracyRate: newAccuracy,
-        },
-      });
+    } else {
+      if (existingWrong) {
+        wrongUpdates.push({ id: existingWrong.id, wrongCount: existingWrong.wrongCount + 1 });
+      } else {
+        newWrongQuestions.push({ userId, questionId: r.questionId, wrongCount: 1, correctCount: 0, status: 'ACTIVE' });
+      }
     }
+  }
 
-    // ===== 错题记录（批量查询避免N+1） =====
-    const resultQuestionIds = results.map(r => r.questionId);
-    const existingWrongQuestions = await tx.wrongQuestion.findMany({
-      where: {
-        userId: practice.userId,
-        questionId: { in: resultQuestionIds },
+  const promises: Promise<any>[] = [];
+  for (const u of correctUpdates) {
+    promises.push(prisma.wrongQuestion.update({
+      where: { id: u.id },
+      data: { correctCount: u.correctCount, status: u.status },
+    }));
+  }
+  for (const u of wrongUpdates) {
+    promises.push(prisma.wrongQuestion.update({
+      where: { id: u.id },
+      data: { wrongCount: u.wrongCount, correctCount: 0, status: 'ACTIVE' },
+    }));
+  }
+  if (newWrongQuestions.length > 0) {
+    promises.push(prisma.wrongQuestion.createMany({ data: newWrongQuestions }));
+  }
+  if (promises.length > 0) {
+    await Promise.all(promises);
+  }
+}
+
+// ============================================================
+// 异步：更新月度院感任务
+// ============================================================
+async function syncInfectionRequirement(
+  userId: number,
+  questions: PracticeQuestion[],
+  results: { questionId: number; isCorrect: boolean }[],
+): Promise<void> {
+  const config = await getInfectionConfig();
+
+  const questionMap = new Map(questions.map(q => [q.id, q]));
+  const infectionTaggedQuestions = questions.filter(q => q.infectionTag || q.subCategory);
+  const infectionTaggedCount = infectionTaggedQuestions.length;
+
+  if (infectionTaggedCount === 0) return;
+
+  const infectionTaggedCorrect = results.filter(r => {
+    const q = questionMap.get(r.questionId);
+    return (q?.infectionTag || q?.subCategory) && r.isCorrect;
+  }).length;
+  const currentInfectionAccuracy = Math.round((infectionTaggedCorrect / infectionTaggedCount) * 100);
+
+  const currentMonth = new Date().toISOString().slice(0, 7);
+
+  let requirement = await prisma.infectionRequirement.findFirst({
+    where: { userId, month: currentMonth },
+  });
+
+  if (!requirement) {
+    requirement = await prisma.infectionRequirement.create({
+      data: {
+        userId,
+        month: currentMonth,
+        requiredCount: config.monthlyRequiredCount,
+        completedCount: 0,
+        accuracyRate: 0,
+        isLocked: false,
       },
     });
-    const wrongQuestionMap = new Map<number, typeof existingWrongQuestions[0]>();
-    for (const wq of existingWrongQuestions) {
-      wrongQuestionMap.set(wq.questionId, wq);
-    }
+  }
 
-    // 批量处理错题记录
-    const correctUpdates: { id: number; correctCount: number; status: string }[] = [];
-    const wrongUpdates: { id: number; wrongCount: number }[] = [];
-    const newWrongQuestions: { userId: number; questionId: number; wrongCount: number; correctCount: number; status: string }[] = [];
+  const oldCompletedCount = requirement.completedCount;
+  const oldAccuracyRate = Number(requirement.accuracyRate || 0);
+  const newCompletedCount = oldCompletedCount + infectionTaggedCount;
+  const newAccuracy = newCompletedCount > 0
+    ? Math.round((oldAccuracyRate * oldCompletedCount + currentInfectionAccuracy * infectionTaggedCount) / newCompletedCount)
+    : 0;
 
-    for (const result of results) {
-      const existingWrong = wrongQuestionMap.get(result.questionId);
-      if (result.isCorrect) {
-        if (existingWrong && existingWrong.status === 'ACTIVE') {
-          const newCorrectCount = existingWrong.correctCount + 1;
-          const newStatus = newCorrectCount >= 3 ? 'REMOVED' : 'ACTIVE';
-          correctUpdates.push({ id: existingWrong.id, correctCount: newCorrectCount, status: newStatus });
-        }
-      } else {
-        if (existingWrong) {
-          wrongUpdates.push({ id: existingWrong.id, wrongCount: existingWrong.wrongCount + 1 });
-        } else {
-          newWrongQuestions.push({
-            userId: practice.userId,
-            questionId: result.questionId,
-            wrongCount: 1,
-            correctCount: 0,
-            status: 'ACTIVE',
-          });
-        }
-      }
-    }
-
-    // 事务内并行执行错题更新（Promise.all 避免串行 N+1）
-    const updatePromises: Promise<any>[] = [];
-    for (const u of correctUpdates) {
-      updatePromises.push(
-        tx.wrongQuestion.update({
-          where: { id: u.id },
-          data: { correctCount: u.correctCount, status: u.status },
-        })
-      );
-    }
-    for (const u of wrongUpdates) {
-      updatePromises.push(
-        tx.wrongQuestion.update({
-          where: { id: u.id },
-          data: { wrongCount: u.wrongCount, correctCount: 0, status: 'ACTIVE' },
-        })
-      );
-    }
-    if (newWrongQuestions.length > 0) {
-      updatePromises.push(
-        tx.wrongQuestion.createMany({ data: newWrongQuestions })
-      );
-    }
-    if (updatePromises.length > 0) {
-      await Promise.all(updatePromises);
-    }
-
-    let message = '';
-    if (accuracy >= 90) {
-      message = '太棒了！你今天表现出色！';
-    } else if (accuracy >= 80) {
-      message = '不错！继续保持，已获得额外奖励积分！';
-    } else if (accuracy >= 60) {
-      message = '还可以，再接再厉！';
-    } else {
-      message = '加油！多多练习会更好！';
-    }
-
-    return {
-      success: true, score, totalQuestions, correctCount,
-      accuracy, earnedBonus, message, results,
-    };
-  }, { timeout: 30000 });
-
-  return result;
+  await prisma.infectionRequirement.update({
+    where: { id: requirement.id },
+    data: { completedCount: newCompletedCount, accuracyRate: newAccuracy },
+  });
 }
 
 // ============================================================
