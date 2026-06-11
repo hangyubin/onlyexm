@@ -52,7 +52,12 @@ RUN npm run build
 # ---------- 阶段4: 运行时镜像 ----------
 FROM node:20-alpine
 
-RUN apk add --no-cache nginx supervisor font-noto-cjk
+RUN apk add --no-cache nginx supervisor wget
+
+# 下载中文字体用于 PDF 生成（PDFKit 不支持 .ttc，需用 .otf）
+RUN wget -q "https://raw.githubusercontent.com/googlefonts/noto-cjk/main/Sans/OTF/SimplifiedChinese/NotoSansSC-Regular.otf" \
+  -O /usr/share/fonts/NotoSansSC-Regular.otf \
+  && fc-cache -fv || true
 
 # 复制后端运行时文件
 COPY --from=backend-builder /app/dist /app/backend/dist
