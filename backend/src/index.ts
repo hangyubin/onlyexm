@@ -25,7 +25,6 @@ import hospitalRoutes from './routes/hospital';
 import learningMaterialRoutes from './routes/learningMaterial';
 import dashboardRoutes from './routes/dashboard';
 import systemRoutes from './routes/system';
-import { initSampleData } from './services/learningMaterialService';
 
 // 优先从项目根目录加载 .env，回退到 backend/.env
 const rootEnvPath = path.resolve(__dirname, '..', '..', '.env');
@@ -208,9 +207,6 @@ const startServer = async () => {
   try {
     await prisma.$connect();
     console.log('Connected to database successfully');
-    
-    await initSampleData();
-    console.log('Learning material sample data initialized');
     
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

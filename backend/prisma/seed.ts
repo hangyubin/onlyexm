@@ -1,6 +1,5 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import { initSampleData as initLearningMaterialSampleData } from '../src/services/learningMaterialService';
 
 const prisma = new PrismaClient();
 
@@ -694,11 +693,6 @@ async function main() {
   }
 
   console.log('');
-  console.log('📚 初始化学习资料...');
-  initLearningMaterialSampleData();
-  console.log('📚 学习资料初始化完成');
-
-  console.log('');
   console.log('✅ 种子数据创建完成！');
   console.log('');
   console.log('📊 数据统计：');
@@ -706,7 +700,6 @@ async function main() {
   console.log(`  - 用户: ${users.length}个`);
   console.log(`  - 题目: ${questions.length}道`);
   console.log(`  - 字典: ${dictData.length}类`);
-  console.log(`  - 学习资料: 6份`);
   console.log('');
   console.log('🔐 默认账号信息（密码均为: admin123）：');
   console.log('  【管理后台】');

@@ -35,6 +35,8 @@ interface PracticeResult {
   isCorrect: boolean;
   autoRemoved: boolean;
   message: string;
+  newCorrectCount: number;
+  newWrongCount: number;
 }
 
 interface DictMap {
@@ -133,6 +135,8 @@ function PracticeModal({
       isCorrect,
       autoRemoved: false,
       message: '',
+      newCorrectCount: correctCount,
+      newWrongCount: wrongCount,
     });
 
     try {
@@ -145,11 +149,15 @@ function PracticeModal({
           isCorrect,
           autoRemoved: response.data.autoRemoved,
           message: response.data.message,
+          newCorrectCount: response.data.data.correctCount,
+          newWrongCount: response.data.data.wrongCount,
         });
         onSuccess({
           isCorrect,
           autoRemoved: response.data.autoRemoved,
           message: response.data.message,
+          newCorrectCount: response.data.data.correctCount,
+          newWrongCount: response.data.data.wrongCount,
         });
       }
     } catch (err) {
@@ -460,6 +468,19 @@ export function WrongQuestionBook() {
         prev.filter((q) => q.questionId !== practiceStats.questionId)
       );
       setTotal((prev) => prev - 1);
+    } else {
+      // 实时更新 correctCount 和 wrongCount
+      setWrongQuestions((prev) =>
+        prev.map((q) =>
+          q.questionId === practiceStats.questionId
+            ? {
+                ...q,
+                correctCount: result.newCorrectCount,
+                wrongCount: result.newWrongCount,
+              }
+            : q
+        )
+      );
     }
   };
 

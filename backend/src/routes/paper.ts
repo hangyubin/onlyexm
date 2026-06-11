@@ -255,41 +255,9 @@ router.put('/:id', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER']), as
 
     const { title, description, totalScore, passScore, duration, questions, examStartTime, examEndTime } = req.body;
 
-    // 已发布的试卷只允许修改考试时间/时长，不允许修改题目和其他内容
+    // 已发布的试卷不允许修改任何信息（包括考试时间）
     if (existing.isPublished) {
-      const data: any = {};
-      if (duration !== undefined) data.durationMinutes = duration;
-      if (examStartTime !== undefined) data.examStartTime = examStartTime ? new Date(examStartTime) : null;
-      if (examEndTime !== undefined) data.examEndTime = examEndTime ? new Date(examEndTime) : null;
-
-      if (Object.keys(data).length === 0) {
-        return res.status(400).json({ error: '已发布的试卷只允许修改考试时间和时长' });
-      }
-
-      const updated = await prisma.paper.update({
-        where: { id },
-        data,
-      });
-
-      const fullPaper = await prisma.paper.findUnique({
-        where: { id },
-        include: {
-          paperQuestions: {
-            include: {
-              question: {
-                select: {
-                  id: true,
-                  content: true,
-                  type: true,
-                },
-              },
-            },
-            orderBy: { id: 'asc' },
-          },
-        },
-      });
-
-      return res.json(mapPaperDetail(fullPaper));
+      return res.status(400).json({ error: '已发布的试卷不允许修改，请先取消发布' });
     }
 
     const paper = await prisma.$transaction(async (tx) => {

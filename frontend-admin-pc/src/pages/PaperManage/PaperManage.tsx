@@ -203,7 +203,7 @@ export default function PaperManage() {
       key: 'actions',
       render: (_: unknown, record: Paper) => (
         <Space>
-          <Button icon={<SettingOutlined />} size="small" onClick={() => handleExamSetting(record)} title="考试设置" />
+          <Button icon={<SettingOutlined />} size="small" onClick={() => handleExamSetting(record)} title="考试设置" disabled={record.isPublished} />
           {!record.isPublished && (
             <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)} title="编辑题目" />
           )}
@@ -223,15 +223,29 @@ export default function PaperManage() {
               发布
             </Button>
           ) : (
-            <Popconfirm title="确定取消发布吗？取消后用户将无法看到此试卷。" onConfirm={() => handleUnpublish(record)}>
-              <Button
-                icon={<PauseCircleOutlined />}
-                size="small"
-                danger
-              >
-                取消发布
-              </Button>
-            </Popconfirm>
+            (() => {
+              const now = new Date();
+              const startTime = record.examStartTime ? new Date(record.examStartTime) : null;
+              const endTime = record.examEndTime ? new Date(record.examEndTime) : null;
+              const inProgress = !!(startTime && endTime && now >= startTime && now <= endTime);
+              return (
+                <Popconfirm
+                  title="确定取消发布吗？取消后用户将无法看到此试卷。"
+                  onConfirm={() => handleUnpublish(record)}
+                  disabled={inProgress}
+                >
+                  <Button
+                    icon={<PauseCircleOutlined />}
+                    size="small"
+                    danger
+                    disabled={inProgress}
+                    title={inProgress ? '考试进行中，无法取消发布' : '取消发布'}
+                  >
+                    取消发布
+                  </Button>
+                </Popconfirm>
+              );
+            })()
           )}
           <Button icon={<EyeOutlined />} size="small" onClick={() => handlePreview(record)} />
           <Button icon={<PrinterOutlined />} size="small" onClick={() => handlePrint(record)} />
