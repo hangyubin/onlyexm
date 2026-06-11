@@ -203,17 +203,14 @@ export default function PaperManage() {
       key: 'actions',
       render: (_: unknown, record: Paper) => (
         <Space>
-          {!record.isPublished && (
-            <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)} title="编辑试卷" />
-          )}
-          <Button icon={<EditOutlined />} size="small" type="dashed" onClick={() => handleExamSetting(record)} title="考试设置" />
+          <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)} title={record.isPublished ? '考试设置' : '编辑试卷'} />
           {/* 未发布或已结束的试卷可以删除 */}
           {!record.isPublished || !record.isActive ? (
             <Popconfirm title="确定删除该试卷吗？此操作不可撤销，且会删除相关考试记录。" onConfirm={() => handleDelete(record.id)}>
               <Button icon={<DeleteOutlined />} size="small" danger />
             </Popconfirm>
           ) : null}
-          {!record.isPublished ? (
+          {!record.isPublished || !record.isActive ? (
             <Button
               icon={<PlayCircleOutlined />}
               size="small"
@@ -222,7 +219,7 @@ export default function PaperManage() {
             >
               发布
             </Button>
-          ) : record.isActive ? (
+          ) : (
             <Popconfirm title="确定取消发布吗？取消后用户将无法看到此试卷。" onConfirm={() => handleUnpublish(record)}>
               <Button
                 icon={<PauseCircleOutlined />}
@@ -232,7 +229,7 @@ export default function PaperManage() {
                 取消发布
               </Button>
             </Popconfirm>
-          ) : null}
+          )}
           <Button icon={<EyeOutlined />} size="small" onClick={() => handlePreview(record)} />
           <Button icon={<PrinterOutlined />} size="small" onClick={() => handlePrint(record)} />
         </Space>
@@ -243,6 +240,19 @@ export default function PaperManage() {
   const handleEdit = async (record: Paper) => {
     try {
       const detail = await paperApi.getById(record.id);
+
+      // 已发布的试卷只允许编辑考试设置
+      if (record.isPublished) {
+        setExamSettingInfo({
+          paperId: detail.id,
+          duration: detail.duration,
+          examStartTime: detail.examStartTime,
+          examEndTime: detail.examEndTime,
+        });
+        setExamSettingModalVisible(true);
+        return;
+      }
+
       setSelectedPaper(detail);
       setBasicInfo({
         title: detail.title,
@@ -488,21 +498,6 @@ export default function PaperManage() {
     } catch (error: any) {
       const msg = error?.response?.data?.error || '取消发布失败';
       message.error(msg);
-    }
-  };
-
-  const handleExamSetting = async (record: Paper) => {
-    try {
-      const detail = await paperApi.getById(record.id);
-      setExamSettingInfo({
-        paperId: detail.id,
-        duration: detail.duration,
-        examStartTime: detail.examStartTime,
-        examEndTime: detail.examEndTime,
-      });
-      setExamSettingModalVisible(true);
-    } catch (error) {
-      message.error('获取试卷信息失败');
     }
   };
 
