@@ -7,7 +7,7 @@ import {
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, EyeOutlined,
   PlayCircleOutlined, PauseCircleOutlined, ApiOutlined,
-  PrinterOutlined
+  PrinterOutlined, SettingOutlined
 } from '@ant-design/icons';
 import { Paper, paperApi, SmartGenerateParams } from '../../api/paper';
 import { questionApi, Question } from '../../api/question';
@@ -203,7 +203,10 @@ export default function PaperManage() {
       key: 'actions',
       render: (_: unknown, record: Paper) => (
         <Space>
-          <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)} title={record.isPublished ? '考试设置' : '编辑试卷'} />
+          <Button icon={<SettingOutlined />} size="small" onClick={() => handleExamSetting(record)} title="考试设置" />
+          {!record.isPublished && (
+            <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)} title="编辑题目" />
+          )}
           {/* 未发布或已结束的试卷可以删除 */}
           {!record.isPublished || !record.isActive ? (
             <Popconfirm title="确定删除该试卷吗？此操作不可撤销，且会删除相关考试记录。" onConfirm={() => handleDelete(record.id)}>
@@ -240,19 +243,6 @@ export default function PaperManage() {
   const handleEdit = async (record: Paper) => {
     try {
       const detail = await paperApi.getById(record.id);
-
-      // 已发布的试卷只允许编辑考试设置
-      if (record.isPublished) {
-        setExamSettingInfo({
-          paperId: detail.id,
-          duration: detail.duration,
-          examStartTime: detail.examStartTime,
-          examEndTime: detail.examEndTime,
-        });
-        setExamSettingModalVisible(true);
-        return;
-      }
-
       setSelectedPaper(detail);
       setBasicInfo({
         title: detail.title,
@@ -281,6 +271,21 @@ export default function PaperManage() {
       setModalVisible(true);
     } catch (error) {
       message.error('获取试卷详情失败');
+    }
+  };
+
+  const handleExamSetting = async (record: Paper) => {
+    try {
+      const detail = await paperApi.getById(record.id);
+      setExamSettingInfo({
+        paperId: detail.id,
+        duration: detail.duration,
+        examStartTime: detail.examStartTime,
+        examEndTime: detail.examEndTime,
+      });
+      setExamSettingModalVisible(true);
+    } catch (error) {
+      message.error('获取试卷信息失败');
     }
   };
 
