@@ -314,7 +314,7 @@ export default function MyProfile() {
                 >
                   <option value="">请选择科室</option>
                   {getItems(DICT_CATEGORY.DEPARTMENT).map((item) => (
-                    <option key={item.value} value={item.value}>{item.label}</option>
+                    <option key={item.code} value={item.code}>{item.name}</option>
                   ))}
                 </select>
               </div>
