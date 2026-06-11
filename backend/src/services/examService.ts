@@ -450,6 +450,7 @@ export async function startExam(paperId: number, userId: number, clientIp?: stri
     const remainingSeconds = totalAllowedSeconds - elapsedSeconds;
 
     return {
+      success: true,
       paperName: paper.name,
       durationMinutes: paper.durationMinutes,
       examRecordId: existingRecord.id,
@@ -514,6 +515,7 @@ export async function startExam(paperId: number, userId: number, clientIp?: stri
   }
 
   return {
+    success: true,
     paperName: paper.name,
     durationMinutes: paper.durationMinutes,
     examRecordId: examRecord.id,

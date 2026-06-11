@@ -21,6 +21,7 @@ interface ExamQuestion {
 }
 
 interface ExamData {
+  success: boolean;
   paperName: string;
   durationMinutes: number;
   examRecordId: number;
