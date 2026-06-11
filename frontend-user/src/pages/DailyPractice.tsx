@@ -176,7 +176,7 @@ export function DailyPractice() {
       }
     } catch (err: any) {
       console.error('提交错误:', err);
-      const errorMsg = err?.response?.data?.message || err?.message || '请重试';
+      const errorMsg = err?.response?.data?.error || err?.response?.data?.message || err?.message || '请重试';
       alert('提交失败：' + errorMsg);
     } finally {
       setIsSubmitting(false);

@@ -385,7 +385,14 @@ export interface SubmitResult {
 export async function submitPractice(practiceId: number, answers: SubmitAnswer[]): Promise<SubmitResult> {
   console.log('[每日一练] 提交练习 - ID:', practiceId);
 
-  return prisma.$transaction(async (tx) => {
+  // 错题更新数据（在事务外收集，事务后执行）
+  let wrongQuestionUpdates: {
+    correctUpdates: { id: number; correctCount: number; status: string }[];
+    wrongUpdates: { id: number; wrongCount: number }[];
+    newWrongQuestions: { userId: number; questionId: number; wrongCount: number; correctCount: number; status: string }[];
+  } | null = null;
+
+  const result = await prisma.$transaction(async (tx) => {
     const config = await getInfectionConfig();
     const safePracticeId = typeof practiceId === 'string' ? parseInt(practiceId) : practiceId;
 
@@ -561,31 +568,8 @@ export async function submitPractice(practiceId: number, answers: SubmitAnswer[]
       }
     }
 
-    // 批量更新答对的错题和答错的错题（使用原始SQL避免逐条update）
-    const allUpdates: { id: number; correctCount: number; wrongCount: number; status: string }[] = [
-      ...correctUpdates.map(u => ({ id: u.id, correctCount: u.correctCount, wrongCount: 0, status: u.status })),
-      ...wrongUpdates.map(u => ({ id: u.id, correctCount: 0, wrongCount: u.wrongCount, status: 'ACTIVE' })),
-    ];
-
-    if (allUpdates.length > 0) {
-      const cases_correctCount = allUpdates.map(u => `WHEN ${u.id} THEN ${u.correctCount}`).join(' ');
-      const cases_wrongCount = allUpdates.map(u => `WHEN ${u.id} THEN ${u.wrongCount}`).join(' ');
-      const cases_status = allUpdates.map(u => `WHEN ${u.id} THEN '${u.status}'`).join(' ');
-      const ids = allUpdates.map(u => u.id).join(',');
-
-      await tx.$executeRawUnsafe(`
-        UPDATE WrongQuestion
-        SET correctCount = CASE id ${cases_correctCount} END,
-            wrongCount = CASE id ${cases_wrongCount} END,
-            status = CASE id ${cases_status} END
-        WHERE id IN (${ids})
-      `);
-    }
-
-    // 批量创建新错题记录
-    if (newWrongQuestions.length > 0) {
-      await tx.wrongQuestion.createMany({ data: newWrongQuestions });
-    }
+    // 收集错题更新数据（不在事务内执行，避免事务超时）
+    wrongQuestionUpdates = { correctUpdates, wrongUpdates, newWrongQuestions };
 
     let message = '';
     if (accuracy >= 90) {
@@ -602,7 +586,33 @@ export async function submitPractice(practiceId: number, answers: SubmitAnswer[]
       success: true, score, totalQuestions, correctCount,
       accuracy, earnedBonus, message, results,
     };
-  });
+  }, { timeout: 15000 });
+
+  // 事务外异步更新错题记录（不影响提交结果）
+  if (wrongQuestionUpdates) {
+    const { correctUpdates, wrongUpdates, newWrongQuestions } = wrongQuestionUpdates;
+    try {
+      for (const u of correctUpdates) {
+        await prisma.wrongQuestion.update({
+          where: { id: u.id },
+          data: { correctCount: u.correctCount, status: u.status },
+        });
+      }
+      for (const u of wrongUpdates) {
+        await prisma.wrongQuestion.update({
+          where: { id: u.id },
+          data: { wrongCount: u.wrongCount, correctCount: 0, status: 'ACTIVE' },
+        });
+      }
+      if (newWrongQuestions.length > 0) {
+        await prisma.wrongQuestion.createMany({ data: newWrongQuestions });
+      }
+    } catch (err) {
+      console.error('[每日一练] 错题记录更新失败（不影响提交结果）:', err);
+    }
+  }
+
+  return result;
 }
 
 // ============================================================
