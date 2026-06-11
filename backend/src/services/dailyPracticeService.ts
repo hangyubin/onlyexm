@@ -588,28 +588,31 @@ export async function submitPractice(practiceId: number, answers: SubmitAnswer[]
     };
   }, { timeout: 15000 });
 
-  // 事务外异步更新错题记录（不影响提交结果）
+  // 事务外异步更新错题记录（不阻塞响应，避免超时）
   if (wrongQuestionUpdates) {
     const { correctUpdates, wrongUpdates, newWrongQuestions } = wrongQuestionUpdates;
-    try {
-      for (const u of correctUpdates) {
-        await prisma.wrongQuestion.update({
-          where: { id: u.id },
-          data: { correctCount: u.correctCount, status: u.status },
-        });
+    // 不 await，直接启动异步更新
+    (async () => {
+      try {
+        for (const u of correctUpdates) {
+          await prisma.wrongQuestion.update({
+            where: { id: u.id },
+            data: { correctCount: u.correctCount, status: u.status },
+          });
+        }
+        for (const u of wrongUpdates) {
+          await prisma.wrongQuestion.update({
+            where: { id: u.id },
+            data: { wrongCount: u.wrongCount, correctCount: 0, status: 'ACTIVE' },
+          });
+        }
+        if (newWrongQuestions.length > 0) {
+          await prisma.wrongQuestion.createMany({ data: newWrongQuestions });
+        }
+      } catch (err) {
+        console.error('[每日一练] 错题记录更新失败（不影响提交结果）:', err);
       }
-      for (const u of wrongUpdates) {
-        await prisma.wrongQuestion.update({
-          where: { id: u.id },
-          data: { wrongCount: u.wrongCount, correctCount: 0, status: 'ACTIVE' },
-        });
-      }
-      if (newWrongQuestions.length > 0) {
-        await prisma.wrongQuestion.createMany({ data: newWrongQuestions });
-      }
-    } catch (err) {
-      console.error('[每日一练] 错题记录更新失败（不影响提交结果）:', err);
-    }
+    })();
   }
 
   return result;

@@ -431,8 +431,8 @@ export default function PaperManage() {
         duration: basicInfo.duration,
         passScore: basicInfo.passScore,
         departments: basicInfo.departments,
-        examStartTime: basicInfo.examStartTime,
-        examEndTime: basicInfo.examEndTime,
+        examStartTime: basicInfo.examStartTime ? dayjs(basicInfo.examStartTime).toISOString() : null,
+        examEndTime: basicInfo.examEndTime ? dayjs(basicInfo.examEndTime).toISOString() : null,
         totalScore: selectedQuestions.reduce((sum, q) => sum + q.score, 0),
         questions: selectedQuestions.map(q => ({
           questionId: q.id,
@@ -510,8 +510,8 @@ export default function PaperManage() {
     try {
       await paperApi.update(examSettingInfo.paperId, {
         duration: examSettingInfo.duration,
-        examStartTime: examSettingInfo.examStartTime,
-        examEndTime: examSettingInfo.examEndTime,
+        examStartTime: examSettingInfo.examStartTime ? dayjs(examSettingInfo.examStartTime).toISOString() : null,
+        examEndTime: examSettingInfo.examEndTime ? dayjs(examSettingInfo.examEndTime).toISOString() : null,
       });
       message.success('考试设置已更新');
       setExamSettingModalVisible(false);
