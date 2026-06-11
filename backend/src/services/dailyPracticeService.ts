@@ -561,20 +561,25 @@ export async function submitPractice(practiceId: number, answers: SubmitAnswer[]
       }
     }
 
-    // 批量更新答对的错题（重置连续正确计数）
-    for (const update of correctUpdates) {
-      await tx.wrongQuestion.update({
-        where: { id: update.id },
-        data: { correctCount: update.correctCount, status: update.status },
-      });
-    }
+    // 批量更新答对的错题和答错的错题（使用原始SQL避免逐条update）
+    const allUpdates: { id: number; correctCount: number; wrongCount: number; status: string }[] = [
+      ...correctUpdates.map(u => ({ id: u.id, correctCount: u.correctCount, wrongCount: 0, status: u.status })),
+      ...wrongUpdates.map(u => ({ id: u.id, correctCount: 0, wrongCount: u.wrongCount, status: 'ACTIVE' })),
+    ];
 
-    // 批量更新答错的错题
-    for (const update of wrongUpdates) {
-      await tx.wrongQuestion.update({
-        where: { id: update.id },
-        data: { wrongCount: update.wrongCount, correctCount: 0, status: 'ACTIVE' },
-      });
+    if (allUpdates.length > 0) {
+      const cases_correctCount = allUpdates.map(u => `WHEN ${u.id} THEN ${u.correctCount}`).join(' ');
+      const cases_wrongCount = allUpdates.map(u => `WHEN ${u.id} THEN ${u.wrongCount}`).join(' ');
+      const cases_status = allUpdates.map(u => `WHEN ${u.id} THEN '${u.status}'`).join(' ');
+      const ids = allUpdates.map(u => u.id).join(',');
+
+      await tx.$executeRawUnsafe(`
+        UPDATE WrongQuestion
+        SET correctCount = CASE id ${cases_correctCount} END,
+            wrongCount = CASE id ${cases_wrongCount} END,
+            status = CASE id ${cases_status} END
+        WHERE id IN (${ids})
+      `);
     }
 
     // 批量创建新错题记录
