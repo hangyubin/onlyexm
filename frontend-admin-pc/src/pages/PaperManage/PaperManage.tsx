@@ -409,6 +409,27 @@ export default function PaperManage() {
       };
 
       if (selectedPaper && selectedPaper.id) {
+        // 保存前重新获取试卷状态，防止已被发布
+        try {
+          const latest = await paperApi.getById(selectedPaper.id);
+          if (latest.isPublished) {
+            message.error('该试卷已被发布，无法编辑。请关闭后刷新列表');
+            setModalVisible(false);
+            setSelectedPaper(null);
+            setCurrentStep(0);
+            setSelectedQuestions([]);
+            fetchPapers();
+            return;
+          }
+        } catch {
+          message.error('获取试卷信息失败，可能已被删除');
+          setModalVisible(false);
+          setSelectedPaper(null);
+          setCurrentStep(0);
+          setSelectedQuestions([]);
+          fetchPapers();
+          return;
+        }
         await paperApi.update(selectedPaper.id, paperData);
         message.success('更新成功');
       } else {
