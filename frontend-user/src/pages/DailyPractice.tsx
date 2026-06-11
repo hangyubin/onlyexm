@@ -174,9 +174,10 @@ export function DailyPractice() {
       } else {
         alert('提交失败：' + response.data.message);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('提交错误:', err);
-      alert('提交失败，请重试');
+      const errorMsg = err?.response?.data?.message || err?.message || '请重试';
+      alert('提交失败：' + errorMsg);
     } finally {
       setIsSubmitting(false);
     }

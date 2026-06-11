@@ -50,11 +50,12 @@ router.post('/submit', authMiddleware, async (req, res) => {
     console.log('提交结果:', result.success, result.message);
     
     res.json(result);
-  } catch (err) {
-    console.error('提交练习失败:', err);
+  } catch (err: any) {
+    console.error('提交练习失败:', err?.message || err);
+    console.error('错误详情:', err?.stack?.split('\n').slice(0, 3).join('\n'));
     res.status(500).json({
       success: false,
-      message: '提交练习失败',
+      message: '提交练习失败：' + (err?.message || '服务器错误'),
     });
   }
 });
