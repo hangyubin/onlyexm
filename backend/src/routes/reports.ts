@@ -69,36 +69,46 @@ router.post('/exam-summary/data', authMiddleware, roleGuard(['ADMIN', 'INFECTION
   }
 });
 
-// 联系记录
+// 练习记录
 router.post('/practice-records/data', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER']), async (req, res) => {
   try {
     const { startDate, endDate } = req.body;
-    const where: any = {};
+    const where: any = { isCompleted: true };
     if (startDate && endDate) {
-      where.syncTime = { gte: new Date(startDate), lte: new Date(endDate + 'T23:59:59') };
+      where.createdAt = { gte: new Date(startDate), lte: new Date(endDate + 'T23:59:59') };
     }
 
-    const records = await prisma.practiceSyncRecord.findMany({
+    const records = await prisma.dailyPractice.findMany({
       where,
       include: { user: { select: { realName: true, department: true } } },
-      orderBy: { syncTime: 'desc' },
+      orderBy: { createdAt: 'desc' },
       take: MAX_REPORT_LIMIT,
     });
 
     // 按用户聚合
     const userMap = new Map<number, { realName: string; department: string; correct: number; total: number; lastTime: string }>();
     for (const r of records) {
+      let totalQs = 0;
+      try {
+        const qs = JSON.parse(r.questions as string);
+        if (Array.isArray(qs)) totalQs = qs.length;
+      } catch { /* skip */ }
+      const correctQs = Math.round(totalQs * r.score / 100);
+
       const existing = userMap.get(r.userId);
       if (existing) {
-        existing.total += 1;
-        if (r.isCorrect) existing.correct += 1;
+        existing.total += totalQs;
+        existing.correct += correctQs;
+        if (r.createdAt > new Date(existing.lastTime)) {
+          existing.lastTime = r.createdAt.toISOString().slice(0, 16);
+        }
       } else {
         userMap.set(r.userId, {
           realName: r.user.realName || '',
           department: r.user.department || '',
-          correct: r.isCorrect ? 1 : 0,
-          total: 1,
-          lastTime: r.syncTime?.toISOString().slice(0, 16) || '',
+          correct: correctQs,
+          total: totalQs,
+          lastTime: r.createdAt.toISOString().slice(0, 16) || '',
         });
       }
     }
@@ -161,25 +171,21 @@ router.post('/user-study/data', authMiddleware, roleGuard(['ADMIN', 'INFECTION_O
     const currentMonth = new Date().toISOString().slice(0, 7);
 
     // 批量查询所有用户的相关数据，避免 N+1 问题
-    const [examCounts, practiceCounts, wrongCounts, learningRecords, requirements] = await Promise.all([
+    const [examCounts, dailyPracticeCounts, wrongCounts, requirements] = await Promise.all([
       prisma.examRecord.groupBy({
         by: ['userId'],
         where: { userId: { in: userIds } },
         _count: { id: true },
       }),
-      prisma.practiceSyncRecord.groupBy({
-        by: ['userId'],
-        where: { userId: { in: userIds } },
-        _count: { id: true },
+      // 统计每日一练题目数
+      prisma.dailyPractice.findMany({
+        where: { userId: { in: userIds }, isCompleted: true },
+        select: { userId: true, questions: true },
       }),
       prisma.wrongQuestion.groupBy({
         by: ['userId'],
         where: { userId: { in: userIds }, status: 'ACTIVE' },
         _count: { id: true },
-      }),
-      prisma.learningRecord.findMany({
-        where: { userId: { in: userIds } },
-        select: { userId: true, studyDurationSeconds: true },
       }),
       prisma.infectionRequirement.findMany({
         where: { userId: { in: userIds }, month: currentMonth },
@@ -189,12 +195,19 @@ router.post('/user-study/data', authMiddleware, roleGuard(['ADMIN', 'INFECTION_O
 
     // 构建映射
     const examCountMap = new Map(examCounts.map((r) => [r.userId, r._count.id]));
-    const practiceCountMap = new Map(practiceCounts.map((r) => [r.userId, r._count.id]));
     const wrongCountMap = new Map(wrongCounts.map((r) => [r.userId, r._count.id]));
 
+    // 从每日一练计算题目数和学习时长
+    const practiceCountMap = new Map<number, number>();
     const studyMinutesMap = new Map<number, number>();
-    for (const r of learningRecords) {
-      studyMinutesMap.set(r.userId, (studyMinutesMap.get(r.userId) || 0) + r.studyDurationSeconds);
+    for (const dp of dailyPracticeCounts) {
+      try {
+        const qs = JSON.parse(dp.questions as string);
+        if (Array.isArray(qs)) {
+          practiceCountMap.set(dp.userId, (practiceCountMap.get(dp.userId) || 0) + qs.length);
+          studyMinutesMap.set(dp.userId, (studyMinutesMap.get(dp.userId) || 0) + qs.length); // 1题≈1分钟
+        }
+      } catch { /* skip */ }
     }
 
     const reqMap = new Map(requirements.map((r) => [r.userId, r]));

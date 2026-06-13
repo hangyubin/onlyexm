@@ -347,24 +347,48 @@ router.get('/study-stats', authMiddleware, async (req, res) => {
     let monthlyCompleted = 0;
     let monthlyTotal = 20;
 
-    // 每项查询独立容错，某张表不存在时不影响其他
+    // 统计每日一练的题目数（每道题约1分钟）
     try {
-      totalPracticeCount = await prisma.practiceSyncRecord.count({
-        where: { userId: user.userId },
+      const completedPractices = await prisma.dailyPractice.findMany({
+        where: { userId: user.userId, isCompleted: true },
+        select: { questions: true },
       });
+      for (const p of completedPractices) {
+        try {
+          const qs = JSON.parse(p.questions as string);
+          if (Array.isArray(qs)) {
+            totalPracticeCount += qs.length;
+            totalStudyMinutes += qs.length; // 1题 ≈ 1分钟
+          }
+        } catch { /* JSON parse error, skip */ }
+      }
     } catch (e: any) {
-      console.warn('[study-stats] practiceSyncRecord 查询失败:', e?.message);
+      console.warn('[study-stats] dailyPractice 查询失败:', e?.message);
     }
 
+    // 统计考试答题数
     try {
-      const learningRecords = await prisma.learningRecord.findMany({
-        where: { userId: user.userId },
+      const examRecords = await prisma.examRecord.findMany({
+        where: { userId: user.userId, status: 'COMPLETED' },
+        select: { paperId: true },
       });
-      totalStudyMinutes = learningRecords.reduce((sum, record) => sum + record.studyDurationSeconds, 0) / 60;
+      if (examRecords.length > 0) {
+        const paperIds = examRecords.map(r => r.paperId);
+        const paperQuestionCounts = await prisma.paperQuestion.groupBy({
+          by: ['paperId'],
+          where: { paperId: { in: paperIds } },
+          _count: { id: true },
+        });
+        for (const pq of paperQuestionCounts) {
+          totalPracticeCount += pq._count.id;
+          totalStudyMinutes += pq._count.id * 2; // 每题约2分钟
+        }
+      }
     } catch (e: any) {
-      console.warn('[study-stats] learningRecord 查询失败:', e?.message);
+      console.warn('[study-stats] examRecord 查询失败:', e?.message);
     }
 
+    // 月度院感进度
     try {
       const currentMonth = new Date().toISOString().slice(0, 7);
       const infectionRequirement = await prisma.infectionRequirement.findFirst({
@@ -388,7 +412,6 @@ router.get('/study-stats', authMiddleware, async (req, res) => {
     });
   } catch (err) {
     console.error('Get study stats error:', err);
-    // 返回0值而非500，避免前端整个模块不显示
     res.json({
       totalStudyHours: 0,
       totalPracticeCount: 0,

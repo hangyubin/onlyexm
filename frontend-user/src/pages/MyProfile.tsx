@@ -245,7 +245,7 @@ export default function MyProfile() {
       {/* 修改密码弹窗 */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 max-h-[85vh] overflow-y-auto">
             <h3 className="text-lg font-bold mb-4">修改密码</h3>
             <div className="space-y-3">
               <input
@@ -292,7 +292,7 @@ export default function MyProfile() {
       {/* 修改个人资料弹窗 */}
       {showProfileModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 max-h-[85vh] overflow-y-auto">
             <h3 className="text-lg font-bold mb-4">修改个人资料</h3>
             <div className="space-y-3">
               <div>

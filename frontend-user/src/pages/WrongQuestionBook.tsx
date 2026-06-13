@@ -149,15 +149,15 @@ function PracticeModal({
           isCorrect,
           autoRemoved: response.data.autoRemoved,
           message: response.data.message,
-          newCorrectCount: response.data.data.correctCount,
-          newWrongCount: response.data.data.wrongCount,
+          newCorrectCount: response.data.correctCount,
+          newWrongCount: response.data.wrongCount,
         });
         onSuccess({
           isCorrect,
           autoRemoved: response.data.autoRemoved,
           message: response.data.message,
-          newCorrectCount: response.data.data.correctCount,
-          newWrongCount: response.data.data.wrongCount,
+          newCorrectCount: response.data.correctCount,
+          newWrongCount: response.data.wrongCount,
         });
       }
     } catch (err) {

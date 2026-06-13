@@ -24,14 +24,24 @@ router.get('/stats', authMiddleware, async (req, res) => {
       where: { userId, month: currentMonth },
     });
 
-    const totalPracticeRecords = await prisma.practiceSyncRecord.count({
-      where: { userId },
-    });
-
-    const learningRecords = await prisma.learningRecord.findMany({
-      where: { userId },
-    });
-    const totalStudyMinutes = learningRecords.reduce((sum, record) => sum + record.studyDurationSeconds, 0) / 60;
+    // 从每日一练统计题目数和学习时长
+    let totalPracticeCount = 0;
+    let totalStudyMinutes = 0;
+    try {
+      const completedPractices = await prisma.dailyPractice.findMany({
+        where: { userId, isCompleted: true },
+        select: { questions: true },
+      });
+      for (const p of completedPractices) {
+        try {
+          const qs = JSON.parse(p.questions as string);
+          if (Array.isArray(qs)) {
+            totalPracticeCount += qs.length;
+            totalStudyMinutes += qs.length; // 1题≈1分钟
+          }
+        } catch { /* skip */ }
+      }
+    } catch { /* skip */ }
 
     const pendingExams = await prisma.examRecord.findMany({
       where: { userId, status: 'IN_PROGRESS' },
@@ -56,7 +66,7 @@ router.get('/stats', authMiddleware, async (req, res) => {
       },
       studyStats: {
         totalStudyHours: Math.round(totalStudyMinutes / 60 * 10) / 10,
-        totalPracticeCount: totalPracticeRecords,
+        totalPracticeCount: totalPracticeCount,
         monthlyInfectionProgress: {
           completed: infectionRequirement?.completedCount || 0,
           total: infectionRequirement?.requiredCount || 20,
@@ -98,35 +108,44 @@ router.get('/radar-data', authMiddleware, async (req, res) => {
       AIR_QUALITY: '空气质量',
     };
 
-    // 批量查询所有标签，避免 N+1 查询
-    const allRecords = await prisma.practiceSyncRecord.findMany({
-      where: {
-        userId,
-        question: { infectionTag: { in: infectionTags as any[] } },
-      },
-      include: { question: { select: { infectionTag: true } } },
+    // 从每日一练记录统计雷达图数据
+    const completedPractices = await prisma.dailyPractice.findMany({
+      where: { userId, isCompleted: true },
+      select: { questions: true, answers: true },
     });
 
-    // 按标签分组计算正确率
-    const tagRecordsMap = new Map<string, typeof allRecords>();
+    const tagStats = new Map<string, { correct: number; total: number }>();
     for (const tag of infectionTags) {
-      tagRecordsMap.set(tag, []);
+      tagStats.set(tag, { correct: 0, total: 0 });
     }
-    for (const record of allRecords) {
-      const tag = record.question?.infectionTag;
-      if (tag && tagRecordsMap.has(tag)) {
-        tagRecordsMap.get(tag)!.push(record);
-      }
+
+    for (const practice of completedPractices) {
+      try {
+        const questions: any[] = JSON.parse(practice.questions as string);
+        const answers: Record<string, string | string[]> = JSON.parse(practice.answers as string || '{}');
+
+        for (const q of questions) {
+          const tag = q.infectionTag || q.subCategory;
+          if (!tag || !tagStats.has(tag)) continue;
+
+          const stats = tagStats.get(tag)!;
+          stats.total++;
+
+          const userAnswer = answers[String(q.id)];
+          if (!userAnswer) continue;
+
+          const correctOptions = (q.options || []).filter((o: any) => o.isCorrect);
+          const correctAnswer = correctOptions.map((o: any) => o.optionKey).sort().join(',');
+          const userAnswerStr = Array.isArray(userAnswer) ? userAnswer.sort().join(',') : String(userAnswer);
+          if (userAnswerStr === correctAnswer) stats.correct++;
+        }
+      } catch { /* skip malformed JSON */ }
     }
 
     const radarData = infectionTags.map((tag) => {
-      const records = tagRecordsMap.get(tag) || [];
-      if (records.length === 0) {
-        return { tag, label: tagLabels[tag], value: 0 };
-      }
-      const correctCount = records.filter(r => r.isCorrect).length;
-      const accuracy = Math.round((correctCount / records.length) * 100);
-      return { tag, label: tagLabels[tag], value: accuracy };
+      const stats = tagStats.get(tag) || { correct: 0, total: 0 };
+      const value = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
+      return { tag, label: tagLabels[tag], value };
     });
 
     res.json({ code: 0, data: radarData });

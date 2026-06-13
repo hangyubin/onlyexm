@@ -59,6 +59,9 @@ api.interceptors.response.use(
             response.data = data;
           } else {
             response.data = data.data ?? data;
+            // 保留被展开时丢失的顶层元数据字段
+            if (data.autoRemoved !== undefined) response.data.autoRemoved = data.autoRemoved;
+            if (data.message !== undefined) response.data.message = data.message;
           }
         } else {
           console.error('API Error:', data.message);
