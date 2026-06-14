@@ -60,6 +60,7 @@ api.interceptors.response.use(
           } else {
             response.data = data.data ?? data;
             // 保留被展开时丢失的顶层元数据字段
+            if (data.success !== undefined) response.data.success = data.success;
             if (data.autoRemoved !== undefined) response.data.autoRemoved = data.autoRemoved;
             if (data.message !== undefined) response.data.message = data.message;
           }
