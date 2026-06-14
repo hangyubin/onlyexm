@@ -100,11 +100,13 @@ async function pdfkitFromHtml(html: string): Promise<Buffer> {
 
 function findFont(): string | null {
   const fs = require('fs');
-  // 项目内置字体（优先）
+  // 项目内置字体（优先）— 兼容多种部署路径
   const projectFontPaths = [
-    path.resolve(__dirname, '../../fonts/simhei.ttf'),   // dist/utils/pdf.js → backend/fonts/
+    path.resolve(__dirname, '../../fonts/simhei.ttf'),   // dist/utils/pdf.js → backend/fonts/ (本地开发)
+    path.resolve(__dirname, '../../../fonts/simhei.ttf'), // dist/utils/pdf.js → fonts/ (Docker: /app/backend/dist/utils → /app/backend/fonts)
     path.resolve(__dirname, '../fonts/simhei.ttf'),       // src/utils/pdf.ts → backend/fonts/
     path.resolve(process.cwd(), 'fonts/simhei.ttf'),      // cwd/fonts/
+    path.resolve(process.cwd(), '../fonts/simhei.ttf'),   // Docker: cwd=dist → ../fonts/
   ];
   for (const p of projectFontPaths) {
     try {
@@ -118,6 +120,7 @@ function findFont(): string | null {
   const systemFontPaths = [
     'C:\\Windows\\Fonts\\simhei.ttf',
     'C:\\Windows\\Fonts\\msyh.ttc',
+    '/usr/share/fonts/NotoSansSC-Regular.otf',            // Docker 镜像中安装的字体
     '/usr/share/fonts/truetype/wqy/wqy-microhei.ttc',
     '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
     '/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc',

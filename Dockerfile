@@ -65,6 +65,9 @@ COPY --from=backend-builder /app/node_modules /app/backend/node_modules
 COPY --from=backend-builder /app/prisma /app/backend/prisma
 COPY --from=backend-builder /app/package.json /app/backend/
 
+# 复制中文字体文件（PDF 生成用）
+COPY backend/fonts /app/backend/fonts
+
 # 复制前端构建产物
 COPY --from=admin-builder /app/dist /app/frontend/admin
 COPY --from=user-builder /app/dist /app/frontend/user
