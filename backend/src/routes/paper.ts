@@ -3,7 +3,7 @@ import prisma from '../lib/prisma';
 import { authMiddleware } from '../middleware/auth';
 import { roleGuard } from '../middleware/roleGuard';
 import { generatePaper, GeneratePaperInput } from '../services/paperService';
-import { registerChineseFont } from '../utils/pdf';
+import { htmlToPdf } from '../utils/pdf';
 
 const router = express.Router();
 
@@ -606,41 +606,11 @@ router.get('/:id/print', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER'
       group.totalScore += pq.score;
     }
 
-    // 生成 PDF
-    const PDFDocument = require('pdfkit');
-    const doc = new PDFDocument({ margin: 50, size: 'A4' });
-    registerChineseFont(doc);
-
-    const chunks: Buffer[] = [];
-    let pageCount = 0;
-    
-    doc.on('pageAdded', () => {
-      pageCount++;
-    });
-    
-    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-    doc.on('end', () => {
-      const pdfBuffer = Buffer.concat(chunks);
-      const filename = `${paper.name || '试卷'}_空白试卷.pdf`;
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}; filename=paper_${paper.id}.pdf`);
-      res.send(pdfBuffer);
-    });
-
-    // 试卷标题
-    doc.fontSize(18).text(paper.name, { align: 'center' });
-    doc.moveDown(0.5);
-    doc.fontSize(12).text(`考试时长：${paper.durationMinutes}分钟    满分：${paper.totalScore}分    及格线：${paper.passingScore}分`, { align: 'center' });
-    doc.moveDown(2);
-
-    // 考生信息区域
-    doc.fontSize(12).text('姓名：________________    科室：________________    得分：________');
-    doc.moveDown(2);
-
-    // 按题型分组输出
+    // 构建 HTML
     const chineseNumbers = ['一', '二', '三', '四', '五', '六', '七', '八'];
     let typeIndex = 0;
     let globalQuestionNumber = 1;
+    let bodyHtml = '';
 
     for (const type of typeOrder) {
       const group = groupedQuestions.get(type);
@@ -650,60 +620,75 @@ router.get('/:id/print', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER'
       const count = group.questions.length;
       const totalScore = group.totalScore;
 
-      // 题型标题（简化显示）
-      doc.fontSize(14).text(
-        `${chineseNumbers[typeIndex]}、${typeName}（共${count}题，共${totalScore}分）`
-      );
-      doc.moveDown(1.5);
+      bodyHtml += `<h3 style="font-size:15px;margin:18px 0 8px;font-weight:bold;">${chineseNumbers[typeIndex]}、${typeName}（共${count}题，共${totalScore}分）</h3>`;
 
-      // 输出该题型的所有题目
       for (const pq of group.questions) {
         const question = pq.question;
-        const score = pq.score;
-
-        // 判断是否为选择题（有选项的都是选择题）
         const hasOptions = question.options && question.options.length > 0;
-        const answerArea = hasOptions || type === 'JUDGE' ? '（    ）' : '';
-        
-        // 题目内容
-        doc.fontSize(12).text(`${globalQuestionNumber}. ${question.content}${answerArea}`);
+        const answerArea = hasOptions || type === 'JUDGE' ? '（&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;）' : '';
+
+        bodyHtml += `<div style="margin-bottom:14px;line-height:1.8;">
+          <p style="font-size:14px;margin:0 0 6px;"><b>${globalQuestionNumber}.</b> ${escapeHtml(question.content)}${answerArea}</p>`;
         globalQuestionNumber++;
 
-        // 选项（有选项的题目）
         if (hasOptions) {
-          // 每行显示2个选项
+          bodyHtml += '<div style="padding-left:24px;font-size:14px;">';
           const options = question.options;
           for (let i = 0; i < options.length; i += 2) {
             const opt1 = options[i];
             const opt2 = options[i + 1];
-            if (opt2) {
-              doc.text(`    ${opt1.optionKey}. ${opt1.content}    ${opt2.optionKey}. ${opt2.content}`);
-            } else {
-              doc.text(`    ${opt1.optionKey}. ${opt1.content}`);
-            }
+            bodyHtml += `<div style="display:flex;gap:60px;margin-bottom:3px;">`;
+            bodyHtml += `<span>${opt1.optionKey}. ${escapeHtml(opt1.content)}</span>`;
+            if (opt2) bodyHtml += `<span>${opt2.optionKey}. ${escapeHtml(opt2.content)}</span>`;
+            bodyHtml += `</div>`;
           }
+          bodyHtml += '</div>';
         } else if (type === 'CASE') {
-          // 案例分析题留出答题空间
-          doc.moveDown(0.5);
           for (let i = 0; i < 8; i++) {
-            doc.text('    _______________________________________________________________________________');
+            bodyHtml += '<p style="color:#999;">&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;&lowbar;</p>';
           }
         }
 
-        doc.moveDown(1.5);
+        bodyHtml += '</div>';
       }
 
       typeIndex++;
-      doc.moveDown(0.5);
     }
 
-    // 结束
-    doc.end();
+    const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { margin: 15mm; }
+  body { font-family: 'SimHei', 'Microsoft YaHei', 'PingFang SC', sans-serif; color: #222; }
+  h1 { text-align: center; font-size: 22px; margin-bottom: 4px; }
+  .subtitle { text-align: center; font-size: 14px; color: #555; margin-bottom: 16px; }
+  .info { font-size: 14px; margin-bottom: 20px; }
+</style>
+</head>
+<body>
+<h1>${escapeHtml(paper.name)}</h1>
+<p class="subtitle">考试时长：${paper.durationMinutes}分钟 &emsp; 满分：${paper.totalScore}分 &emsp; 及格线：${paper.passingScore}分</p>
+<p class="info">姓名：________________&emsp;&emsp;科室：________________&emsp;&emsp;得分：________</p>
+${bodyHtml}
+</body>
+</html>`;
+
+    const pdfBuffer = await htmlToPdf(html);
+    const filename = `${paper.name || '试卷'}_空白试卷.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}; filename=paper_${paper.id}.pdf`);
+    res.send(pdfBuffer);
 
   } catch (err) {
     console.error('Print paper error:', err);
     res.status(500).json({ error: '打印试卷失败' });
   }
 });
+
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 export default router;

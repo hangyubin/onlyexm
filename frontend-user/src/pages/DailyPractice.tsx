@@ -495,7 +495,7 @@ export function DailyPractice() {
               </span>
               {currentQuestion.infectionTag && (
                 <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm font-medium">
-                  {currentQuestion.infectionTag}
+                  {getName('INFECTION_TAG', currentQuestion.infectionTag)}
                 </span>
               )}
             </div>

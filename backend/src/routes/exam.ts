@@ -6,6 +6,7 @@ import { submitExam, startExam, saveAnswer, autoSubmitExam } from '../services/e
 import prisma from '../lib/prisma';
 import { getDictItems } from '../utils/dictCache';
 import { success, error, paginate } from '../utils/response';
+import { htmlToPdf } from '../utils/pdf';
 
 async function getDepartmentName(code: string): Promise<string> {
   if (!code) return '';
@@ -639,5 +640,134 @@ router.post('/:examRecordId/force-submit', authMiddleware, roleGuard(['ADMIN', '
     error(res, 500, '强制交卷失败');
   }
 });
+
+// 打印考生答题试卷（带答案）
+router.get('/records/:id/print', authMiddleware, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) return error(res, 400, '无效的考试记录ID');
+
+    const examRecord = await prisma.examRecord.findUnique({
+      where: { id },
+      include: {
+        paper: { include: { paperQuestions: { include: { question: { include: { options: true } } } } } },
+        answerDetails: true,
+        user: { select: { realName: true, department: true, hospital: { select: { name: true } } } },
+      },
+    });
+
+    if (!examRecord) return error(res, 404, '考试记录不存在');
+    if (!examRecord.paper) return error(res, 404, '试卷不存在或已删除');
+
+    // 构建题目和答案映射
+    const questionMap = new Map<number, any>();
+    for (const pq of examRecord.paper.paperQuestions) {
+      questionMap.set(pq.question.id, { question: pq.question, score: pq.score });
+    }
+    const answerMap = new Map<number, any>();
+    for (const ad of examRecord.answerDetails) {
+      const existing = answerMap.get(ad.questionId);
+      if (!existing || ad.isCorrect) answerMap.set(ad.questionId, ad);
+    }
+
+    const typeOrder = ['SINGLE', 'MULTIPLE', 'JUDGE', 'CASE'];
+    const typeNames: Record<string, string> = { SINGLE: '单项选择题', MULTIPLE: '多项选择题', JUDGE: '是非判断题', CASE: '案例分析题' };
+    const chineseNumbers = ['一', '二', '三', '四', '五', '六', '七', '八'];
+
+    // 按题型分组
+    const grouped = new Map<string, any[]>();
+    for (const [qid, { question, score }] of questionMap) {
+      const type = question.type;
+      if (!grouped.has(type)) grouped.set(type, []);
+      const ans = answerMap.get(qid);
+      let userAnswer = '';
+      if (ans) {
+        try {
+          const parsed = JSON.parse(ans.userAnswer);
+          userAnswer = Array.isArray(parsed) ? parsed.join(', ') : String(parsed);
+        } catch { userAnswer = ans.userAnswer || ''; }
+      }
+      const correctOptions = question.options.filter((o: any) => o.isCorrect);
+      const correctAnswer = correctOptions.map((o: any) => o.optionKey).join(', ');
+      grouped.get(type)!.push({ question, score, userAnswer, correctAnswer, isCorrect: ans?.isCorrect ?? false, earnedScore: ans?.scoreObtained ?? 0 });
+    }
+
+    // 构建 HTML
+    let bodyHtml = '';
+    let typeIndex = 0;
+    let globalNum = 1;
+
+    for (const type of typeOrder) {
+      const questions = grouped.get(type);
+      if (!questions || questions.length === 0) continue;
+      const typeTotal = questions.reduce((s, q) => s + q.score, 0);
+      bodyHtml += `<h3 style="font-size:15px;margin:18px 0 8px;font-weight:bold;">${chineseNumbers[typeIndex]}、${typeNames[type] || type}（共${questions.length}题，${typeTotal}分）</h3>`;
+
+      for (const q of questions) {
+        const hasOptions = q.question.options && q.question.options.length > 0;
+        const isCorrect = q.isCorrect;
+        const borderColor = isCorrect ? '#4ade80' : '#f87171';
+        const bgColor = isCorrect ? '#f0fdf4' : '#fef2f2';
+
+        bodyHtml += `<div style="border:1px solid ${borderColor};background:${bgColor};padding:8px;margin-bottom:8px;border-radius:4px;">`;
+        bodyHtml += `<p style="font-size:14px;margin:0 0 4px;"><b>${globalNum}.</b> ${escapeHtml(q.question.content)} <span style="font-size:12px;color:#888;">（${q.score}分）</span></p>`;
+        globalNum++;
+
+        if (hasOptions) {
+          bodyHtml += '<div style="padding-left:20px;font-size:13px;">';
+          const options = q.question.options;
+          for (let i = 0; i < options.length; i += 2) {
+            const o1 = options[i];
+            const o2 = options[i + 1];
+            const isO1Correct = o1.isCorrect;
+            const isO2Correct = o2?.isCorrect;
+            bodyHtml += `<div style="display:flex;gap:40px;margin-bottom:2px;">`;
+            bodyHtml += `<span style="font-weight:${isO1Correct ? 'bold' : 'normal'};color:${isO1Correct ? '#16a34a' : '#333'};">${o1.optionKey}. ${escapeHtml(o1.content)}</span>`;
+            if (o2) bodyHtml += `<span style="font-weight:${isO2Correct ? 'bold' : 'normal'};color:${isO2Correct ? '#16a34a' : '#333'};">${o2.optionKey}. ${escapeHtml(o2.content)}</span>`;
+            bodyHtml += `</div>`;
+          }
+          bodyHtml += '</div>';
+        }
+
+        bodyHtml += `<p style="font-size:12px;margin:4px 0 0;padding:0 20px;">`;
+        bodyHtml += `<span style="color:#666;">考生答案：</span><span style="color:${isCorrect ? '#16a34a' : '#dc2626'};font-weight:bold;">${escapeHtml(q.userAnswer || '未作答')}</span>`;
+        bodyHtml += `&emsp;<span style="color:#666;">正确答案：</span><span style="color:#16a34a;font-weight:bold;">${escapeHtml(q.correctAnswer)}</span>`;
+        bodyHtml += `&emsp;<span style="color:#666;">得分：</span><span style="color:#2563eb;font-weight:bold;">${q.earnedScore}</span>`;
+        bodyHtml += `</p></div>`;
+      }
+      typeIndex++;
+    }
+
+    const deptName = await getDepartmentName(examRecord.user.department || '');
+    const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8">
+<style>
+  @page { margin: 15mm; }
+  body { font-family: 'SimHei', 'Microsoft YaHei', 'PingFang SC', sans-serif; color: #222; }
+  h1 { text-align: center; font-size: 20px; margin-bottom: 2px; }
+  .subtitle { text-align: center; font-size: 13px; color: #555; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<h1>${escapeHtml(examRecord.paper.name)}</h1>
+<p class="subtitle">${(examRecord.user as any).hospital?.name || ''} | 姓名：${escapeHtml(examRecord.user.realName || '')} | 科室：${escapeHtml(deptName)} | 得分：<b>${examRecord.score}</b> / ${examRecord.paper.totalScore} | ${examRecord.isPassed ? '合格' : '不合格'}</p>
+${bodyHtml}
+</body></html>`;
+
+    const pdfBuffer = await htmlToPdf(html);
+    const filename = `${examRecord.paper.name}_${examRecord.user.realName}_答题卡.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    console.error('Print exam record error:', err);
+    error(res, 500, '生成答题卡PDF失败');
+  }
+});
+
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 export default router;

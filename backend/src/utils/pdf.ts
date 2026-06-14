@@ -1,42 +1,65 @@
-import fs from 'fs';
-import path from 'path';
+import puppeteer from 'puppeteer-core';
 
-const FONT_PATHS = [
-  // 项目内置字体（优先）
-  path.join(__dirname, '..', '..', '..', 'fonts', 'simhei.ttf'),        // dist/src/utils -> project/backend/fonts/
-  path.join(__dirname, '..', '..', 'fonts', 'simhei.ttf'),              // src/utils -> project/backend/fonts/
-  path.join(__dirname, '..', '..', '..', 'fonts', 'NotoSansSC-Regular.otf'),
-  path.join(__dirname, '..', 'fonts', 'simhei.ttf'),
-  // Windows 系统字体（兜底）
-  'C:\\Windows\\Fonts\\simhei.ttf',
-  'C:\\Windows\\Fonts\\simsun.ttc',
-  'C:\\Windows\\Fonts\\msyh.ttc',
-  'C:\\Windows\\Fonts\\msyhbd.ttf',
-  // Docker 镜像字体
-  '/usr/share/fonts/NotoSansSC-Regular.otf',
-  '/usr/share/fonts/NotoSansSC-Regular.ttf',
-  '/usr/share/fonts/truetype/noto/NotoSansSC-Regular.ttf',
-  '/usr/share/fonts/noto/NotoSansSC-Regular.ttf',
-  '/usr/share/fonts/noto/NotoSansSC-Regular.otf',
-  '/usr/share/fonts/noto/NotoSansCJK-Regular.ttc',
-  '/usr/share/fonts/noto/NotoSansCJK-Bold.ttc',
-  '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',
-  '/usr/share/fonts/truetype/simhei.ttf',
-  '/usr/share/fonts/wqy-microhei.ttc',
+// Windows 常见 Chrome 安装路径
+const CHROME_PATHS = [
+  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe',
+  // Linux Docker
+  '/usr/bin/chromium-browser',
+  '/usr/bin/chromium',
+  '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
 ];
 
-export function registerChineseFont(doc: any): void {
-  for (const fp of FONT_PATHS) {
+let chromePath: string | null = null;
+
+function getChromePath(): string | null {
+  if (chromePath) return chromePath;
+  const fs = require('fs');
+  for (const p of CHROME_PATHS) {
     try {
-      if (fs.existsSync(fp)) {
-        doc.registerFont('ChineseFont', fp);
-        doc.font('ChineseFont');
-        console.log('PDF font loaded:', fp);
-        return;
+      if (p && fs.existsSync(p)) {
+        chromePath = p;
+        console.log('Chrome found at:', p);
+        return p;
       }
-    } catch (e) { /* try next path */ }
+    } catch {}
   }
-  // 兜底：尝试使用 PDFKit 内置字体（仅支持英文）
-  console.warn('No Chinese font found, PDF Chinese text may be garbled. Install a CJK font in the image.');
-  doc.font('Helvetica');
+  return null;
+}
+
+/**
+ * 使用 Chrome 无头模式将 HTML 渲染为 PDF
+ * 从根本上解决中文编码问题——浏览器原生支持 UTF-8
+ */
+export async function htmlToPdf(html: string): Promise<Buffer> {
+  const execPath = getChromePath();
+  if (!execPath) {
+    throw new Error('未找到 Chrome 浏览器，无法生成 PDF。请安装 Google Chrome 后重试。');
+  }
+
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      executablePath: execPath,
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    });
+  } catch (e: any) {
+    throw new Error(`启动 Chrome 失败: ${e.message}`);
+  }
+
+  try {
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' },
+      printBackground: true,
+    });
+    return Buffer.from(pdfBuffer);
+  } finally {
+    await browser.close();
+  }
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { CheckCircle, XCircle, Home, RotateCcw, Printer } from 'lucide-react';
+import { CheckCircle, XCircle, Home, RotateCcw, Printer, Download } from 'lucide-react';
 import api from '../api/axios';
 
 interface QuestionResult {
@@ -76,6 +76,22 @@ export default function ExamResult() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadPdf = async () => {
+    try {
+      const response = await api.get(`/exam/records/${recordId}/print`, {
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(response.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${result?.paperName || '试卷'}_${result?.userName || '考生'}_答题卡.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('下载PDF失败:', e);
+    }
   };
 
   if (loading) {
@@ -173,7 +189,14 @@ export default function ExamResult() {
       {/* 打印区域 - 标准试卷样式 */}
       <div ref={printRef} className="px-4">
         <div className="bg-white rounded-2xl shadow-sm p-4 mb-4 print:shadow-none print:rounded-none print:p-0 print:mb-0">
-          <div className="flex items-center justify-end mb-4 print:hidden">
+          <div className="flex items-center justify-end gap-2 mb-4 print:hidden">
+            <button
+              onClick={handleDownloadPdf}
+              className="flex items-center gap-1 px-3 py-1.5 bg-green-500 text-white text-sm rounded-lg hover:bg-green-600 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              下载PDF
+            </button>
             <button
               onClick={handlePrint}
               className="flex items-center gap-1 px-3 py-1.5 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors"

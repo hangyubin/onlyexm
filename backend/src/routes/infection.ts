@@ -2,7 +2,7 @@ import express from 'express';
 import prisma from '../lib/prisma';
 import { authMiddleware } from '../middleware/auth';
 import { roleGuard } from '../middleware/roleGuard';
-import { registerChineseFont } from '../utils/pdf';
+import { htmlToPdf } from '../utils/pdf';
 
 const router = express.Router();
 
@@ -806,7 +806,6 @@ router.post('/notify/:userId', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OF
 // ============================================================
 router.get('/report/pdf', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER']), async (req, res) => {
   try {
-    const PDFDocument = require('pdfkit');
     const currentMonth = new Date().toISOString().slice(0, 7);
 
     // 获取科室字典
@@ -867,78 +866,69 @@ router.get('/report/pdf', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER
       orderBy: { accuracyRate: 'asc' },
     });
 
-    // 生成 PDF
-    const doc = new PDFDocument({ margin: 50, size: 'A4' });
-    registerChineseFont(doc);
-
-    const chunks: Buffer[] = [];
-    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-    doc.on('end', () => {
-      const pdfBuffer = Buffer.concat(chunks);
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="infection_report_${currentMonth}.pdf"`);
-      res.send(pdfBuffer);
-    });
-
-    // 标题
-    doc.fontSize(20).text('院感培训督查报告', { align: 'center' });
-    doc.moveDown(0.5);
-    doc.fontSize(12).text(`报告月份：${currentMonth}`, { align: 'center' });
-    doc.fontSize(10).text(`生成时间：${new Date().toLocaleString('zh-CN')}`, { align: 'center' });
-    doc.moveDown();
-
-    // 分隔线
-    doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-    doc.moveDown();
-
-    // 一、总体概况
-    doc.fontSize(14).text('一、总体概况', { underline: true });
-    doc.moveDown(0.5);
-    doc.fontSize(11)
-      .text(`  总人数：${totalUsers} 人`)
-      .text(`  达标人数：${qualifiedCount} 人`)
-      .text(`  达标率：${complianceRate}%`)
-      .text(`  未达标人数：${unqualified.length} 人`);
-    doc.moveDown();
-
-    // 二、科室院感正确率排名
-    doc.fontSize(14).text('二、各科室院感正确率排名', { underline: true });
-    doc.moveDown(0.5);
-    doc.fontSize(10);
+    // 生成 HTML 并转 PDF
+    let deptRankingHtml = '';
     deptRanking.forEach((d, i) => {
-      doc.text(`  ${i + 1}. ${d.name}  —  ${d.rate}%`);
+      deptRankingHtml += `<p>  ${i + 1}. ${escapeHtml(d.name)} — ${d.rate}%</p>`;
     });
-    doc.moveDown();
 
-    // 三、未达标人员名单
-    doc.fontSize(14).text('三、未达标人员名单', { underline: true });
-    doc.moveDown(0.5);
+    let unqualifiedHtml = '';
     if (unqualified.length === 0) {
-      doc.fontSize(11).text('  无未达标人员');
+      unqualifiedHtml = '<p>  无未达标人员</p>';
     } else {
-      doc.fontSize(10);
       unqualified.slice(0, 50).forEach((u, i) => {
         const deptName = deptNameMap.get(u.user.department) || u.user.department || '未分配';
-        doc.text(
-          `  ${i + 1}. ${u.user.realName} | ${deptName} | 完成${u.completedCount}题 | 正确率${Number(u.accuracyRate || 0)}%`
-        );
+        unqualifiedHtml += `<p>  ${i + 1}. ${escapeHtml(u.user.realName)} | ${escapeHtml(deptName)} | 完成${u.completedCount}题 | 正确率${u.accuracyRate ?? 0}%</p>`;
       });
       if (unqualified.length > 50) {
-        doc.text(`  ... 共 ${unqualified.length} 人，仅显示前50条`);
+        unqualifiedHtml += `<p>  ... 共 ${unqualified.length} 人，仅显示前50条</p>`;
       }
     }
-    doc.moveDown();
 
-    // 页脚
-    doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-    doc.moveDown(0.5);
-    doc.fontSize(9).text('本报告由院感培训系统自动生成', { align: 'center' });
+    const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { margin: 15mm; }
+  body { font-family: 'SimHei', 'Microsoft YaHei', 'PingFang SC', sans-serif; color: #222; font-size: 13px; line-height: 1.8; }
+  h1 { text-align: center; font-size: 22px; margin-bottom: 2px; }
+  h2 { font-size: 15px; border-bottom: 1px solid #333; padding-bottom: 4px; margin: 18px 0 10px; }
+  .subtitle { text-align: center; font-size: 13px; color: #555; margin-bottom: 18px; }
+</style>
+</head>
+<body>
+<h1>院感培训督查报告</h1>
+<p class="subtitle">报告月份：${currentMonth} | 生成时间：${new Date().toLocaleString('zh-CN')}</p>
 
-    doc.end();
+<h2>一、总体概况</h2>
+<p>  总人数：${totalUsers} 人</p>
+<p>  达标人数：${qualifiedCount} 人</p>
+<p>  达标率：${complianceRate}%</p>
+<p>  未达标人数：${unqualified.length} 人</p>
+
+<h2>二、各科室院感正确率排名</h2>
+${deptRankingHtml}
+
+<h2>三、未达标人员名单</h2>
+${unqualifiedHtml}
+
+<p style="margin-top:24px;border-top:1px solid #ccc;padding-top:8px;color:#999;font-size:11px;text-align:center;">本报告由院感培训系统自动生成</p>
+</body>
+</html>`;
+
+    const pdfBuffer = await htmlToPdf(html);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="infection_report_${currentMonth}.pdf"`);
+    res.send(pdfBuffer);
   } catch (err) {
     console.error('Generate infection report error:', err);
     res.status(500).json({ error: '生成报告失败' });
   }
 });
+
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 export default router;
