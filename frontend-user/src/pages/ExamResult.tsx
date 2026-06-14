@@ -80,7 +80,7 @@ export default function ExamResult() {
 
   const handleDownloadPdf = async () => {
     try {
-      const response = await api.get(`/exam/records/${recordId}/print`, {
+      const response = await api.get(`/exam/records/${id}/print`, {
         responseType: 'blob',
       });
       const url = URL.createObjectURL(response.data);
