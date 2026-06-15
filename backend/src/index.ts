@@ -68,7 +68,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: { fileSize: 200 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowedMimeTypes = [
       'image/jpeg', 'image/png', 'image/gif', 'image/jpg', 'image/webp',
@@ -112,8 +112,8 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '200mb' }));
+app.use(express.urlencoded({ extended: true, limit: '200mb' }));
 
 app.use('/uploads', express.static(uploadDir, {
   setHeaders: (res) => {
@@ -179,6 +179,12 @@ app.post('/api/upload', authMiddleware, (req, res) => {
   const uploadHandler = upload.single('file');
   uploadHandler(req, res, (err: any) => {
     if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(413).json({ success: false, message: '文件大小超过200MB限制' });
+      }
+      if (err.message === '文件类型不支持') {
+        return res.status(400).json({ success: false, message: '文件类型不支持，请上传图片、文档、视频或音频文件' });
+      }
       return res.status(400).json({ success: false, message: err.message || '上传失败' });
     }
     if (!req.file) {

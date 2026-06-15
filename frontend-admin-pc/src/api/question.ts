@@ -72,11 +72,12 @@ export const questionApi = {
     await api.delete(`/questions/${id}`);
   },
 
-  batchImport: async (file: File): Promise<BatchImportResult> => {
+  batchImport: async (file: File, onUploadProgress?: (progressEvent: { loaded: number; total?: number }) => void): Promise<BatchImportResult> => {
     const formData = new FormData();
     formData.append('file', file);
     const response = await api.post('/questions/batch-import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress,
     });
     return response.data;
   },

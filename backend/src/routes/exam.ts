@@ -713,7 +713,7 @@ router.get('/records/:id/print', authMiddleware, async (req, res) => {
         bodyHtml += `<p style="font-size:14px;margin:0 0 4px;"><b>${globalNum}.</b> ${escapeHtml(q.question.content)} <span style="font-size:12px;color:#888;">（${q.score}分）</span></p>`;
         globalNum++;
 
-        if (hasOptions) {
+        if (hasOptions && type !== 'JUDGE') {
           bodyHtml += '<div style="padding-left:20px;font-size:13px;">';
           const options = q.question.options;
           for (let i = 0; i < options.length; i += 2) {

@@ -14,7 +14,7 @@ export interface Task {
   type: 'exam' | 'training';
   title: string;
   deadline: string | null;
-  status: 'pending' | 'completed' | 'ended';
+  status: 'pending' | 'completed' | 'ended' | 'not_started';
 }
 
 export interface WeakPoint {

@@ -28,6 +28,8 @@ export default function UserManage() {
   const [modalVisible, setModalVisible] = useState(false);
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [importModalVisible, setImportModalVisible] = useState(false);
+  const [importUploading, setImportUploading] = useState(false);
+  const [importProgress, setImportProgress] = useState(0);
   const [importResult, setImportResult] = useState<{ success: number; failed: number; failedDetails: string[] } | null>(null);
   const roleDictData = useDictData('ROLE');
   const deptDictData = useDictData('DEPARTMENT');
@@ -217,13 +219,23 @@ export default function UserManage() {
   };
 
   const handleImport = async (file: File) => {
+    setImportUploading(true);
+    setImportProgress(0);
     try {
-      const response = await userApi.batchImport(file);
+      const response = await userApi.batchImport(file, (progressEvent) => {
+        if (progressEvent.total) {
+          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setImportProgress(Math.min(percent, 99));
+        }
+      });
+      setImportProgress(100);
       setImportResult(response);
       message.success(`导入完成，成功${response.success}条，失败${response.failed}条`);
       fetchUsers();
     } catch (error) {
       message.error('导入失败');
+    } finally {
+      setImportUploading(false);
     }
   };
 
@@ -510,9 +522,16 @@ export default function UserManage() {
             beforeUpload={() => false}
             onChange={handleImportFile}
             fileList={[]}
+            disabled={importUploading}
           >
-            <Button icon={<UploadOutlined />} block>选择Excel文件</Button>
+            <Button icon={<UploadOutlined />} block disabled={importUploading}>
+              {importUploading ? '上传中...' : '选择Excel文件'}
+            </Button>
           </Upload>
+
+          {importUploading && (
+            <Progress percent={importProgress} status="active" />
+          )}
 
           {importResult && (
             <div className="p-4 bg-gray-50 rounded-lg">

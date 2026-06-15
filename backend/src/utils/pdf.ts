@@ -109,6 +109,34 @@ interface PdfElement {
   isCorrect?: boolean;
 }
 
+interface MatchInfo {
+  start: number;
+  end: number;
+  element: PdfElement;
+}
+
+/**
+ * 找到匹配的 </div> 位置（处理嵌套）
+ */
+function findMatchingCloseDiv(html: string, startPos: number): number {
+  let depth = 1;
+  let pos = startPos;
+  while (depth > 0 && pos < html.length) {
+    const nextOpen = html.indexOf('<div', pos);
+    const nextClose = html.indexOf('</div>', pos);
+    if (nextClose === -1) break;
+    if (nextOpen !== -1 && nextOpen < nextClose) {
+      depth++;
+      pos = nextOpen + 4;
+    } else {
+      depth--;
+      if (depth === 0) return nextClose;
+      pos = nextClose + 6;
+    }
+  }
+  return html.length;
+}
+
 /**
  * 解析 HTML 并用 pdfkit 原生 API 渲染格式化 PDF
  */
@@ -193,103 +221,120 @@ function renderHtmlToPdfkit(doc: any, html: string): void {
 }
 
 /**
- * 将 HTML body 内容解析为结构化元素列表
+ * 将 HTML body 内容解析为结构化元素列表（保持文档顺序）
  */
 function parseHtmlElements(html: string): PdfElement[] {
-  const elements: PdfElement[] = [];
-
+  const matches: MatchInfo[] = [];
   // 移除 style 标签
-  let content = html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+  const content = html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
 
-  // 解析 h1
-  content = content.replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, (_m, inner) => {
-    elements.push({ tag: 'h1', text: cleanText(inner) });
-    return '';
-  });
+  let m: RegExpExecArray | null;
 
-  // 解析 h2
-  content = content.replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, (_m, inner) => {
-    elements.push({ tag: 'h2', text: cleanText(inner) });
-    return '';
-  });
-
-  // 解析 h3（题型标题）
-  content = content.replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, (_m, inner) => {
-    elements.push({ tag: 'h3', text: cleanText(inner) });
-    return '';
-  });
-
-  // 解析 subtitle class 的 p 标签
-  content = content.replace(/<p[^>]*class=["']subtitle["'][^>]*>([\s\S]*?)<\/p>/gi, (_m, inner) => {
-    elements.push({ tag: 'subtitle', text: cleanText(inner) });
-    return '';
-  });
-
-  // 解析 info class 的 p 标签
-  content = content.replace(/<p[^>]*class=["']info["'][^>]*>([\s\S]*?)<\/p>/gi, (_m, inner) => {
-    elements.push({ tag: 'info', text: cleanText(inner) });
-    return '';
-  });
-
-  // 解析答题卡中的题目 div（带 border 样式，表示对/错）
-  content = content.replace(/<div[^>]*style="[^"]*border:1px\s+solid\s+(#[0-9a-fA-F]+)[^"]*"[^>]*>([\s\S]*?)<\/div>/gi, (_m, borderColor, inner) => {
-    const isCorrect = borderColor.toLowerCase() === '#4ade80';
-    elements.push(parseAnswerBlock(inner, isCorrect));
-    return '';
-  });
-
-  // 解析空白试卷中的题目 div（margin-bottom 样式）
-  content = content.replace(/<div[^>]*style="[^"]*margin-bottom:\d+px[^"]*"[^>]*>([\s\S]*?)<\/div>/gi, (_m, inner) => {
-    elements.push(parseQuestionBlock(inner));
-    return '';
-  });
-
-  // 解析底部 footer（margin-top + text-align:center 的 p）
-  content = content.replace(/<p[^>]*style="[^"]*margin-top:\d+px[^"]*"[^>]*>([\s\S]*?)<\/p>/gi, (_m, inner) => {
-    elements.push({ tag: 'footer', text: cleanText(inner) });
-    return '';
-  });
-
-  // 解析普通 p 标签
-  content = content.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, (_m, inner) => {
-    const text = cleanText(inner);
-    if (text.trim()) {
-      const indentMatch = inner.match(/^\s{2,}/);
-      const indent = indentMatch ? 20 : 0;
-      const colorMatch = inner.match(/color:\s*(#[0-9a-fA-F]{3,6})/);
-      elements.push({
-        tag: 'p',
-        text: text.trimStart(),
-        indent,
-        fontSize: 13,
-        color: colorMatch ? colorMatch[1] : '#222222',
-      });
-    }
-    return '';
-  });
-
-  // 清理剩余内容
-  const remaining = cleanText(content).trim();
-  if (remaining) {
-    elements.push({ tag: 'text', text: remaining });
+  // h1
+  const h1Re = /<h1[^>]*>([\s\S]*?)<\/h1>/gi;
+  while ((m = h1Re.exec(content)) !== null) {
+    matches.push({ start: m.index, end: m.index + m[0].length, element: { tag: 'h1', text: cleanText(m[1]) } });
   }
 
-  return elements;
+  // h2
+  const h2Re = /<h2[^>]*>([\s\S]*?)<\/h2>/gi;
+  while ((m = h2Re.exec(content)) !== null) {
+    matches.push({ start: m.index, end: m.index + m[0].length, element: { tag: 'h2', text: cleanText(m[1]) } });
+  }
+
+  // h3（题型标题）
+  const h3Re = /<h3[^>]*>([\s\S]*?)<\/h3>/gi;
+  while ((m = h3Re.exec(content)) !== null) {
+    matches.push({ start: m.index, end: m.index + m[0].length, element: { tag: 'h3', text: cleanText(m[1]) } });
+  }
+
+  // subtitle class 的 p 标签
+  const subtitleRe = /<p[^>]*class=["']subtitle["'][^>]*>([\s\S]*?)<\/p>/gi;
+  while ((m = subtitleRe.exec(content)) !== null) {
+    matches.push({ start: m.index, end: m.index + m[0].length, element: { tag: 'subtitle', text: cleanText(m[1]) } });
+  }
+
+  // info class 的 p 标签
+  const infoRe = /<p[^>]*class=["']info["'][^>]*>([\s\S]*?)<\/p>/gi;
+  while ((m = infoRe.exec(content)) !== null) {
+    matches.push({ start: m.index, end: m.index + m[0].length, element: { tag: 'info', text: cleanText(m[1]) } });
+  }
+
+  // 答题卡中的题目 div（带 border 样式，表示对/错）
+  const answerDivRe = /<div[^>]*style="[^"]*border:1px\s+solid\s+(#[0-9a-fA-F]+)[^"]*"[^>]*>/gi;
+  while ((m = answerDivRe.exec(content)) !== null) {
+    const borderColor = m[1];
+    const isCorrect = borderColor.toLowerCase() === '#4ade80';
+    const innerStart = m.index + m[0].length;
+    const innerEnd = findMatchingCloseDiv(content, innerStart);
+    const inner = content.substring(innerStart, innerEnd);
+    matches.push({ start: m.index, end: innerEnd + 6, element: parseAnswerBlock(inner, isCorrect) });
+  }
+
+  // 空白试卷中的题目 div（margin-bottom 样式）
+  const questionDivRe = /<div[^>]*style="[^"]*margin-bottom:\d+px[^"]*"[^>]*>/gi;
+  while ((m = questionDivRe.exec(content)) !== null) {
+    const innerStart = m.index + m[0].length;
+    const innerEnd = findMatchingCloseDiv(content, innerStart);
+    const inner = content.substring(innerStart, innerEnd);
+    matches.push({ start: m.index, end: innerEnd + 6, element: parseQuestionBlock(inner) });
+  }
+
+  // 底部 footer（margin-top 的 p）
+  const footerRe = /<p[^>]*style="[^"]*margin-top:\d+px[^"]*"[^>]*>([\s\S]*?)<\/p>/gi;
+  while ((m = footerRe.exec(content)) !== null) {
+    matches.push({ start: m.index, end: m.index + m[0].length, element: { tag: 'footer', text: cleanText(m[1]) } });
+  }
+
+  // 普通 p 标签
+  const pRe = /<p[^>]*>([\s\S]*?)<\/p>/gi;
+  while ((m = pRe.exec(content)) !== null) {
+    const text = cleanText(m[1]);
+    if (text.trim()) {
+      const indentMatch = m[1].match(/^\s{2,}/);
+      const indent = indentMatch ? 20 : 0;
+      const colorMatch = m[1].match(/color:\s*(#[0-9a-fA-F]{3,6})/);
+      matches.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        element: { tag: 'p', text: text.trimStart(), indent, fontSize: 13, color: colorMatch ? colorMatch[1] : '#222222' },
+      });
+    }
+  }
+
+  // 按位置排序，保持文档顺序
+  matches.sort((a, b) => a.start - b.start);
+
+  // 去除重叠匹配（保留先出现的，即外层容器优先于内层元素）
+  const filtered: MatchInfo[] = [];
+  let lastEnd = -1;
+  for (const match of matches) {
+    if (match.start >= lastEnd) {
+      filtered.push(match);
+      lastEnd = match.end;
+    }
+  }
+
+  return filtered.map(m => m.element);
 }
 
 /**
  * 解析空白试卷的题目块
  */
 function parseQuestionBlock(inner: string): PdfElement {
-  // 提取题目 p 标签
+  // 提取题目文本（第一个 p 标签）
   const pMatch = inner.match(/<p[^>]*>([\s\S]*?)<\/p>/i);
   const questionText = pMatch ? cleanText(pMatch[1]) : cleanText(inner);
 
-  // 提取选项
-  const optionsDiv = inner.match(/<div[^>]*style="[^"]*padding-left:\d+px[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
-  const options: string[] = [];
-  if (optionsDiv) {
-    options.push(...parseOptions(optionsDiv[1]));
+  // 提取所有选项（直接从 span 中提取 A. B. C. D. 格式）
+  const options: { key: string; text: string }[] = [];
+  const spanMatches = [...inner.matchAll(/<span[^>]*>([\s\S]*?)<\/span>/gi)];
+  for (const sm of spanMatches) {
+    const text = cleanText(sm[1]).trim();
+    const optMatch = text.match(/^([A-Z])\.\s*(.*)/);
+    if (optMatch) {
+      options.push({ key: optMatch[1], text: `${optMatch[1]}. ${optMatch[2]}` });
+    }
   }
 
   // CASE 题型的下划线填空行
@@ -302,8 +347,20 @@ function parseQuestionBlock(inner: string): PdfElement {
     }
   }
 
+  // 选项成对组合（A+B 一行，C+D 一行）
+  const optionLines: PdfElement[] = [];
+  for (let i = 0; i < options.length; i += 2) {
+    const o1 = options[i];
+    const o2 = options[i + 1];
+    if (o2) {
+      optionLines.push({ tag: 'p', text: `${o1.text}        ${o2.text}`, indent: 24, fontSize: 13, color: '#333333' });
+    } else {
+      optionLines.push({ tag: 'p', text: o1.text, indent: 24, fontSize: 13, color: '#333333' });
+    }
+  }
+
   const children: PdfElement[] = [
-    ...options.map(o => ({ tag: 'p' as string, text: o, indent: 24, fontSize: 13, color: '#333333' })),
+    ...optionLines,
     ...blankLines.map(l => ({ tag: 'p' as string, text: l, indent: 0, fontSize: 13, color: '#999999' })),
   ];
 
@@ -333,15 +390,43 @@ function parseAnswerBlock(inner: string, isCorrect: boolean): PdfElement {
     }
   }
 
-  // 提取选项
-  const optionsDiv = inner.match(/<div[^>]*style="[^"]*padding-left:\d+px[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
-  const options: string[] = [];
-  if (optionsDiv) {
-    options.push(...parseOptions(optionsDiv[1]));
+  // 提取所有选项（直接从 span 中提取，保留颜色信息）
+  const options: { key: string; text: string; color: string }[] = [];
+  const spanRe = /<span[^>]*style="[^"]*color:([^;"]+)[^"]*"[^>]*>([\s\S]*?)<\/span>/gi;
+  let sm: RegExpExecArray | null;
+  while ((sm = spanRe.exec(inner)) !== null) {
+    const text = cleanText(sm[2]).trim();
+    const optMatch = text.match(/^([A-Z])\.\s*(.*)/);
+    if (optMatch) {
+      options.push({ key: optMatch[1], text: `${optMatch[1]}. ${optMatch[2]}`, color: sm[1].trim() });
+    }
+  }
+  // 如果没有带颜色的 span，尝试提取普通 span
+  if (options.length === 0) {
+    const plainSpans = [...inner.matchAll(/<span[^>]*>([\s\S]*?)<\/span>/gi)];
+    for (const ps of plainSpans) {
+      const text = cleanText(ps[1]).trim();
+      const optMatch = text.match(/^([A-Z])\.\s*(.*)/);
+      if (optMatch) {
+        options.push({ key: optMatch[1], text: `${optMatch[1]}. ${optMatch[2]}`, color: '#333333' });
+      }
+    }
+  }
+
+  // 选项成对组合
+  const optionLines: PdfElement[] = [];
+  for (let i = 0; i < options.length; i += 2) {
+    const o1 = options[i];
+    const o2 = options[i + 1];
+    if (o2) {
+      optionLines.push({ tag: 'p', text: `${o1.text}        ${o2.text}`, indent: 20, fontSize: 12, color: '#333333' });
+    } else {
+      optionLines.push({ tag: 'p', text: o1.text, indent: 20, fontSize: 12, color: o1.color || '#333333' });
+    }
   }
 
   const children: PdfElement[] = [
-    ...options.map(o => ({ tag: 'p' as string, text: o, indent: 20, fontSize: 12, color: '#333333' })),
+    ...optionLines,
   ];
   if (answerLine) {
     children.push({ tag: 'p', text: answerLine, indent: 20, fontSize: 12, color: '#666666' });
@@ -353,32 +438,6 @@ function parseAnswerBlock(inner: string, isCorrect: boolean): PdfElement {
     children,
     isCorrect,
   };
-}
-
-/**
- * 解析选项 HTML，返回选项文本数组
- */
-function parseOptions(html: string): string[] {
-  const options: string[] = [];
-  // 匹配 flex 布局中的选项对
-  const flexMatches = [...html.matchAll(/<div[^>]*style="[^"]*display:flex[^"]*"[^>]*>([\s\S]*?)<\/div>/gi)];
-  if (flexMatches.length > 0) {
-    for (const fm of flexMatches) {
-      const spans = [...fm[1].matchAll(/<span[^>]*>([\s\S]*?)<\/span>/gi)];
-      const pair = spans.map(s => cleanText(s[1])).filter(t => t.trim());
-      if (pair.length > 0) {
-        options.push(pair.join('        '));
-      }
-    }
-  } else {
-    // 没有flex布局，直接提取span
-    const spans = [...html.matchAll(/<span[^>]*>([\s\S]*?)<\/span>/gi)];
-    for (const s of spans) {
-      const text = cleanText(s[1]);
-      if (text.trim()) options.push(text);
-    }
-  }
-  return options;
 }
 
 /**

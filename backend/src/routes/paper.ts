@@ -631,7 +631,7 @@ router.get('/:id/print', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER'
           <p style="font-size:14px;margin:0 0 6px;"><b>${globalQuestionNumber}.</b> ${escapeHtml(question.content)}${answerArea}</p>`;
         globalQuestionNumber++;
 
-        if (hasOptions) {
+        if (hasOptions && type !== 'JUDGE') {
           bodyHtml += '<div style="padding-left:24px;font-size:14px;">';
           const options = question.options;
           for (let i = 0; i < options.length; i += 2) {

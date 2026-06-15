@@ -55,6 +55,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onStart, onStartLabel 
             {label}
           </button>
         )}
+        {task.status === 'not_started' && (
+          <span className="text-xs text-orange-500 flex items-center gap-1 flex-shrink-0">
+            未开始 <ChevronRight className="w-3 h-3" />
+          </span>
+        )}
         {task.status === 'ended' && (
           <span className="text-xs text-gray-400 flex items-center gap-1 flex-shrink-0">
             考试结束 <ChevronRight className="w-3 h-3" />

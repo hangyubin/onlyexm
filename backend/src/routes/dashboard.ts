@@ -35,11 +35,27 @@ router.get('/stats', async (req, res) => {
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const activeUsers = await prisma.examRecord.findMany({
-      where: { createdAt: { gte: thirtyDaysAgo } },
-      select: { userId: true },
-      distinct: ['userId'],
-    });
+    const [activeExamUsers, activePracticeUsers, activeLearningUsers] = await Promise.all([
+      prisma.examRecord.findMany({
+        where: { createdAt: { gte: thirtyDaysAgo } },
+        select: { userId: true },
+        distinct: ['userId'],
+      }),
+      prisma.dailyPractice.findMany({
+        where: { createdAt: { gte: thirtyDaysAgo } },
+        select: { userId: true },
+        distinct: ['userId'],
+      }),
+      prisma.learningRecord.findMany({
+        where: { completedAt: { gte: thirtyDaysAgo } },
+        select: { userId: true },
+        distinct: ['userId'],
+      }),
+    ]);
+    const activeUserIds = new Set<number>();
+    activeExamUsers.forEach(r => activeUserIds.add(r.userId));
+    activePracticeUsers.forEach(r => activeUserIds.add(r.userId));
+    activeLearningUsers.forEach(r => activeUserIds.add(r.userId));
 
     res.json({
       totalUsers,
@@ -47,7 +63,7 @@ router.get('/stats', async (req, res) => {
       totalPapers,
       totalExams: totalExamRecords,
       complianceRate,
-      activeUsers: activeUsers.length,
+      activeUsers: activeUserIds.size,
     });
   } catch (err) {
     console.error('Get dashboard stats error:', err);
@@ -58,7 +74,7 @@ router.get('/stats', async (req, res) => {
 router.get('/recent-exams', async (req, res) => {
   try {
     const recentPapers = await prisma.paper.findMany({
-      where: { isActive: true },
+      where: { isPublished: true },
       orderBy: { createdAt: 'desc' },
       take: 5,
       include: {
@@ -72,18 +88,42 @@ router.get('/recent-exams', async (req, res) => {
       },
     });
 
+    const now = new Date();
+
     const examData = recentPapers.map((paper) => {
       const participants = paper.examRecords.length;
       const passedCount = paper.examRecords.filter((r) => r.isPassed).length;
       const passRate = participants > 0 ? Math.round((passedCount / participants) * 100) : 0;
       const hasInProgress = paper.examRecords.some((r) => r.status === 'IN_PROGRESS');
+
+      // 基于 examStartTime/examEndTime 判断考试状态
+      let status: string;
+      if (hasInProgress) {
+        status = '进行中';
+      } else if (paper.examStartTime && now < new Date(paper.examStartTime)) {
+        status = '未开始';
+      } else if (paper.examEndTime && now > new Date(paper.examEndTime)) {
+        status = '已结束';
+      } else if (paper.examStartTime && paper.examEndTime) {
+        // 在考试时间范围内但无人答题
+        status = '进行中';
+      } else {
+        // 未设置考试时间，按有无交卷记录判断
+        const hasSubmitted = paper.examRecords.some((r) =>
+          ['SUBMITTED', 'AUTO_SUBMIT', 'FORCE_SUBMIT'].includes(r.status)
+        );
+        status = hasSubmitted ? '已结束' : '进行中';
+      }
+
       return {
         id: paper.id,
         name: paper.name,
         participants,
         passRate: `${passRate}%`,
-        status: hasInProgress ? '进行中' : '已结束',
-        deadline: paper.createdAt.toISOString().slice(0, 10),
+        status,
+        deadline: paper.examEndTime
+          ? new Date(paper.examEndTime).toISOString().slice(0, 10)
+          : paper.createdAt.toISOString().slice(0, 10),
       };
     });
 
@@ -96,25 +136,75 @@ router.get('/recent-exams', async (req, res) => {
 
 router.get('/recent-activities', async (req, res) => {
   try {
-    const recentRecords = await prisma.examRecord.findMany({
-      where: { status: { in: ['SUBMITTED', 'AUTO_SUBMIT', 'FORCE_SUBMIT'] } },
-      orderBy: { createdAt: 'desc' },
-      take: 8,
-      include: {
-        user: { select: { realName: true } },
-        paper: { select: { name: true } },
-      },
-    });
+    // 并行获取多种类型的动态
+    const [examRecords, practiceRecords, learningRecords] = await Promise.all([
+      // 考试交卷动态
+      prisma.examRecord.findMany({
+        where: { status: { in: ['SUBMITTED', 'AUTO_SUBMIT', 'FORCE_SUBMIT'] } },
+        orderBy: { createdAt: 'desc' },
+        take: 8,
+        include: {
+          user: { select: { realName: true } },
+          paper: { select: { name: true } },
+        },
+      }),
+      // 每日一练完成动态
+      prisma.dailyPractice.findMany({
+        where: { isCompleted: true },
+        orderBy: { createdAt: 'desc' },
+        take: 8,
+        include: {
+          user: { select: { realName: true } },
+        },
+      }),
+      // 学习资料浏览动态
+      prisma.learningRecord.findMany({
+        orderBy: { completedAt: 'desc' },
+        take: 8,
+        include: {
+          user: { select: { realName: true } },
+        },
+      }),
+    ]);
 
-    const activities = recentRecords.map((record) => ({
-      user: record.user?.realName || '未知用户',
-      action: '完成了',
-      target: record.paper?.name || '未知考试',
-      time: record.createdAt,
-      score: record.score,
-    }));
+    const activities: any[] = [];
 
-    res.json(activities);
+    for (const record of examRecords) {
+      activities.push({
+        user: record.user?.realName || '未知用户',
+        action: '完成了考试',
+        target: record.paper?.name || '未知考试',
+        time: record.createdAt,
+        score: record.score,
+        type: 'exam',
+      });
+    }
+
+    for (const record of practiceRecords) {
+      activities.push({
+        user: record.user?.realName || '未知用户',
+        action: '完成了每日一练',
+        target: record.date,
+        time: record.createdAt,
+        score: record.score,
+        type: 'practice',
+      });
+    }
+
+    for (const record of learningRecords) {
+      activities.push({
+        user: record.user?.realName || '未知用户',
+        action: '学习了资料',
+        target: record.contentTitle || '未知资料',
+        time: record.completedAt,
+        score: null,
+        type: 'learning',
+      });
+    }
+
+    // 按时间倒序排列，取最新8条
+    activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+    res.json(activities.slice(0, 8));
   } catch (err) {
     console.error('Get recent activities error:', err);
     res.status(500).json({ error: '获取最近动态失败' });
@@ -135,8 +225,8 @@ router.get('/weekly-stats', async (req, res) => {
 
     const days = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 
-    // 一次性获取本周所有考试记录和练习记录，在内存中按天分组
-    const [examRecords, practiceRecords] = await Promise.all([
+    // 并行获取本周所有记录
+    const [examRecords, practiceSyncRecords, dailyPractices, learningRecords] = await Promise.all([
       prisma.examRecord.findMany({
         where: { createdAt: { gte: monday, lt: sunday } },
         select: { userId: true, createdAt: true },
@@ -145,15 +235,25 @@ router.get('/weekly-stats', async (req, res) => {
         where: { syncTime: { gte: monday, lt: sunday } },
         select: { syncTime: true },
       }),
+      prisma.dailyPractice.findMany({
+        where: { isCompleted: true, createdAt: { gte: monday, lt: sunday } },
+        select: { userId: true, createdAt: true },
+      }),
+      prisma.learningRecord.findMany({
+        where: { completedAt: { gte: monday, lt: sunday } },
+        select: { userId: true, completedAt: true },
+      }),
     ]);
 
     // 按天索引构建数据
     const examByDay = new Map<number, { userIds: Set<number>; count: number }>();
     const practiceByDay = new Map<number, number>();
+    const learningByDay = new Map<number, { userIds: Set<number>; count: number }>();
 
     for (let i = 0; i < 7; i++) {
       examByDay.set(i, { userIds: new Set(), count: 0 });
       practiceByDay.set(i, 0);
+      learningByDay.set(i, { userIds: new Set(), count: 0 });
     }
 
     for (const record of examRecords) {
@@ -165,19 +265,46 @@ router.get('/weekly-stats', async (req, res) => {
       }
     }
 
-    for (const record of practiceRecords) {
+    for (const record of practiceSyncRecords) {
       const dayIndex = Math.floor((record.syncTime.getTime() - monday.getTime()) / (24 * 60 * 60 * 1000));
       if (dayIndex >= 0 && dayIndex < 7) {
         practiceByDay.set(dayIndex, practiceByDay.get(dayIndex)! + 1);
       }
     }
 
-    const result = days.map((day, i) => ({
-      day,
-      learningUsers: examByDay.get(i)!.userIds.size,
-      examCount: examByDay.get(i)!.count,
-      practiceCount: practiceByDay.get(i)!,
-    }));
+    for (const record of dailyPractices) {
+      const dayIndex = Math.floor((record.createdAt.getTime() - monday.getTime()) / (24 * 60 * 60 * 1000));
+      if (dayIndex >= 0 && dayIndex < 7) {
+        practiceByDay.set(dayIndex, practiceByDay.get(dayIndex)! + 1);
+      }
+    }
+
+    for (const record of learningRecords) {
+      const dayIndex = Math.floor((record.completedAt.getTime() - monday.getTime()) / (24 * 60 * 60 * 1000));
+      if (dayIndex >= 0 && dayIndex < 7) {
+        const dayData = learningByDay.get(dayIndex)!;
+        dayData.userIds.add(record.userId);
+        dayData.count += 1;
+      }
+    }
+
+    const result = days.map((day, i) => {
+      // 学习人数 = 考试人数 + 每日一练人数 + 学习资料人数（去重）
+      const allUserIds = new Set<number>();
+      examByDay.get(i)!.userIds.forEach(id => allUserIds.add(id));
+      dailyPractices.filter(r => {
+        const dayIndex = Math.floor((r.createdAt.getTime() - monday.getTime()) / (24 * 60 * 60 * 1000));
+        return dayIndex === i;
+      }).forEach(r => allUserIds.add(r.userId));
+      learningByDay.get(i)!.userIds.forEach(id => allUserIds.add(id));
+
+      return {
+        day,
+        learningUsers: allUserIds.size,
+        examCount: examByDay.get(i)!.count,
+        practiceCount: practiceByDay.get(i)!,
+      };
+    });
 
     res.json(result);
   } catch (err) {

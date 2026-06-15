@@ -31,16 +31,13 @@ export default function BatchImportModal({ open, onCancel, onSuccess }: BatchImp
     setResult(null);
 
     try {
-      const interval = setInterval(() => {
-        setProgress((prev) => {
-          if (prev >= 90) return prev;
-          return prev + Math.random() * 10;
-        });
-      }, 200);
-
-      const response = await questionApi.batchImport(file);
+      const response = await questionApi.batchImport(file, (progressEvent) => {
+        if (progressEvent.total) {
+          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setProgress(Math.min(percent, 99)); // 保留1%给服务端处理
+        }
+      });
       
-      clearInterval(interval);
       setProgress(100);
       setResult(response);
     } catch (error) {

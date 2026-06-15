@@ -52,7 +52,7 @@ const Home: React.FC = () => {
       }
       if (results[1].status === 'fulfilled') {
         setTasks(results[1].value);
-        const pendingExams = results[1].value.filter((t: Task) => t.type === 'exam' && t.status === 'pending');
+        const pendingExams = results[1].value.filter((t: Task) => t.type === 'exam' && (t.status === 'pending' || t.status === 'not_started'));
         setPendingExamCount(pendingExams.length);
       }
       if (results[2].status === 'fulfilled') {
@@ -266,7 +266,7 @@ const Home: React.FC = () => {
           今日任务
         </h2>
         {(() => {
-          const pendingTasks = tasks.filter(task => task.status === 'pending');
+          const pendingTasks = tasks.filter(task => task.status === 'pending' || task.status === 'not_started');
           if (pendingTasks.length > 0) {
             return pendingTasks.map(task => (
               <TaskCard key={task.id} task={task} onStart={handleStartTask} />

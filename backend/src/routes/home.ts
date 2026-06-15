@@ -165,24 +165,28 @@ router.get('/tasks', authMiddleware, async (req, res) => {
 
     const now = new Date();
 
-    // 5. 拼任务列表 - 考试任务（使用 examEndTime 判断是否已结束）
+    // 5. 拼任务列表 - 考试任务（使用 examStartTime/examEndTime 判断状态）
     const examTasks = activePapers.map((paper) => {
       const record = recordsByPaper.get(paper.id);
 
-      // 判断考试是否已结束：使用 examEndTime（若未设置则用 createdAt + 30天）
+      const startTime = paper.examStartTime ? new Date(paper.examStartTime) : null;
       const endTime = paper.examEndTime
         ? new Date(paper.examEndTime)
         : new Date(new Date(paper.createdAt).getTime() + 30 * 24 * 3600 * 1000);
 
+      const isNotStarted = startTime && now < startTime;
       const isExamEnded = now > endTime;
 
-      let status: 'pending' | 'completed' | 'ended';
+      let status: 'pending' | 'completed' | 'ended' | 'not_started';
       if (record?.isPassed) {
         // 已通过 = completed
         status = 'completed';
       } else if (record && !record.isPassed) {
         // 已交卷但未通过 = ended（未通过）
         status = 'ended';
+      } else if (isNotStarted) {
+        // 考试尚未开始 = not_started
+        status = 'not_started';
       } else if (isExamEnded) {
         // 考试已结束但用户未参与 = ended
         status = 'ended';
@@ -208,10 +212,8 @@ router.get('/tasks', authMiddleware, async (req, res) => {
       status: (completedMaterialIds.has(m.id) ? 'completed' : 'pending') as 'pending' | 'completed',
     }));
 
-    examTasks.sort((a, b) => {
-      if (a.status === b.status) return 0;
-      return a.status === 'pending' ? -1 : 1;
-    });
+    const statusOrder: Record<string, number> = { pending: 0, not_started: 1, ended: 2, completed: 3 };
+    examTasks.sort((a, b) => (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9));
     trainingTasks.sort((a, b) => {
       if (a.status === b.status) return 0;
       return a.status === 'pending' ? -1 : 1;
@@ -369,7 +371,7 @@ router.get('/study-stats', authMiddleware, async (req, res) => {
     // 统计考试答题数
     try {
       const examRecords = await prisma.examRecord.findMany({
-        where: { userId: user.userId, status: 'COMPLETED' },
+        where: { userId: user.userId, status: { in: ['SUBMITTED', 'AUTO_SUBMIT', 'FORCE_SUBMIT'] } },
         select: { paperId: true },
       });
       if (examRecords.length > 0) {

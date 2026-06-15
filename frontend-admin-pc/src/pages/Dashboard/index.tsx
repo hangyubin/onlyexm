@@ -1,5 +1,5 @@
 import { Card, Row, Col, Statistic, Table, Tag, Spin, message } from 'antd';
-import { UserOutlined, BookOutlined, FileTextOutlined, CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { UserOutlined, BookOutlined, FileTextOutlined, CheckCircleOutlined, ClockCircleOutlined, EditOutlined, ReadOutlined } from '@ant-design/icons';
 import * as echarts from 'echarts';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import api from '../../api/axios';
@@ -28,6 +28,7 @@ interface RecentActivity {
   target: string;
   time: string;
   score: number | null;
+  type: 'exam' | 'practice' | 'learning';
 }
 
 interface ProgressItem {
@@ -141,9 +142,10 @@ export default function Dashboard() {
     { title: '通过率', dataIndex: 'passRate', key: 'passRate', width: 80, render: (rate: string) => (
       <Tag color={(parseInt(rate) || 0) >= 80 ? 'green' : 'orange'}>{rate}</Tag>
     )},
-    { title: '状态', dataIndex: 'status', key: 'status', width: 80, render: (status: string) => (
-      <Tag color={status === '进行中' ? 'blue' : 'gray'}>{status}</Tag>
-    )},
+    { title: '状态', dataIndex: 'status', key: 'status', width: 80, render: (status: string) => {
+      const colorMap: Record<string, string> = { '进行中': 'blue', '未开始': 'orange', '已结束': 'gray' };
+      return <Tag color={colorMap[status] || 'gray'}>{status}</Tag>;
+    }},
     { title: '截止时间', dataIndex: 'deadline', key: 'deadline', width: 100 },
   ];
 
@@ -215,47 +217,55 @@ export default function Dashboard() {
           <Col xs={24} lg={12}>
             <Card title="最近动态">
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {recentActivities.map((activity) => (
-                  <div
-                    key={`${activity.user}-${activity.time}`}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      padding: 8,
-                      borderRadius: 8,
-                      transition: 'background-color 0.2s',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    <div style={{
-                      width: 32,
-                      height: 32,
-                      background: '#f1f5f9',
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}>
-                      <UserOutlined style={{ color: '#64748b' }} />
+                {recentActivities.map((activity, idx) => {
+                  const typeConfig: Record<string, { icon: React.ReactNode; bg: string; color: string; targetColor: string }> = {
+                    exam: { icon: <FileTextOutlined />, bg: '#eff6ff', color: '#3b82f6', targetColor: '#1890ff' },
+                    practice: { icon: <EditOutlined />, bg: '#f0fdf4', color: '#22c55e', targetColor: '#52c41a' },
+                    learning: { icon: <ReadOutlined />, bg: '#faf5ff', color: '#a855f7', targetColor: '#722ed1' },
+                  };
+                  const cfg = typeConfig[activity.type] || typeConfig.exam;
+                  return (
+                    <div
+                      key={`${activity.user}-${activity.time}-${idx}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 12,
+                        padding: 8,
+                        borderRadius: 8,
+                        transition: 'background-color 0.2s',
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <div style={{
+                        width: 32,
+                        height: 32,
+                        background: cfg.bg,
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}>
+                        {cfg.icon}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <p style={{ margin: 0, fontSize: 14 }}>
+                          <span style={{ fontWeight: 500 }}>{activity.user}</span>
+                          <span style={{ color: '#64748b', margin: '0 4px' }}>{activity.action}</span>
+                          <span style={{ color: cfg.targetColor }}>{activity.target}</span>
+                          {activity.score != null && (
+                            <span style={{ marginLeft: 8, color: '#52c41a' }}>({activity.score}分)</span>
+                          )}
+                        </p>
+                        <p style={{ margin: 0, fontSize: 12, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <ClockCircleOutlined />
+                          {formatTimeAgo(activity.time)}
+                        </p>
+                      </div>
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ margin: 0, fontSize: 14 }}>
-                        <span style={{ fontWeight: 500 }}>{activity.user}</span>
-                        <span style={{ color: '#64748b', margin: '0 4px' }}>{activity.action}</span>
-                        <span style={{ color: '#1890ff' }}>{activity.target}</span>
-                        {activity.score != null && (
-                          <span style={{ marginLeft: 8, color: '#52c41a' }}>({activity.score}分)</span>
-                        )}
-                      </p>
-                      <p style={{ margin: 0, fontSize: 12, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <ClockCircleOutlined />
-                        {formatTimeAgo(activity.time)}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </Card>
           </Col>

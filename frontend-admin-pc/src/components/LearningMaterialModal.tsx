@@ -1,6 +1,6 @@
-import { Modal, Form, Input, Select, Switch, InputNumber, Upload, message } from 'antd';
+import { Modal, Form, Input, Select, Switch, InputNumber, Upload, message, Progress } from 'antd';
 import type { UploadProps } from 'antd';
-import { PictureOutlined, FileTextOutlined } from '@ant-design/icons';
+import { PictureOutlined, FileTextOutlined, LoadingOutlined } from '@ant-design/icons';
 import { LearningMaterial } from '../api/learningMaterial';
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
@@ -19,6 +19,10 @@ export default function LearningMaterialModal({ open, editData, onCancel, onSubm
   const [form] = Form.useForm();
   const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
   const [attachmentUrl, setAttachmentUrl] = useState<string>('');
+  const [thumbnailUploading, setThumbnailUploading] = useState(false);
+  const [thumbnailProgress, setThumbnailProgress] = useState(0);
+  const [attachmentUploading, setAttachmentUploading] = useState(false);
+  const [attachmentProgress, setAttachmentProgress] = useState(0);
 
   useEffect(() => {
     if (open) {
@@ -37,19 +41,32 @@ export default function LearningMaterialModal({ open, editData, onCancel, onSubm
         });
         setThumbnailUrl('');
         setAttachmentUrl('');
+        setThumbnailUploading(false);
+        setThumbnailProgress(0);
+        setAttachmentUploading(false);
+        setAttachmentProgress(0);
       }
     }
   }, [open, editData, form]);
 
   const handleThumbnailUpload: UploadProps['customRequest'] = async (options) => {
     const { file, onSuccess, onError } = options;
+    setThumbnailUploading(true);
+    setThumbnailProgress(0);
     try {
       const rawFile = file as any;
       const actualFile = rawFile.originFileObj || rawFile;
       const formData = new FormData();
       formData.append('file', actualFile);
 
-      const response = await api.post('/upload', formData);
+      const response = await api.post('/upload', formData, {
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setThumbnailProgress(percent);
+          }
+        },
+      });
       if (response.data.success) {
         const url = response.data.data.url;
         form.setFieldsValue({ thumbnailUrl: url });
@@ -62,18 +79,30 @@ export default function LearningMaterialModal({ open, editData, onCancel, onSubm
     } catch (error: any) {
       onError?.(error);
       message.error(error?.response?.data?.message || '上传失败');
+    } finally {
+      setThumbnailUploading(false);
+      setThumbnailProgress(0);
     }
   };
 
   const handleAttachmentUpload: UploadProps['customRequest'] = async (options) => {
     const { file, onSuccess, onError } = options;
+    setAttachmentUploading(true);
+    setAttachmentProgress(0);
     try {
       const rawFile = file as any;
       const actualFile = rawFile.originFileObj || rawFile;
       const formData = new FormData();
       formData.append('file', actualFile);
 
-      const response = await api.post('/upload', formData);
+      const response = await api.post('/upload', formData, {
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setAttachmentProgress(percent);
+          }
+        },
+      });
       if (response.data.success) {
         const url = response.data.data.url;
         form.setFieldsValue({ attachmentUrl: url });
@@ -86,6 +115,9 @@ export default function LearningMaterialModal({ open, editData, onCancel, onSubm
     } catch (error: any) {
       onError?.(error);
       message.error(error?.response?.data?.message || '上传失败');
+    } finally {
+      setAttachmentUploading(false);
+      setAttachmentProgress(0);
     }
   };
 
@@ -165,13 +197,17 @@ export default function LearningMaterialModal({ open, editData, onCancel, onSubm
                 setThumbnailUrl('');
                 form.setFieldsValue({ thumbnailUrl: '' });
               }}
+              disabled={thumbnailUploading}
             >
-              <button type="button" className="ant-btn ant-btn-default ant-btn-block">
-                <PictureOutlined className="mr-2" />
-                上传缩略图
+              <button type="button" className="ant-btn ant-btn-default ant-btn-block" disabled={thumbnailUploading}>
+                {thumbnailUploading ? <LoadingOutlined className="mr-2" /> : <PictureOutlined className="mr-2" />}
+                {thumbnailUploading ? '上传中...' : '上传缩略图'}
               </button>
             </Upload>
-            {thumbnailUrl && (
+            {thumbnailUploading && (
+              <Progress percent={thumbnailProgress} status="active" size="small" className="mt-2" />
+            )}
+            {thumbnailUrl && !thumbnailUploading && (
               <p className="mt-2 text-sm text-gray-500">
                 当前: {thumbnailUrl}
               </p>
@@ -195,16 +231,20 @@ export default function LearningMaterialModal({ open, editData, onCancel, onSubm
                 setAttachmentUrl('');
                 form.setFieldsValue({ attachmentUrl: '' });
               }}
+              disabled={attachmentUploading}
             >
-              <button type="button" className="ant-btn ant-btn-default ant-btn-block">
-                <FileTextOutlined className="mr-2" />
-                上传附件
+              <button type="button" className="ant-btn ant-btn-default ant-btn-block" disabled={attachmentUploading}>
+                {attachmentUploading ? <LoadingOutlined className="mr-2" /> : <FileTextOutlined className="mr-2" />}
+                {attachmentUploading ? '上传中...' : '上传附件'}
               </button>
             </Upload>
+            {attachmentUploading && (
+              <Progress percent={attachmentProgress} status="active" size="small" className="mt-2" />
+            )}
             <p className="mt-2 text-sm text-gray-500">
               支持格式: PDF, Word, Excel, PowerPoint, 视频
             </p>
-            {attachmentUrl && (
+            {attachmentUrl && !attachmentUploading && (
               <p className="mt-1 text-sm text-gray-500">
                 当前: {attachmentUrl}
               </p>
