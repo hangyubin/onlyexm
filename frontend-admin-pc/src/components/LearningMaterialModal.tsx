@@ -67,14 +67,15 @@ export default function LearningMaterialModal({ open, editData, onCancel, onSubm
           }
         },
       });
-      if (response.data.success) {
-        const url = response.data.data.url;
+      // axios拦截器已解包，response.data = { url, filename }
+      const url = response.data.url;
+      if (url) {
         form.setFieldsValue({ thumbnailUrl: url });
         setThumbnailUrl(url);
         onSuccess?.(response.data);
         message.success('缩略图上传成功');
       } else {
-        onError?.(new Error(response.data.message || '上传失败'));
+        onError?.(new Error('上传失败'));
       }
     } catch (error: any) {
       onError?.(error);
@@ -103,14 +104,15 @@ export default function LearningMaterialModal({ open, editData, onCancel, onSubm
           }
         },
       });
-      if (response.data.success) {
-        const url = response.data.data.url;
+      // axios拦截器已解包，response.data = { url, filename }
+      const url = response.data.url;
+      if (url) {
         form.setFieldsValue({ attachmentUrl: url });
         setAttachmentUrl(url);
         onSuccess?.(response.data);
         message.success('附件上传成功');
       } else {
-        onError?.(new Error(response.data.message || '上传失败'));
+        onError?.(new Error('上传失败'));
       }
     } catch (error: any) {
       onError?.(error);
