@@ -19,6 +19,8 @@ export default function LearningMaterialModal({ open, editData, onCancel, onSubm
   const [form] = Form.useForm();
   const [thumbnailUrl, setThumbnailUrl] = useState<string>('');
   const [attachmentUrl, setAttachmentUrl] = useState<string>('');
+  const [thumbnailName, setThumbnailName] = useState<string>('');
+  const [attachmentName, setAttachmentName] = useState<string>('');
   const [thumbnailUploading, setThumbnailUploading] = useState(false);
   const [thumbnailProgress, setThumbnailProgress] = useState(0);
   const [attachmentUploading, setAttachmentUploading] = useState(false);
@@ -32,6 +34,8 @@ export default function LearningMaterialModal({ open, editData, onCancel, onSubm
         });
         setThumbnailUrl(editData.thumbnailUrl || '');
         setAttachmentUrl(editData.attachmentUrl || '');
+        setThumbnailName(editData.thumbnailUrl ? '已上传缩略图' : '');
+        setAttachmentName(editData.attachmentUrl ? '已上传附件' : '');
       } else {
         form.resetFields();
         form.setFieldsValue({
@@ -41,6 +45,8 @@ export default function LearningMaterialModal({ open, editData, onCancel, onSubm
         });
         setThumbnailUrl('');
         setAttachmentUrl('');
+        setThumbnailName('');
+        setAttachmentName('');
         setThumbnailUploading(false);
         setThumbnailProgress(0);
         setAttachmentUploading(false);
@@ -69,9 +75,11 @@ export default function LearningMaterialModal({ open, editData, onCancel, onSubm
       });
       // axios拦截器已解包，response.data = { url, filename }
       const url = response.data.url;
+      const filename = response.data.filename;
       if (url) {
-        form.setFieldsValue({ thumbnailUrl: url });
+        form.setFieldsValue({ thumbnailUrl: url, thumbnailName: filename });
         setThumbnailUrl(url);
+        setThumbnailName(filename || '缩略图');
         onSuccess?.(response.data);
         message.success('缩略图上传成功');
       } else {
@@ -106,9 +114,11 @@ export default function LearningMaterialModal({ open, editData, onCancel, onSubm
       });
       // axios拦截器已解包，response.data = { url, filename }
       const url = response.data.url;
+      const filename = response.data.filename;
       if (url) {
-        form.setFieldsValue({ attachmentUrl: url });
+        form.setFieldsValue({ attachmentUrl: url, attachmentName: filename });
         setAttachmentUrl(url);
+        setAttachmentName(filename || '附件');
         onSuccess?.(response.data);
         message.success('附件上传成功');
       } else {
@@ -190,7 +200,7 @@ export default function LearningMaterialModal({ open, editData, onCancel, onSubm
               customRequest={handleThumbnailUpload}
               fileList={thumbnailUrl ? [{
                 uid: '-1',
-                name: '缩略图',
+                name: thumbnailName || '缩略图',
                 status: 'done' as const,
                 url: thumbnailUrl
               }] : []}
@@ -211,7 +221,7 @@ export default function LearningMaterialModal({ open, editData, onCancel, onSubm
             )}
             {thumbnailUrl && !thumbnailUploading && (
               <p className="mt-2 text-sm text-gray-500">
-                当前: {thumbnailUrl}
+                当前: {thumbnailName || thumbnailUrl}
               </p>
             )}
           </div>
@@ -224,7 +234,7 @@ export default function LearningMaterialModal({ open, editData, onCancel, onSubm
               customRequest={handleAttachmentUpload}
               fileList={attachmentUrl ? [{
                 uid: '-1',
-                name: '附件',
+                name: attachmentName || '附件',
                 status: 'done' as const,
                 url: attachmentUrl
               }] : []}
@@ -248,7 +258,7 @@ export default function LearningMaterialModal({ open, editData, onCancel, onSubm
             </p>
             {attachmentUrl && !attachmentUploading && (
               <p className="mt-1 text-sm text-gray-500">
-                当前: {attachmentUrl}
+                当前: {attachmentName || attachmentUrl}
               </p>
             )}
           </div>

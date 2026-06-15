@@ -8,7 +8,9 @@ export interface LearningMaterial {
   content: string;
   category?: string;
   thumbnailUrl?: string;
+  thumbnailName?: string;
   attachmentUrl?: string;
+  attachmentName?: string;
   viewCount: number;
   sortOrder: number;
   isActive: boolean;

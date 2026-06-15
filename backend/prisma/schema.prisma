@@ -175,7 +175,9 @@ model LearningMaterial {
   content     String   @db.Text
   category    String?  // 动态字典 LEARNING_MATERIAL_CATEGORY 或自由文本
   thumbnailUrl String?
+  thumbnailName String?
   attachmentUrl String?
+  attachmentName String?
   viewCount   Int      @default(0)
   sortOrder   Int      @default(0)
   isActive    Boolean  @default(true)

@@ -36,6 +36,20 @@ const normalizeUrl = (url: string | undefined): string => {
   return '/' + url;
 };
 
+const getMimeType = (url: string | undefined, type: string): string => {
+  if (!url) return '';
+  const lowerUrl = url.toLowerCase();
+  if (lowerUrl.includes('.mp4')) return 'video/mp4';
+  if (lowerUrl.includes('.webm')) return 'video/webm';
+  if (lowerUrl.includes('.ogg')) return 'video/ogg';
+  if (lowerUrl.includes('.mov')) return 'video/quicktime';
+  if (lowerUrl.includes('.mp3')) return 'audio/mpeg';
+  if (lowerUrl.includes('.wav')) return 'audio/wav';
+  if (type === 'VIDEO') return 'video/mp4';
+  if (type === 'AUDIO') return 'audio/mpeg';
+  return '';
+};
+
 const getFileType = (url: string | undefined, type: string): 'docx' | 'pdf' | 'ppt' | 'video' | 'audio' | 'other' => {
   if (!url) return 'other';
   const lowerUrl = url.toLowerCase();
@@ -255,7 +269,7 @@ const LearningMaterialDetail: React.FC = () => {
                     controls
                     className="w-full max-w-3xl rounded-lg shadow-lg bg-black"
                   >
-                    <source src={safeAttachmentUrl} />
+                    <source src={safeAttachmentUrl} type={getMimeType(safeAttachmentUrl, material.type)} />
                     您的浏览器不支持视频播放，请下载后查看。
                   </video>
                 </div>
@@ -271,7 +285,7 @@ const LearningMaterialDetail: React.FC = () => {
                     controls
                     className="w-full max-w-md"
                   >
-                    <source src={safeAttachmentUrl} />
+                    <source src={safeAttachmentUrl} type={getMimeType(safeAttachmentUrl, material.type)} />
                     您的浏览器不支持音频播放，请下载后查看。
                   </audio>
                 </div>
@@ -280,7 +294,7 @@ const LearningMaterialDetail: React.FC = () => {
 
             <div className="p-4 border-t border-gray-200 flex justify-between items-center">
               <p className="text-sm text-gray-500 truncate pr-2">
-                附件: {safeAttachmentUrl.split('/').pop()}
+                附件: {material.attachmentName || safeAttachmentUrl.split('/').pop()}
               </p>
               <button
                 onClick={handleDownload}
@@ -366,13 +380,13 @@ const LearningMaterialDetail: React.FC = () => {
                   className="w-full max-w-2xl rounded-lg shadow bg-black"
                   poster={normalizeUrl(material.thumbnailUrl)}
                 >
-                  <source src={safeAttachmentUrl} />
+                  <source src={safeAttachmentUrl} type={getMimeType(safeAttachmentUrl, material.type)} />
                   您的浏览器不支持视频播放。
                 </video>
               ) : (
                 <div className="bg-gray-50 p-4 rounded-lg max-w-xl">
                   <audio controls className="w-full">
-                    <source src={safeAttachmentUrl} />
+                    <source src={safeAttachmentUrl} type={getMimeType(safeAttachmentUrl, material.type)} />
                     您的浏览器不支持音频播放。
                   </audio>
                 </div>
@@ -458,7 +472,7 @@ const LearningMaterialDetail: React.FC = () => {
               </div>
 
               <p className="mt-3 text-sm text-gray-500 break-all">
-                文件名: {safeAttachmentUrl.split('/').pop()}
+                文件名: {material.attachmentName || safeAttachmentUrl.split('/').pop()}
               </p>
             </div>
           )}
