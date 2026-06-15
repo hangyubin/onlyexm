@@ -1,16 +1,23 @@
 # ============================================================
 # 宝塔面板 Docker 部署配置
-# 从 GitHub Container Registry 拉取预构建镜像
 #
 # 使用方式：
-#   1. 复制 .env.production 为 .env 并修改配置
-#   2. 修改 IMAGE 为你的 GitHub 仓库地址
-#   3. docker compose up -d
+#   方式1 - 拉取预构建镜像（推荐）：
+#     1. 复制 .env.production 为 .env 并修改配置
+#     2. docker compose pull && docker compose up -d
+#
+#   方式2 - 本地构建（镜像代理不可用或需要最新代码时）：
+#     1. 复制 .env.production 为 .env 并修改配置
+#     2. git pull 拉取最新代码
+#     3. docker compose up -d --build
 # ============================================================
 
 services:
   app:
+    # 预构建镜像（GitHub Actions 自动构建推送）
     image: ghcr.milu.moe/hangyubin/onlyexm:latest
+    # 本地构建（取消下面注释即可从源码构建，需项目根目录有 Dockerfile）
+    # build: .
     container_name: exsam-app
     env_file: .env
     ports:
