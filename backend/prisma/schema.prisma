@@ -204,6 +204,7 @@ model LearningRecord {
 
   @@index([userId])
   @@index([contentId])
+  @@unique([userId, contentId])
 }
 
 model InfectionRequirement {

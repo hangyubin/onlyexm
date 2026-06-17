@@ -231,7 +231,7 @@ router.post('/batch-import', roleGuard(['ADMIN', 'INFECTION_OFFICER']), upload.s
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', roleGuard(['ADMIN', 'INFECTION_OFFICER']), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
     const user = await prisma.user.findUnique({
@@ -457,7 +457,7 @@ router.patch('/:id/toggle-lock', roleGuard(['ADMIN', 'INFECTION_OFFICER']), asyn
 });
 
 // 学习档案接口
-router.get('/:id/learning-profile', async (req, res) => {
+router.get('/:id/learning-profile', roleGuard(['ADMIN', 'INFECTION_OFFICER']), async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
 

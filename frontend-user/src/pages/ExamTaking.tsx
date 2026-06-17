@@ -116,6 +116,16 @@ export function ExamTaking() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [examData, isSubmitting]);
 
+  // 组件卸载时清理防抖定时器，避免内存泄漏和卸载后异步请求
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+    };
+  }, []);
+
   // 防作弊：禁止复制、粘贴、右键
   useEffect(() => {
     if (!examData) return;
@@ -151,21 +161,21 @@ export function ExamTaking() {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const saveAnswer = useCallback(async (questionId: number, answer: AnswerType) => {
-    try {
-      if (!examData) return;
+    if (!examData) return;
 
-      // 防抖：清除之前的定时器，只保留最新的
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = setTimeout(async () => {
+    // 防抖：清除之前的定时器，只保留最新的
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      try {
         await api.post('/exam/save-answer', {
           examRecordId: examData.examRecordId,
           questionId,
           answer,
         });
-      }, 300);
-    } catch (err) {
-      console.error('Save answer failed:', err);
-    }
+      } catch (err) {
+        console.error('答案保存失败:', err);
+      }
+    }, 300);
   }, [examData]);
 
   const toggleMark = useCallback(() => {

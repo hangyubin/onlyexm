@@ -1,46 +1,10 @@
 import express from 'express';
-import fs from 'fs';
-import path from 'path';
 import prisma from '../lib/prisma';
 import { authMiddleware } from '../middleware/auth';
 import * as learningMaterialService from '../services/learningMaterialService';
 import { getInfectionConfig } from '../services/configService';
 
 const router = express.Router();
-
-// training 任务完成记录文件
-const LEARNING_COMPLETED_FILE = path.join(__dirname, '../../data/learningCompletedRecords.json');
-
-interface LearningCompletedRecord {
-  userId: number;
-  materialId: number;
-  title: string;
-  completedAt: string;
-}
-
-const ensureCompletedFile = () => {
-  const dir = path.dirname(LEARNING_COMPLETED_FILE);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(LEARNING_COMPLETED_FILE)) {
-    fs.writeFileSync(LEARNING_COMPLETED_FILE, JSON.stringify([], null, 2));
-  }
-};
-
-const getCompletedRecords = (): LearningCompletedRecord[] => {
-  ensureCompletedFile();
-  try {
-    return JSON.parse(fs.readFileSync(LEARNING_COMPLETED_FILE, 'utf-8'));
-  } catch (e) {
-    return [];
-  }
-};
-
-const addCompletedRecord = (record: LearningCompletedRecord) => {
-  const list = getCompletedRecords();
-  const existing = list.find(r => r.userId === record.userId && r.materialId === record.materialId);
-  if (existing) { existing.completedAt = record.completedAt; } else { list.push(record); }
-  fs.writeFileSync(LEARNING_COMPLETED_FILE, JSON.stringify(list, null, 2));
-};
 
 const formatDeadline = (base?: Date | string | number): string | null => {
   if (!base) return null;
@@ -155,13 +119,12 @@ router.get('/tasks', authMiddleware, async (req, res) => {
       })
       .slice(0, 3);
 
-    // 4. 当前用户对这些资料的完成记录
-    const completedList = getCompletedRecords();
-    const completedMaterialIds = new Set<number>(
-      completedList
-        .filter((r) => r.userId === user.userId)
-        .map((r) => r.materialId),
-    );
+    // 4. 当前用户对这些资料的完成记录（从数据库查询）
+    const completedRecords = await prisma.learningRecord.findMany({
+      where: { userId: user.userId },
+      select: { contentId: true },
+    });
+    const completedMaterialIds = new Set<number>(completedRecords.map(r => r.contentId));
 
     const now = new Date();
 
@@ -241,11 +204,22 @@ router.post('/tasks/:taskId/complete', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: '学习资料不存在' });
     }
 
-    addCompletedRecord({
-      userId: user.userId,
-      materialId: taskId,
-      title: material.title,
-      completedAt: new Date().toISOString(),
+    // 写入数据库（upsert 避免重复记录）
+    await prisma.learningRecord.upsert({
+      where: {
+        userId_contentId: { userId: user.userId, contentId: taskId },
+      },
+      update: {
+        completedAt: new Date(),
+        contentTitle: material.title,
+      },
+      create: {
+        userId: user.userId,
+        contentId: taskId,
+        contentTitle: material.title,
+        studyDurationSeconds: 0,
+        completedAt: new Date(),
+      },
     });
 
     try { 

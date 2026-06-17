@@ -1,10 +1,12 @@
 import express from 'express';
 import prisma from '../lib/prisma';
 import { authMiddleware } from '../middleware/auth';
+import { roleGuard } from '../middleware/roleGuard';
 
 const router = express.Router();
 
 router.use(authMiddleware);
+router.use(roleGuard(['ADMIN', 'INFECTION_OFFICER']));
 
 router.get('/stats', async (req, res) => {
   try {

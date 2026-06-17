@@ -1,5 +1,6 @@
 import express from 'express';
 import { authMiddleware } from '../middleware/auth';
+import prisma from '../lib/prisma';
 import { getTodayPractice, submitPractice, getUserPracticeHistory, resetTodayPractice, SubmitAnswer, getPracticeResult, PracticeOptions } from '../services/dailyPracticeService';
 
 const router = express.Router();
@@ -102,9 +103,22 @@ router.get('/result/:practiceId', authMiddleware, async (req, res) => {
   try {
     const practiceId = parseInt(req.params.practiceId);
     console.log('获取练习详情 - ID:', practiceId);
-    
+
+    // 所有权校验：非管理员只能查看自己的练习结果
+    const practice = await prisma.dailyPractice.findUnique({
+      where: { id: practiceId },
+      select: { userId: true },
+    });
+    if (!practice) {
+      return res.status(404).json({ success: false, message: '练习不存在' });
+    }
+    const userRole = req.user?.role;
+    if (userRole !== 'ADMIN' && userRole !== 'INFECTION_OFFICER' && practice.userId !== req.user?.userId) {
+      return res.status(403).json({ success: false, message: '无权查看他人的练习结果' });
+    }
+
     const result = await getPracticeResult(practiceId);
-    
+
     res.json(result);
   } catch (err) {
     console.error('获取练习详情失败:', err);

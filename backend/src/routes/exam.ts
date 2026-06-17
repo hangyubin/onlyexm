@@ -17,7 +17,7 @@ async function getDepartmentName(code: string): Promise<string> {
 
 const router = express.Router();
 
-router.get('/records/stats', authMiddleware, async (req, res) => {
+router.get('/records/stats', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER']), async (req, res) => {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -143,6 +143,11 @@ router.get('/records/:id', authMiddleware, async (req, res) => {
     if (!examRecord) {
       return error(res, 404, '考试记录不存在');
     }
+    // 所有权校验：非管理员只能查看自己的考试记录
+    const userRole = req.user?.role;
+    if (userRole !== 'ADMIN' && userRole !== 'INFECTION_OFFICER' && examRecord.userId !== req.user?.userId) {
+      return error(res, 403, '无权查看他人的考试记录');
+    }
     if (!examRecord.paper) {
       return error(res, 404, '试卷不存在或已删除');
     }
@@ -233,6 +238,11 @@ router.get('/records', authMiddleware, async (req, res) => {
     const status = req.query.status as string;
 
     const where: any = {};
+    // 非管理员只能查看自己的考试记录
+    const userRole = req.user?.role;
+    if (userRole !== 'ADMIN' && userRole !== 'INFECTION_OFFICER') {
+      where.userId = req.user?.userId;
+    }
     if (paperId && !isNaN(paperId)) {
       where.paperId = paperId;
     }
@@ -657,6 +667,11 @@ router.get('/records/:id/print', authMiddleware, async (req, res) => {
     });
 
     if (!examRecord) return error(res, 404, '考试记录不存在');
+    // 所有权校验：非管理员只能打印自己的考试记录
+    const userRole = req.user?.role;
+    if (userRole !== 'ADMIN' && userRole !== 'INFECTION_OFFICER' && examRecord.userId !== req.user?.userId) {
+      return error(res, 403, '无权打印他人的考试记录');
+    }
     if (!examRecord.paper) return error(res, 404, '试卷不存在或已删除');
 
     // 构建题目和答案映射
