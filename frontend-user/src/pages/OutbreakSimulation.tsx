@@ -136,23 +136,20 @@ export function OutbreakSimulation() {
   };
 
   const generateReport = () => {
-    // 使用函数式更新确保读取最新状态
-    setStepResults((prevStepResults) => {
-      const correctSteps = prevStepResults.filter((r) => r.isCorrect).length;
-      const wrongSteps = prevStepResults.filter((r) => !r.isCorrect);
-      const score = Math.round((correctSteps / DRILL_STEPS.length) * 100);
+    // 直接使用当前 stepResults 状态计算报告
+    const correctSteps = stepResults.filter((r) => r.isCorrect).length;
+    const wrongSteps = stepResults.filter((r) => !r.isCorrect);
+    const score = DRILL_STEPS.length > 0 ? Math.round((correctSteps / DRILL_STEPS.length) * 100) : 0;
 
-      const reportData: DrillReport = {
-        score,
-        totalSteps: DRILL_STEPS.length,
-        correctSteps,
-        wrongSteps,
-        comments: getExpertComments(correctSteps),
-      };
+    const reportData: DrillReport = {
+      score,
+      totalSteps: DRILL_STEPS.length,
+      correctSteps,
+      wrongSteps,
+      comments: getExpertComments(correctSteps),
+    };
 
-      setReport(reportData);
-      return prevStepResults;
-    });
+    setReport(reportData);
   };
 
   const submitReport = async () => {

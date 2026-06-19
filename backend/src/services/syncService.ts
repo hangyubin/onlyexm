@@ -56,66 +56,58 @@ export async function syncPracticeRecords(userId: number, records: SyncRecord[])
           },
         });
 
-        const latestInfectionReq = await tx.infectionRequirement.findFirst({
-          where: { userId, month: currentMonth },
-        });
-
         if (isInfectionQuestion && record.isCorrect) {
-          if (latestInfectionReq) {
-            await tx.infectionRequirement.update({
-              where: { id: latestInfectionReq.id },
-              data: { completedCount: { increment: 1 } },
-            });
-          } else {
-            await tx.infectionRequirement.create({
-              data: {
-                userId,
-                month: currentMonth,
-                requiredCount: config.monthlyRequiredCount,
-                completedCount: 1,
-              },
-            });
-          }
-          totalCount++;
           correctCount++;
+        }
+        if (isInfectionQuestion) {
+          totalCount++;
         }
       }
 
+      // 批量更新院感达标（避免 N+1 查询）
+      if (correctCount > 0 || totalCount > 0) {
+        let requirement = await tx.infectionRequirement.findFirst({
+          where: { userId, month: currentMonth },
+        });
+
+        if (!requirement) {
+          requirement = await tx.infectionRequirement.create({
+            data: {
+              userId,
+              month: currentMonth,
+              requiredCount: config.monthlyRequiredCount,
+              completedCount: correctCount,
+              accuracyRate: 0,
+            },
+          });
+        } else {
+          await tx.infectionRequirement.update({
+            where: { id: requirement.id },
+            data: { completedCount: { increment: correctCount } },
+          });
+        }
+      }
+
+      // 重新计算正确率（基于本次同步的记录 + 已有记录）
       const latestInfectionReq = await tx.infectionRequirement.findFirst({
         where: { userId, month: currentMonth },
       });
 
       if (latestInfectionReq) {
-        // 只统计有院感标签的同步记录的正确率
-        const allSyncRecords = await tx.practiceSyncRecord.findMany({
-          where: { userId },
-          select: { questionId: true, isCorrect: true },
-        });
+        // 只统计本次同步的院感题目正确率，增量更新
+        if (totalCount > 0) {
+          const batchAccuracy = Math.round((correctCount / totalCount) * 100);
+          const oldCompleted = latestInfectionReq.completedCount - correctCount;
+          const oldAccuracy = Number(latestInfectionReq.accuracyRate || 0);
+          const newCompleted = latestInfectionReq.completedCount;
+          const newAccuracy = newCompleted > 0
+            ? Math.round((oldAccuracy * Math.max(oldCompleted, 0) + batchAccuracy * totalCount) / (Math.max(oldCompleted, 0) + totalCount))
+            : batchAccuracy;
 
-        if (allSyncRecords.length > 0) {
-          const questionIds = allSyncRecords.map(r => r.questionId);
-          const infectionQuestions = await tx.question.findMany({
-            where: {
-              id: { in: questionIds },
-              OR: [
-                { infectionTag: { in: ['HAND_HYGIENE', 'MEDICAL_WASTE', 'DISINFECTION', 'EXPOSURE', 'ISOLATION', 'STERILIZATION', 'MDRO', 'AIR_QUALITY'] } },
-                { subCategory: { in: ['HAND_HYGIENE', 'MEDICAL_WASTE', 'DISINFECTION', 'EXPOSURE', 'ISOLATION', 'STERILIZATION', 'MDRO', 'AIR_QUALITY'] } },
-              ],
-            },
-            select: { id: true },
+          await tx.infectionRequirement.update({
+            where: { id: latestInfectionReq.id },
+            data: { accuracyRate: newAccuracy },
           });
-          const infectionQuestionIds = new Set(infectionQuestions.map(q => q.id));
-
-          const infectionSyncRecords = allSyncRecords.filter(r => infectionQuestionIds.has(r.questionId));
-          if (infectionSyncRecords.length > 0) {
-            const totalCorrect = infectionSyncRecords.filter(r => r.isCorrect).length;
-            const accuracyRate = Math.round((totalCorrect / infectionSyncRecords.length) * 100);
-
-            await tx.infectionRequirement.update({
-              where: { id: latestInfectionReq.id },
-              data: { accuracyRate },
-            });
-          }
         }
 
         // 达标解锁判断

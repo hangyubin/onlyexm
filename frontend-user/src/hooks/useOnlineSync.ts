@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import api from '../api/axios';
 import { offlineDB } from '../utils/offlineDB';
 
@@ -57,7 +57,7 @@ export function useOnlineSync() {
         }));
 
         const response = await api.post(
-          '/api/sync/practice',
+          '/sync/practice',
           { userId, records: syncData }
         );
 
@@ -66,12 +66,13 @@ export function useOnlineSync() {
           if (response.data.data.isUnlocked) {
             isUnlocked = true;
           }
-          
+
+          const failedIds: number[] = response.data.data.failedIds || [];
           const syncedIds = batch
-            .filter((_, index) => !response.data.data.failedIds.includes(batch[index].questionId))
+            .filter(r => !failedIds.includes(r.questionId))
             .map(r => r.id!)
             .filter(id => id !== undefined);
-          
+
           await offlineDB.markSynced(syncedIds);
         }
       }
@@ -116,18 +117,24 @@ export function useOnlineSync() {
     };
   }, [syncPendingRecords]);
 
+  // 使用 ref 保存 isSyncing，避免定时器因状态变化而重建
+  const isSyncingRef = useRef(isSyncing);
+  useEffect(() => {
+    isSyncingRef.current = isSyncing;
+  }, [isSyncing]);
+
   useEffect(() => {
     checkPendingRecords();
 
     const timer = setInterval(async () => {
       await checkPendingRecords();
-      if (navigator.onLine && !isSyncing) {
+      if (navigator.onLine && !isSyncingRef.current) {
         await syncPendingRecords();
       }
     }, 60000);
 
     return () => clearInterval(timer);
-  }, [checkPendingRecords, syncPendingRecords, isSyncing]);
+  }, [checkPendingRecords, syncPendingRecords]);
 
   return {
     isOnline,

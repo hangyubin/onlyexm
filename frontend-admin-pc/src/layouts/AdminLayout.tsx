@@ -19,16 +19,17 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 
 const { Header, Sider, Content } = Layout;
 
-const menuItems = [
-  { key: '/dashboard', label: '仪表盘', icon: DashboardOutlined },
-  { key: '/question-manage', label: '题库管理', icon: BookOutlined },
-  { key: '/paper-manage', label: '试卷管理', icon: FileTextOutlined },
-  { key: '/exam-monitor', label: '考试监控', icon: MonitorOutlined },
-  { key: '/infection-dashboard', label: '院感看板', icon: BarChartOutlined },
-  { key: '/learning-material', label: '学习资料', icon: FilePdfOutlined },
-  { key: '/user-manage', label: '用户管理', icon: UserOutlined },
-  { key: '/reports', label: '报表导出', icon: FileExcelOutlined },
-  { key: '/system-config', label: '系统配置', icon: SettingOutlined },
+// 所有菜单项
+const allMenuItems = [
+  { key: '/dashboard', label: '仪表盘', icon: DashboardOutlined, roles: ['ADMIN', 'INFECTION_OFFICER'] },
+  { key: '/question-manage', label: '题库管理', icon: BookOutlined, roles: ['ADMIN'] },
+  { key: '/paper-manage', label: '试卷管理', icon: FileTextOutlined, roles: ['ADMIN'] },
+  { key: '/exam-monitor', label: '考试监控', icon: MonitorOutlined, roles: ['ADMIN', 'INFECTION_OFFICER'] },
+  { key: '/infection-dashboard', label: '院感看板', icon: BarChartOutlined, roles: ['ADMIN', 'INFECTION_OFFICER'] },
+  { key: '/learning-material', label: '学习资料', icon: FilePdfOutlined, roles: ['ADMIN', 'INFECTION_OFFICER'] },
+  { key: '/user-manage', label: '用户管理', icon: UserOutlined, roles: ['ADMIN'] },
+  { key: '/reports', label: '报表导出', icon: FileExcelOutlined, roles: ['ADMIN', 'INFECTION_OFFICER'] },
+  { key: '/system-config', label: '系统配置', icon: SettingOutlined, roles: ['ADMIN'] },
 ];
 
 export default function AdminLayout() {
@@ -51,7 +52,18 @@ export default function AdminLayout() {
     { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', onClick: handleLogout } as const,
   ];
 
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  // 安全解析 localStorage 中的用户信息
+  let currentUser: any = {};
+  try {
+    currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  } catch {
+    currentUser = {};
+  }
+  const userRole = currentUser.role || localStorage.getItem('userRole') || '';
+
+  // 根据角色过滤菜单
+  const menuItems = allMenuItems.filter(item => item.roles.includes(userRole));
+
   const currentKey = location.pathname;
 
   const navItems = menuItems.map((item) => {
@@ -124,7 +136,7 @@ export default function AdminLayout() {
             </div>
             {!collapsed && (
               <span style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
-                院感培训系统
+                院感培训管理系统
               </span>
             )}
           </div>

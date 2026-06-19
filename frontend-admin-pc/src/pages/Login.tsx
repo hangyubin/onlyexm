@@ -12,25 +12,34 @@ export default function Login() {
     setLoading(true);
     try {
       const response = await api.post('/auth/login', values);
-      
+
       if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
         const user = response.data.user;
+        // 校验角色：仅管理员和院感专员可登录管理端
+        const allowedRoles = ['ADMIN', 'INFECTION_OFFICER'];
+        if (!user?.role || !allowedRoles.includes(user.role)) {
+          message.error('该账户无管理端访问权限，请使用用户端登录');
+          return;
+        }
+        localStorage.setItem('token', response.data.token);
         localStorage.setItem('user', JSON.stringify({
+          id: user?.id,
           realName: user?.realName,
           role: user?.role,
         }));
-        // 保存用户角色
         if (user?.role) {
           localStorage.setItem('userRole', user.role);
+        }
+        if (user?.id) {
+          localStorage.setItem('userId', String(user.id));
         }
         message.success('登录成功');
         navigate('/dashboard');
       } else {
         message.error(response.data.error || '登录失败');
       }
-    } catch (error: any) {
-      message.error(error.response?.data?.error || '登录失败，请稍后重试');
+    } catch {
+      // axios 拦截器已显示错误消息，此处不再重复提示
     } finally {
       setLoading(false);
     }

@@ -8,16 +8,30 @@
   box-sizing: border-box;
 }
 
+/* 安全区域适配（刘海屏/全面屏手机：小米/红米等） */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* 移除点击高亮（小米/红米浏览器默认蓝色高亮） */
+  -webkit-tap-highlight-color: transparent;
+  /* 禁止长按弹出菜单 */
+  -webkit-touch-callout: none;
+  /* 禁止下拉刷新 */
+  overscroll-behavior-y: none;
+  /* 防止横屏时字体缩放 */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 /* 根据屏幕宽度动态调整根字号，适配不同手机分辨率 */
+/* 红米/小米常见分辨率：360x640, 393x873, 412x915 */
 /* 用户可通过 localStorage.fontScale 调节（0.85 / 1 / 1.15 / 1.3） */
 html {
   font-size: calc(clamp(16px, 4.8vw, 22px) * var(--font-scale, 1));
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 html, body, #root {
@@ -52,4 +66,16 @@ input, select, textarea {
 /* 字体大小设置页面的按钮不受 min-height 影响 */
 .font-scale-btn {
   min-height: auto;
+}
+
+/* 防止图片溢出 */
+img, video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* 防止长文本溢出容器 */
+.break-words {
+  word-break: break-word;
+  overflow-wrap: break-word;
 }

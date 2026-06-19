@@ -436,7 +436,7 @@ export async function submitPractice(practiceId: number, answers: SubmitAnswer[]
     }
 
     const totalQuestions = questions.length;
-    const accuracy = Math.round((correctCount / totalQuestions) * 100);
+    const accuracy = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
     const score = accuracy;
 
     // 原子操作：保存答案并标记完成
@@ -562,14 +562,17 @@ async function syncInfectionRequirement(
   const config = await getInfectionConfig();
 
   const questionMap = new Map(questions.map(q => [q.id, q]));
-  const infectionTaggedQuestions = questions.filter(q => q.infectionTag || q.subCategory);
+  const knownInfectionTags = ['HAND_HYGIENE', 'MEDICAL_WASTE', 'DISINFECTION', 'EXPOSURE', 'ISOLATION', 'STERILIZATION', 'MDRO', 'AIR_QUALITY'];
+  const infectionTaggedQuestions = questions.filter(q =>
+    knownInfectionTags.includes(q.infectionTag) || knownInfectionTags.includes(q.subCategory)
+  );
   const infectionTaggedCount = infectionTaggedQuestions.length;
 
   if (infectionTaggedCount === 0) return;
 
   const infectionTaggedCorrect = results.filter(r => {
     const q = questionMap.get(r.questionId);
-    return (q?.infectionTag || q?.subCategory) && r.isCorrect;
+    return q && (knownInfectionTags.includes(q.infectionTag) || knownInfectionTags.includes(q.subCategory)) && r.isCorrect;
   }).length;
   const currentInfectionAccuracy = Math.round((infectionTaggedCorrect / infectionTaggedCount) * 100);
 

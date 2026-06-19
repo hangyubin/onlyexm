@@ -317,9 +317,9 @@ export function DailyPractice() {
     };
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pb-8">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pb-8 max-w-md mx-auto">
         <header className="bg-white shadow-sm">
-          <div className="max-w-md mx-auto px-4 py-4">
+          <div className="px-4 py-4">
             <div className="flex items-center justify-between">
               <button
                 onClick={() => navigate('/')}
@@ -456,9 +456,9 @@ export function DailyPractice() {
     const currentAnswer = answers.get(currentQuestion.id);
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 max-w-md mx-auto">
         <header className="bg-white shadow-sm">
-          <div className="max-w-md mx-auto px-4 py-4">
+          <div className="px-4 py-4">
             <div className="flex items-center justify-between">
               <button
                 onClick={() => navigate('/')}

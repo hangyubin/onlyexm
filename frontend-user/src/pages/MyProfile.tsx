@@ -99,7 +99,8 @@ export default function MyProfile() {
       setShowPasswordModal(false);
       setPasswordForm({ oldPassword: '', newPassword: '', confirmPassword: '' });
     } catch (err: any) {
-      alert(err.response?.data?.error || '密码修改失败');
+      const msg = err?.message || err?.response?.data?.message || err?.response?.data?.error || '密码修改失败';
+      alert(msg);
     } finally {
       setPasswordLoading(false);
     }
@@ -125,10 +126,20 @@ export default function MyProfile() {
       await api.put('/user/profile/update', profileForm);
       alert('个人资料修改成功');
       setShowProfileModal(false);
+      // 同步更新 localStorage 中的用户信息
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          const userObj = JSON.parse(storedUser);
+          Object.assign(userObj, profileForm);
+          localStorage.setItem('user', JSON.stringify(userObj));
+        }
+      } catch { /* ignore parse errors */ }
       // Refresh user info
       fetchUserInfo();
     } catch (err: any) {
-      alert(err.response?.data?.message || '修改失败');
+      const msg = err?.message || err?.response?.data?.message || '修改失败';
+      alert(msg);
     } finally {
       setProfileLoading(false);
     }
@@ -143,7 +154,7 @@ export default function MyProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-20 max-w-md mx-auto">
       {/* 用户信息头部 */}
       <div className="bg-gradient-to-br from-blue-600 to-blue-800 text-white px-4 pt-8 pb-6 rounded-b-3xl">
         <div className="flex items-center gap-4">

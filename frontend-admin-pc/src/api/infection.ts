@@ -109,7 +109,7 @@ export const infectionApi = {
       return data.map((item: any) => ({
         month: item?.month || '',
         avgScore: item?.avgScore || 0,
-        participantCount: item?.qualifiedRate || 0,
+        participantCount: item?.participantCount || item?.totalCount || 0,
       }));
     } catch (error) {
       console.error('Get trend error:', error);

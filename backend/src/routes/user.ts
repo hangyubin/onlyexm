@@ -414,7 +414,7 @@ router.post('/:id/reset-password', roleGuard(['ADMIN', 'INFECTION_OFFICER']), as
       return error(res, 404, '用户不存在');
     }
 
-    const tempPassword = crypto.randomBytes(4).toString('hex');
+    const tempPassword = crypto.randomBytes(6).toString('hex');
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
     await prisma.user.update({
@@ -422,7 +422,7 @@ router.post('/:id/reset-password', roleGuard(['ADMIN', 'INFECTION_OFFICER']), as
       data: { password: hashedPassword },
     });
 
-    success(res, { tempPassword }, '密码重置成功');
+    success(res, { tempPassword, mustChangePassword: true }, '密码重置成功，请通知用户尽快登录修改密码');
   } catch (err) {
     console.error('重置密码失败:', err);
     error(res, 500, '重置密码失败');
@@ -432,6 +432,10 @@ router.post('/:id/reset-password', roleGuard(['ADMIN', 'INFECTION_OFFICER']), as
 router.patch('/:id/toggle-lock', roleGuard(['ADMIN', 'INFECTION_OFFICER']), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
+
+    if (id === (req as any).user.id) {
+      return error(res, 400, '不能锁定/解锁自己的账户');
+    }
 
     const existingUser = await prisma.user.findUnique({
       where: { id },

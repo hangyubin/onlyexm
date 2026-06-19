@@ -12,6 +12,13 @@ async function getDeptNameMap(): Promise<Map<string, string>> {
   return map;
 }
 
+// 将日期字符串转换为当天的结束时间（23:59:59.999），避免 endDate 当天数据被遗漏
+function endOfDay(dateStr: string): Date {
+  const d = new Date(dateStr);
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
 export async function generateExamSummaryReport(startDate: string, endDate: string): Promise<Buffer | ArrayBuffer> {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('考试成绩汇总');
@@ -33,7 +40,7 @@ export async function generateExamSummaryReport(startDate: string, endDate: stri
         status: 'SUBMITTED',
         createdAt: {
           gte: new Date(startDate),
-          lte: new Date(endDate),
+          lte: endOfDay(endDate),
         },
       },
       include: {
@@ -141,7 +148,7 @@ export async function generateDeptRankingReport(startDate: string, endDate: stri
         status: 'SUBMITTED',
         createdAt: {
           gte: new Date(startDate),
-          lte: new Date(endDate),
+          lte: endOfDay(endDate),
         },
       },
       include: { user: true, paper: { select: { passingScore: true } } },
@@ -271,7 +278,7 @@ export async function generateActivityReport(startDate: string, endDate: string)
   ];
 
   const start = new Date(startDate);
-  const end = new Date(endDate);
+  const end = endOfDay(endDate);
 
   const dates: string[] = [];
   const current = new Date(start);

@@ -399,31 +399,20 @@ router.post('/submit', authMiddleware, async (req, res) => {
     const elapsedSeconds = Math.floor((Date.now() - new Date(examRecord.startTime).getTime()) / 1000);
     const totalAllowedSeconds = examRecord.paper.durationMinutes * 60;
     if (elapsedSeconds >= totalAllowedSeconds) {
-      // 超时，自动交卷
-      // 使用 submitExam 逻辑处理答案
+      // 超时，自动交卷 - 直接使用 AUTO_SUBMIT 状态，避免双重状态变更
       const result = await submitExam({
         examRecordId,
         answers,
         tabSwitchCount: tabSwitchCount || 0,
         suspiciousLog: suspiciousLog || [],
+        submitStatus: 'AUTO_SUBMIT',
       });
 
-      // 保存 suspiciousLog 和状态更新在一个事务中
       if (result.code === 0) {
-        await prisma.$transaction(async (tx) => {
-          await tx.examRecord.update({
-            where: { id: examRecordId },
-            data: {
-              suspiciousLog: suspiciousLog && suspiciousLog.length > 0 ? JSON.stringify(suspiciousLog) : null,
-            },
-          });
-          await tx.examRecord.update({
-            where: { id: examRecordId },
-            data: { status: 'AUTO_SUBMIT' as any },
-          });
-        });
+        return success(res, { ...result.data, autoSubmitted: true });
+      } else {
+        return error(res, result.code === 404 ? 404 : 400, result.message);
       }
-      return success(res, { ...result.data, autoSubmitted: true });
     }
 
     const result = await submitExam({
@@ -434,14 +423,7 @@ router.post('/submit', authMiddleware, async (req, res) => {
     });
 
     if (result.code === 0) {
-      // 保存 suspiciousLog
-      await prisma.examRecord.update({
-        where: { id: examRecordId },
-        data: {
-          suspiciousLog: suspiciousLog && suspiciousLog.length > 0 ? JSON.stringify(suspiciousLog) : null,
-        },
-      });
-
+      // suspiciousLog 已在 submitExam 事务内保存
       success(res, result.data);
     } else {
       error(res, result.code === 404 ? 404 : 400, result.message);

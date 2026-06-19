@@ -28,8 +28,8 @@ export const getMaterials = async (filters?: {
     if (filters.keyword) {
       const kw = filters.keyword.toLowerCase();
       where.OR = [
-        { title: { contains: kw, mode: 'insensitive' } },
-        { description: { contains: kw, mode: 'insensitive' } },
+        { title: { contains: kw } },
+        { description: { contains: kw } },
       ];
     }
     if (filters.type) {
@@ -85,29 +85,36 @@ export const createMaterial = async (data: Omit<LearningMaterial, 'id' | 'viewCo
 };
 
 export const updateMaterial = async (id: number, data: Partial<LearningMaterial>): Promise<LearningMaterial | null> => {
-  const material = await prisma.learningMaterial.update({
-    where: { id },
-    data: {
-      ...data,
-      updatedAt: new Date(),
-    },
-  });
-  
-  if (!material) return null;
-  
-  return {
-    ...material,
-    createdAt: material.createdAt.toISOString(),
-    updatedAt: material.updatedAt.toISOString(),
-  };
+  try {
+    const material = await prisma.learningMaterial.update({
+      where: { id },
+      data: {
+        ...data,
+        updatedAt: new Date(),
+      },
+    });
+
+    return {
+      ...material,
+      createdAt: material.createdAt.toISOString(),
+      updatedAt: material.updatedAt.toISOString(),
+    };
+  } catch (error: any) {
+    if (error?.code === 'P2025') return null;
+    throw error;
+  }
 };
 
 export const deleteMaterial = async (id: number): Promise<boolean> => {
-  const result = await prisma.learningMaterial.delete({
-    where: { id },
-  });
-  
-  return !!result;
+  try {
+    await prisma.learningMaterial.delete({
+      where: { id },
+    });
+    return true;
+  } catch (error: any) {
+    if (error?.code === 'P2025') return false;
+    throw error;
+  }
 };
 
 export const incrementViewCount = async (id: number): Promise<boolean> => {

@@ -185,7 +185,7 @@ export default function LearningMaterialManage() {
   ];
 
   return (
-    <div className="p-6 bg-white rounded-lg shadow-sm">
+    <div>
       <div className="flex flex-col gap-4 mb-6">
         <div className="flex items-center gap-4 flex-wrap">
           <Input
@@ -216,12 +216,11 @@ export default function LearningMaterialManage() {
           />
           <Select
             placeholder="选择状态"
-            value={searchForm.isActive === undefined ? '' : searchForm.isActive}
-            onChange={(value) => setSearchForm({ ...searchForm, isActive: value === '' ? undefined : Boolean(value) })}
+            value={searchForm.isActive === undefined ? undefined : searchForm.isActive}
+            onChange={(value) => setSearchForm({ ...searchForm, isActive: value === undefined ? undefined : Boolean(value) })}
             allowClear
             style={{ width: 120 }}
           >
-            <Option value="">全部</Option>
             <Option value={true}>启用</Option>
             <Option value={false}>禁用</Option>
           </Select>

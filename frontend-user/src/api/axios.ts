@@ -21,20 +21,6 @@ api.interceptors.request.use(
   }
 );
 
-let isRefreshing = false;
-let failedQueue: { resolve: (token: string) => void; reject: (error: any) => void }[] = [];
-
-const processQueue = (error: any, token?: string) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token!);
-    }
-  });
-  failedQueue = [];
-};
-
 api.interceptors.response.use(
   (response) => {
     const data = response.data;
@@ -58,11 +44,14 @@ api.interceptors.response.use(
           if ('total' in data) {
             response.data = data;
           } else {
-            response.data = data.data ?? data;
-            // 保留被展开时丢失的顶层元数据字段
-            if (data.success !== undefined) response.data.success = data.success;
-            if (data.autoRemoved !== undefined) response.data.autoRemoved = data.autoRemoved;
-            if (data.message !== undefined) response.data.message = data.message;
+            const unwrapped = data.data ?? data;
+            // 保留被展开时丢失的顶层元数据字段（仅当 unwrapped 是对象时）
+            if (unwrapped && typeof unwrapped === 'object' && !Array.isArray(unwrapped)) {
+              if (data.success !== undefined) unwrapped.success = data.success;
+              if (data.autoRemoved !== undefined) unwrapped.autoRemoved = data.autoRemoved;
+              if (data.message !== undefined) unwrapped.message = data.message;
+            }
+            response.data = unwrapped;
           }
         } else {
           console.error('API Error:', data.message);
@@ -73,59 +62,28 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
-    const originalRequest = error.config;
     const status = error.response?.status;
     const currentPath = window.location.pathname;
     const isLoginPage = currentPath === '/login' || currentPath === '/user/login';
 
-    if (status === 401 && !isRefreshing && !originalRequest._retry) {
-      isRefreshing = true;
-      originalRequest._retry = true;
-
-      try {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        if (!isLoginPage) {
-          window.location.href = `${window.location.origin}/login`;
-        }
-        processQueue(null, '');
-      } catch (refreshError) {
-        processQueue(refreshError, '');
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        if (!isLoginPage) {
-          window.location.href = `${window.location.origin}/login`;
-        }
-      } finally {
-        isRefreshing = false;
+    if (status === 401) {
+      // token 过期或无效，清除并跳转登录页
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('userId');
+      if (!isLoginPage) {
+        window.location.href = `${window.location.origin}/login`;
       }
-    } else if (status === 401 && isRefreshing) {
-      return new Promise<string>((resolve, reject) => {
-        failedQueue.push({ resolve, reject });
-      }).then((token) => {
-        originalRequest.headers.Authorization = `Bearer ${token}`;
-        return api(originalRequest);
-      }).catch((err) => {
-        return Promise.reject(err);
-      });
+      return Promise.reject(new Error('登录已过期，请重新登录'));
     }
 
     if (status === 403) {
       console.error('Permission denied');
-      if (typeof window !== 'undefined') {
-        alert('没有权限执行此操作');
-      }
     } else if (status >= 500) {
       console.error('Server error:', error.response?.data?.message || '服务器错误');
-      if (typeof window !== 'undefined') {
-        alert('服务器错误，请稍后重试');
-      }
     } else if (status === 400) {
       const message = error.response?.data?.message || error.response?.data?.error || '请求参数错误';
       console.error('Bad request:', message);
-      if (typeof window !== 'undefined') {
-        alert(message);
-      }
     }
 
     return Promise.reject(error);

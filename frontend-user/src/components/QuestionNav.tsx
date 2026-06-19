@@ -18,7 +18,7 @@ export function QuestionNav({
   return (
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="absolute top-0 left-0 bottom-0 w-72 bg-white shadow-xl transform transition-transform">
+      <div className="absolute top-0 left-0 bottom-0 w-72 max-w-[85vw] bg-white shadow-xl transform transition-transform">
         <div className="p-4 border-b">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-lg">题目导航</h3>

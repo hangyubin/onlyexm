@@ -100,12 +100,13 @@ const LearningMaterialDetail: React.FC = () => {
     if (!material?.attachmentUrl) return;
     setPreviewType(type);
     setShowPreview(true);
-    setPreviewLoading(false);
     setPreviewError(null);
     setDocxContent('');
 
     if (type === 'docx') {
       loadDocx();
+    } else {
+      setPreviewLoading(false);
     }
   };
 
@@ -115,7 +116,11 @@ const LearningMaterialDetail: React.FC = () => {
     setPreviewError(null);
     try {
       const url = normalizeUrl(material.attachmentUrl);
-      const response = await fetch(url, { method: 'GET' });
+      const token = localStorage.getItem('token');
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status} ${response.statusText}`);
       }
@@ -188,10 +193,10 @@ const LearningMaterialDetail: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-20 max-w-md mx-auto">
       {showPreview && (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-2 sm:p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[92vh] flex flex-col">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b border-gray-200">
               <h3 className="text-lg font-semibold truncate pr-4">
                 {previewType === 'docx' ? 'Word 文档预览' :
@@ -229,7 +234,7 @@ const LearningMaterialDetail: React.FC = () => {
                   </div>
                 ) : (
                   <div
-                    className="bg-white p-6 sm:p-10 rounded-lg shadow mx-auto max-w-4xl my-4 prose prose-blue"
+                    className="bg-white p-4 sm:p-10 rounded-lg shadow mx-auto max-w-3xl my-4 prose prose-blue"
                     style={{ lineHeight: '1.8' }}
                     dangerouslySetInnerHTML={{ __html: docxContent }}
                   />
@@ -267,7 +272,7 @@ const LearningMaterialDetail: React.FC = () => {
                   <video
                     key={safeAttachmentUrl}
                     controls
-                    className="w-full max-w-3xl rounded-lg shadow-lg bg-black"
+                    className="w-full max-w-2xl rounded-lg shadow-lg bg-black"
                   >
                     <source src={safeAttachmentUrl} type={getMimeType(safeAttachmentUrl, material.type)} />
                     您的浏览器不支持视频播放，请下载后查看。
@@ -377,14 +382,14 @@ const LearningMaterialDetail: React.FC = () => {
               {fileType === 'video' ? (
                 <video
                   controls
-                  className="w-full max-w-2xl rounded-lg shadow bg-black"
+                  className="w-full rounded-lg shadow bg-black"
                   poster={normalizeUrl(material.thumbnailUrl)}
                 >
                   <source src={safeAttachmentUrl} type={getMimeType(safeAttachmentUrl, material.type)} />
                   您的浏览器不支持视频播放。
                 </video>
               ) : (
-                <div className="bg-gray-50 p-4 rounded-lg max-w-xl">
+                <div className="bg-gray-50 p-4 rounded-lg">
                   <audio controls className="w-full">
                     <source src={safeAttachmentUrl} type={getMimeType(safeAttachmentUrl, material.type)} />
                     您的浏览器不支持音频播放。

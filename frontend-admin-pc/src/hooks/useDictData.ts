@@ -12,6 +12,18 @@ export interface DictData {
 const globalCache = new Map<string, DictData>();
 
 /**
+ * 清除字典缓存（在字典增删改后调用）
+ * @param category 指定分类，不传则清除全部
+ */
+export function clearDictCache(category?: string) {
+  if (category) {
+    globalCache.delete(category);
+  } else {
+    globalCache.clear();
+  }
+}
+
+/**
  * 统一字典数据 Hook，带全局缓存
  * @param category 字典分类代码
  */
@@ -64,7 +76,7 @@ export function useMultiDictData(categories: string[]) {
     const loadAll = async () => {
       setLoading(true);
       try {
-        const results = await Promise.all(
+        const results = await Promise.allSettled(
           categories.map(async (cat) => {
             if (globalCache.has(cat)) {
               return { cat, data: globalCache.get(cat)! };
@@ -81,7 +93,13 @@ export function useMultiDictData(categories: string[]) {
           })
         );
         const map: Record<string, DictData> = {};
-        results.forEach(r => { map[r.cat] = r.data; });
+        results.forEach((r, index) => {
+          if (r.status === 'fulfilled') {
+            map[r.value.cat] = r.value.data;
+          } else {
+            console.error(`加载字典 [${categories[index]}] 失败:`, r.reason);
+          }
+        });
         setData(map);
       } catch (error) {
         console.error('加载字典数据失败:', error);

@@ -99,14 +99,14 @@ export class OfflineDBManager {
     await this.openDB();
     if (!this.db) return [];
     const tx = this.db.transaction('questions', 'readonly');
-    return tx.store.getAll(IDBKeyRange.only(type));
+    return tx.store.index('type').getAll(IDBKeyRange.only(type));
   }
 
   async getQuestionsByTag(tag: string): Promise<Question[]> {
     await this.openDB();
     if (!this.db) return [];
     const tx = this.db.transaction('questions', 'readonly');
-    return tx.store.getAll(IDBKeyRange.only(tag));
+    return tx.store.index('infectionTag').getAll(IDBKeyRange.only(tag));
   }
 
   async savePractice(userId: number, questionId: number, isCorrect: boolean): Promise<void> {
@@ -162,7 +162,7 @@ export class OfflineDBManager {
     await this.openDB();
     if (!this.db) return [];
     const tx = this.db.transaction('practiceRecords', 'readonly');
-    return tx.store.getAll(IDBKeyRange.only('PENDING'));
+    return tx.store.index('syncStatus').getAll(IDBKeyRange.only('PENDING'));
   }
 
   async getPendingProgress(): Promise<UserProgress[]> {
@@ -281,7 +281,7 @@ export class OfflineDBManager {
     const totalPracticeCount = await this.db.count('practiceRecords');
     
     const tx = this.db.transaction('practiceRecords', 'readonly');
-    const pendingRecords = await tx.store.getAll(IDBKeyRange.only('PENDING'));
+    const pendingRecords = await tx.store.index('syncStatus').getAll(IDBKeyRange.only('PENDING'));
 
     return { 
       questionsCount, 

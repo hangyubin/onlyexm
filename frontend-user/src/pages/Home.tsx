@@ -169,7 +169,7 @@ const Home: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-20 max-w-md mx-auto">
       {infectionStatus?.isLocked && (
         <div className="bg-red-500 text-white py-2 px-4 text-sm flex items-center justify-center gap-2">
           <AlertCircle className="w-4 h-4" />
@@ -244,7 +244,7 @@ const Home: React.FC = () => {
             <NavLink
               key={item.path}
               to={item.path}
-              className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col items-center gap-2 active:opacity-70 transition-opacity"
+              className="relative bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex flex-col items-center gap-2 active:opacity-70 transition-opacity"
             >
               <div className={`w-12 h-12 ${colorMap[item.color as keyof typeof colorMap].light} rounded-xl flex items-center justify-center ${colorMap[item.color as keyof typeof colorMap].text}`}>
                 {item.icon}

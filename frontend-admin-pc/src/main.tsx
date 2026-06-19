@@ -1,10 +1,23 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { ConfigProvider } from 'antd';
+import zhCN from 'antd/locale/zh_CN';
 import App from './App';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ConfigProvider
+      locale={zhCN}
+      theme={{
+        token: {
+          colorPrimary: '#3b82f6',
+          borderRadius: 6,
+          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Microsoft YaHei', sans-serif",
+        },
+      }}
+    >
+      <App />
+    </ConfigProvider>
   </StrictMode>
 );

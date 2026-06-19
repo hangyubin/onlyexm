@@ -16,6 +16,10 @@ const Login: React.FC = () => {
       const res = await authApi.login({ username, password });
       localStorage.setItem('token', res.token);
       localStorage.setItem('user', JSON.stringify(res.user));
+      // 存储 userId，供离线同步等场景使用
+      if (res.user?.id) {
+        localStorage.setItem('userId', String(res.user.id));
+      }
       // 同时存储 userRole，供管理端 ProtectedRoute 使用
       if (res.user?.role) {
         localStorage.setItem('userRole', res.user.role);
@@ -54,7 +58,7 @@ const Login: React.FC = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">院感知识培训系统</h1>
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">院感培训系统</h1>
           <p className="text-gray-500">请登录您的账户</p>
         </div>
 

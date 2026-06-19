@@ -253,30 +253,23 @@ router.put('/scenarios/:id', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFI
   const { title, description, imageUrl, expertAdvice, isActive, risks, actions } = req.body;
 
   try {
-    await prisma.$transaction([
-      prisma.scenarioRisk.deleteMany({ where: { scenarioId: parseInt(id) } }),
-      prisma.scenarioAction.deleteMany({ where: { scenarioId: parseInt(id) } }),
-    ]);
+    const scenario = await prisma.$transaction(async (tx) => {
+      await tx.scenarioRisk.deleteMany({ where: { scenarioId: parseInt(id) } });
+      await tx.scenarioAction.deleteMany({ where: { scenarioId: parseInt(id) } });
 
-    const scenario = await prisma.infectionScenario.update({
-      where: { id: parseInt(id) },
-      data: {
-        title,
-        description,
-        imageUrl,
-        expertAdvice,
-        isActive,
-        risks: {
-          create: risks,
+      return tx.infectionScenario.update({
+        where: { id: parseInt(id) },
+        data: {
+          title,
+          description,
+          imageUrl,
+          expertAdvice,
+          isActive,
+          risks: { create: risks },
+          actions: { create: actions },
         },
-        actions: {
-          create: actions,
-        },
-      },
-      include: {
-        risks: true,
-        actions: true,
-      },
+        include: { risks: true, actions: true },
+      });
     });
 
     res.json({
@@ -601,7 +594,7 @@ router.get('/dashboard/weak-points', authMiddleware, roleGuard(['ADMIN', 'INFECT
     const result = Array.from(tagCount.entries())
       .map(([tag, count]) => ({
         name: tagMap[tag] || tag,
-        value: Math.round((count / total) * 100),
+        value: total > 0 ? Math.round((count / total) * 100) : 0,
         count,
         tag,
       }))

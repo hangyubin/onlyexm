@@ -151,7 +151,7 @@ export default function Dashboard() {
 
   return (
     <div style={{ padding: '0 4px' }}>
-      <h2 style={{ fontSize: 20, fontWeight: 'bold', color: '#1e293b', marginBottom: 16 }}>仪表盘</h2>
+      <h2 className="text-xl font-bold text-slate-800 mb-4">仪表盘</h2>
 
       <Spin spinning={loading}>
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>

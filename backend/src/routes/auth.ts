@@ -10,9 +10,10 @@ import { success, error } from '../utils/response';
 const router = express.Router();
 
 // 登录频率限制
-const loginAttempts = new Map<string, { count: number; lockedUntil: number }>();
+const loginAttempts = new Map<string, { count: number; lockedUntil: number; lastAttempt: number }>();
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCK_DURATION = 15 * 60 * 1000; // 15分钟
+const ATTEMPT_TTL = 30 * 60 * 1000; // 30分钟后清理无锁定的记录
 
 function checkLoginLimit(ip: string): string | null {
   const attempt = loginAttempts.get(ip);
@@ -23,13 +24,20 @@ function checkLoginLimit(ip: string): string | null {
   }
   if (attempt.lockedUntil && Date.now() >= attempt.lockedUntil) {
     loginAttempts.delete(ip);
+    return null;
+  }
+  // 清理过期的无锁定记录
+  if (!attempt.lockedUntil && Date.now() - attempt.lastAttempt > ATTEMPT_TTL) {
+    loginAttempts.delete(ip);
+    return null;
   }
   return null;
 }
 
 function recordLoginFailure(ip: string) {
-  const attempt = loginAttempts.get(ip) || { count: 0, lockedUntil: 0 };
+  const attempt = loginAttempts.get(ip) || { count: 0, lockedUntil: 0, lastAttempt: 0 };
   attempt.count++;
+  attempt.lastAttempt = Date.now();
   if (attempt.count >= MAX_LOGIN_ATTEMPTS) {
     attempt.lockedUntil = Date.now() + LOCK_DURATION;
   }
@@ -39,6 +47,18 @@ function recordLoginFailure(ip: string) {
 function clearLoginFailure(ip: string) {
   loginAttempts.delete(ip);
 }
+
+// 定期清理过期的登录尝试记录（每10分钟）
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, attempt] of loginAttempts.entries()) {
+    if (attempt.lockedUntil && now >= attempt.lockedUntil) {
+      loginAttempts.delete(ip);
+    } else if (!attempt.lockedUntil && now - attempt.lastAttempt > ATTEMPT_TTL) {
+      loginAttempts.delete(ip);
+    }
+  }
+}, 10 * 60 * 1000).unref();
 
 router.post('/login', async (req, res) => {
   try {

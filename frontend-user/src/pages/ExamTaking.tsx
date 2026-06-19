@@ -110,6 +110,8 @@ export function ExamTaking() {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (examData && !isSubmitting) {
         e.preventDefault();
+        e.returnValue = '考试仍在进行中，确定离开吗？';
+        return '考试仍在进行中，确定离开吗？';
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -145,19 +147,6 @@ export function ExamTaking() {
     };
   }, [examData]);
 
-  const handleAnswer = useCallback(
-    (questionId: number, answer: AnswerType) => {
-      setAnswers((prev) => {
-        const newAnswers = new Map(prev);
-        newAnswers.set(questionId, answer);
-        return newAnswers;
-      });
-
-      saveAnswer(questionId, answer);
-    },
-    []
-  );
-
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const saveAnswer = useCallback(async (questionId: number, answer: AnswerType) => {
@@ -177,6 +166,19 @@ export function ExamTaking() {
       }
     }, 300);
   }, [examData]);
+
+  const handleAnswer = useCallback(
+    (questionId: number, answer: AnswerType) => {
+      setAnswers((prev) => {
+        const newAnswers = new Map(prev);
+        newAnswers.set(questionId, answer);
+        return newAnswers;
+      });
+
+      saveAnswer(questionId, answer);
+    },
+    [saveAnswer]
+  );
 
   const toggleMark = useCallback(() => {
     setMarkedQuestions((prev) => {
@@ -335,7 +337,7 @@ export function ExamTaking() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 max-w-md mx-auto">
       <header className="fixed top-0 left-0 right-0 bg-white shadow-sm z-40">
         <div className="max-w-md mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
@@ -368,9 +370,12 @@ export function ExamTaking() {
                 {examData.reentryCount}/{examData.maxReentry}
               </span>
             </span>
-            <span className="text-gray-500">
+            <button
+              onClick={() => setShowNav(true)}
+              className="text-gray-500 hover:text-blue-600 transition-colors"
+            >
               第 {currentIndex + 1} 题 / 共 {examData.questions.length} 题
-            </span>
+            </button>
           </div>
         </div>
       </header>
@@ -498,7 +503,7 @@ export function ExamTaking() {
         </div>
       </main>
 
-      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
+      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="max-w-md mx-auto px-4 py-3">
           <div className="flex items-center gap-3">
             <button

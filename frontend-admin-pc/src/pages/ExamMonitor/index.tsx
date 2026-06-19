@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { Card, Row, Col, Table, Tag, Button, Select, Input, message, Spin, Switch, Modal, Space, Descriptions, Progress } from 'antd';
+import { Card, Row, Col, Table, Tag, Button, Select, Input, message, Spin, Switch, Modal, Space, Descriptions, Progress, Popconfirm } from 'antd';
 import { ClockCircleOutlined, WarningOutlined, CheckCircleOutlined, SearchOutlined, EyeOutlined } from '@ant-design/icons';
 import { examApi, ExamRecordItem, ExamStats } from '../../api/exam';
 import { paperApi } from '../../api/paper';
@@ -28,7 +28,7 @@ export default function ExamMonitor() {
 
   useEffect(() => {
     fetchRecords();
-  }, [page, paperId]);
+  }, [page, paperId, keyword]);
 
   useEffect(() => {
     fetchPapers();
@@ -45,7 +45,7 @@ export default function ExamMonitor() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [autoRefresh, page, paperId]);
+  }, [autoRefresh, page, paperId, keyword]);
 
   const fetchStats = async () => {
     setStatsLoading(true);
@@ -98,8 +98,11 @@ export default function ExamMonitor() {
   };
 
   const handleSearch = () => {
-    setPage(1);
-    // fetchRecords 会由 useEffect([page, paperId]) 自动触发，无需手动调用
+    if (page === 1) {
+      fetchRecords();
+    } else {
+      setPage(1);
+    }
   };
 
   const handleViewDetail = async (record: ExamRecordItem) => {
@@ -134,7 +137,16 @@ export default function ExamMonitor() {
       <Space size="small">
         <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>详情</Button>
         {record.status === 'IN_PROGRESS' && (
-          <Button size="small" danger onClick={() => handleForceSubmit(record.id)}>强制交卷</Button>
+          <Popconfirm
+            title="确认强制交卷？"
+            description="此操作不可撤销，考生的答卷将被强制提交。"
+            onConfirm={() => handleForceSubmit(record.id)}
+            okText="确认"
+            cancelText="取消"
+            okButtonProps={{ danger: true }}
+          >
+            <Button size="small" danger>强制交卷</Button>
+          </Popconfirm>
         )}
       </Space>
     )},

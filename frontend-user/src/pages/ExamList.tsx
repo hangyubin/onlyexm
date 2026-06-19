@@ -130,7 +130,7 @@ export default function ExamList() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-20 max-w-md mx-auto">
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-6">
         <h1 className="text-xl font-bold">考试列表</h1>
         <p className="text-blue-100 text-sm mt-1">选择试卷开始考试</p>

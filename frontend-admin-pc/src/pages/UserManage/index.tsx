@@ -100,15 +100,31 @@ export default function UserManage() {
       render: (_: unknown, record: User) => (
         <Space>
           <Button icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)}>编辑</Button>
-          <Button icon={<RestOutlined />} size="small" onClick={() => handleResetPassword(record.id)}>重置密码</Button>
-          <Button
-            icon={record.isLocked ? <UnlockOutlined /> : <LockOutlined />}
-            size="small"
-            onClick={() => handleToggleLock(record.id)}
-            danger={record.isLocked}
+          <Popconfirm
+            title="确认重置密码？"
+            description="将生成新的随机密码，用户原密码将失效。"
+            onConfirm={() => handleResetPassword(record.id)}
+            okText="确认"
+            cancelText="取消"
           >
-            {record.isLocked ? '解锁' : '锁定'}
-          </Button>
+            <Button icon={<RestOutlined />} size="small">重置密码</Button>
+          </Popconfirm>
+          <Popconfirm
+            title={record.isLocked ? "确认解锁该用户？" : "确认锁定该用户？"}
+            description={record.isLocked ? "用户将可以正常登录" : "用户将无法登录系统"}
+            onConfirm={() => handleToggleLock(record.id)}
+            okText="确认"
+            cancelText="取消"
+            okButtonProps={record.isLocked ? {} : { danger: true }}
+          >
+            <Button
+              icon={record.isLocked ? <UnlockOutlined /> : <LockOutlined />}
+              size="small"
+              danger={record.isLocked}
+            >
+              {record.isLocked ? '解锁' : '锁定'}
+            </Button>
+          </Popconfirm>
           <Button icon={<EyeOutlined />} size="small" onClick={() => handleViewProfile(record.id)}>学习档案</Button>
           {record.role !== 'ADMIN' && (
             <Popconfirm title="确定删除该用户吗？" onConfirm={() => handleDelete(record.id)}>

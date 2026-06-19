@@ -60,9 +60,9 @@ export function InfectionScenario({ scenario, onComplete }: InfectionScenarioPro
     ).length;
     const missedRiskCount = correctRisks.filter((id) => !selectedRisks.includes(id)).length;
 
-    const riskScore = Math.round(
-      (correctRiskCount / correctRisks.length) * 100
-    );
+    const riskScore = correctRisks.length > 0
+      ? Math.round((correctRiskCount / correctRisks.length) * 100)
+      : 0;
     const actionScore = scenario.actions.find((a) => a.id === selectedAction)?.isCorrect ? 100 : 0;
 
     let riskLevel: 'high' | 'medium' | 'low' = 'low';
@@ -93,7 +93,7 @@ export function InfectionScenario({ scenario, onComplete }: InfectionScenarioPro
     setSubmitted(true);
 
     try {
-      await api.post('/api/infection/scenario/record', scenarioResult);
+      await api.post('/infection/scenario/record', scenarioResult);
     } catch (err) {
       console.error('Save scenario record failed:', err);
     }

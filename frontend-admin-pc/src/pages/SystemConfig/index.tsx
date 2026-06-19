@@ -2,6 +2,7 @@ import { Card, Button, Form, Input, InputNumber, Switch, Select, Row, Col, messa
 import { SaveOutlined, RestOutlined, PlusOutlined, EditOutlined, DeleteOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useState, useEffect, useCallback } from 'react';
 import { systemApi, DictItem } from '../../api/system';
+import { clearDictCache } from '../../hooks/useDictData';
 import { pinyin } from 'pinyin-pro';
 
 const { Option } = Select;
@@ -191,6 +192,7 @@ function DictManageTab() {
     try {
       await systemApi.deleteDict(id);
       message.success('删除成功');
+      clearDictCache();
       fetchDictItems();
     } catch (error) {
       message.error('删除失败');
@@ -201,6 +203,7 @@ function DictManageTab() {
     try {
       const result = await systemApi.initDict([selectedCategory]);
       message.success(`初始化完成：创建${result.created}条，跳过${result.skipped}条`);
+      clearDictCache();
       fetchDictItems();
     } catch (error) {
       message.error('初始化失败');
@@ -223,6 +226,7 @@ function DictManageTab() {
         await systemApi.createDict(values);
         message.success('创建成功');
       }
+      clearDictCache();
       setModalVisible(false);
       form.resetFields();
       fetchDictItems();

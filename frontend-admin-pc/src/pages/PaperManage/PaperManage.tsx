@@ -639,7 +639,7 @@ export default function PaperManage() {
                       value={basicInfo.passScore}
                       onChange={(value) => setBasicInfo({ ...basicInfo, passScore: value || 60 })}
                       min={0}
-                      max={100}
+                      max={totalScore || 100}
                       suffix="分"
                     />
                   </FormItem>

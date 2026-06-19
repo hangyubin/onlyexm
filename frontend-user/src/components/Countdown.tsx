@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface CountdownProps {
   initialSeconds: number;
@@ -7,19 +7,39 @@ interface CountdownProps {
 
 export function Countdown({ initialSeconds, onTimeUp }: CountdownProps) {
   const [seconds, setSeconds] = useState(initialSeconds);
+  const onTimeUpRef = useRef(onTimeUp);
+  const triggeredRef = useRef(false);
+
+  // 保持 onTimeUp 的最新引用，避免 effect 依赖它导致重建定时器
+  useEffect(() => {
+    onTimeUpRef.current = onTimeUp;
+  }, [onTimeUp]);
 
   useEffect(() => {
-    if (seconds <= 0) {
-      onTimeUp();
+    if (initialSeconds <= 0) {
+      if (!triggeredRef.current) {
+        triggeredRef.current = true;
+        onTimeUpRef.current();
+      }
       return;
     }
 
     const timer = setInterval(() => {
-      setSeconds((prev) => prev - 1);
+      setSeconds((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          if (!triggeredRef.current) {
+            triggeredRef.current = true;
+            onTimeUpRef.current();
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [seconds, onTimeUp]);
+  }, [initialSeconds]);
 
   const minutes = Math.floor(seconds / 60);
   const secs = seconds % 60;

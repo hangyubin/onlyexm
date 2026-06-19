@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Card, Row, Col, Statistic, Tag, Button, Table, Modal, Checkbox, message, Space } from 'antd';
+import { Card, Row, Col, Statistic, Tag, Button, Table, Modal, Checkbox, message, Space, Switch } from 'antd';
 import { CheckboxChangeEvent } from 'antd/es/checkbox';
 import { ArrowUpOutlined, ArrowDownOutlined, WarningOutlined, FileTextOutlined, DownloadOutlined, SendOutlined, RestOutlined } from '@ant-design/icons';
 import * as echarts from 'echarts';
@@ -15,6 +15,9 @@ export default function InfectionDashboard() {
   const [loading, setLoading] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<number[]>([]);
   const [notifyModalVisible, setNotifyModalVisible] = useState(false);
+  const [staffPage, setStaffPage] = useState(1);
+  const [staffPageSize, setStaffPageSize] = useState(10);
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
   const deptChartRef = useRef<HTMLDivElement>(null);
   const weakPointsChartRef = useRef<HTMLDivElement>(null);
@@ -24,6 +27,16 @@ export default function InfectionDashboard() {
   const weakPointsChartInstance = useRef<echarts.ECharts | null>(null);
   const trendChartInstance = useRef<echarts.ECharts | null>(null);
 
+  const fetchStaff = useCallback(async (page: number, pageSize: number) => {
+    try {
+      const result = await infectionApi.getUnqualifiedStaff(page, pageSize);
+      setUnqualifiedStaff(result.data);
+      setTotalStaff(result.total);
+    } catch (error) {
+      console.error('获取未达标人员失败:', error);
+    }
+  }, []);
+
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
@@ -32,29 +45,30 @@ export default function InfectionDashboard() {
         infectionApi.getDeptRanking(),
         infectionApi.getWeakPoints(),
         infectionApi.getTrend(6),
-        infectionApi.getUnqualifiedStaff(1, 20),
       ]);
       if (results[0].status === 'fulfilled') setKpiData(results[0].value);
       if (results[1].status === 'fulfilled') setDeptRanking(results[1].value);
       if (results[2].status === 'fulfilled') setWeakPoints(results[2].value);
       if (results[3].status === 'fulfilled') setTrendData(results[3].value);
-      if (results[4].status === 'fulfilled') {
-        setUnqualifiedStaff(results[4].value.data);
-        setTotalStaff(results[4].value.total);
-      }
+      await fetchStaff(staffPage, staffPageSize);
     } catch (error) {
       console.error('获取数据失败:', error);
       message.error('获取数据失败');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchStaff, staffPage, staffPageSize]);
 
   useEffect(() => {
     fetchAllData();
-    const interval = setInterval(fetchAllData, 30000);
-    return () => clearInterval(interval);
-  }, [fetchAllData]);
+    let interval: ReturnType<typeof setInterval> | undefined;
+    if (autoRefresh) {
+      interval = setInterval(fetchAllData, 30000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [fetchAllData, autoRefresh]);
 
   useEffect(() => {
     if (deptChartRef.current && !deptChartInstance.current) {
@@ -481,9 +495,9 @@ export default function InfectionDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
+    <div>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">院感管理看板</h1>
+        <h2 className="text-xl font-bold text-slate-800">院感管理看板</h2>
         <div className="flex gap-3">
           <Button icon={<RestOutlined />} onClick={handleRefresh} loading={loading}>
             刷新数据
@@ -599,6 +613,8 @@ export default function InfectionDashboard() {
             title="未达标人员名单"
             extra={
               <Space>
+                <span style={{ fontSize: 13, color: '#64748b' }}>自动刷新</span>
+                <Switch checked={autoRefresh} onChange={setAutoRefresh} size="small" />
                 <Button icon={<SendOutlined />} onClick={handleBatchNotify} disabled={selectedStaff.length === 0}>
                   批量发送通知 ({selectedStaff.length})
                 </Button>
@@ -613,11 +629,17 @@ export default function InfectionDashboard() {
               columns={columns}
               rowKey="id"
               pagination={{
+                current: staffPage,
                 total: totalStaff,
-                pageSize: 10,
+                pageSize: staffPageSize,
                 showSizeChanger: true,
                 showQuickJumper: true,
                 showTotal: (total) => `共 ${total} 条`,
+                onChange: (page, pageSize) => {
+                  setStaffPage(page);
+                  setStaffPageSize(pageSize);
+                  fetchStaff(page, pageSize);
+                },
               }}
               loading={loading}
             />

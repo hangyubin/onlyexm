@@ -151,14 +151,17 @@ export default function QuestionManage() {
       dataIndex: 'difficulty',
       width: 80,
       align: 'center' as const,
-      render: (level: number) => (
-        <span className="flex items-center justify-center">
-          {'⭐'.repeat(level || 1)}
-          <span className="text-xs text-gray-500 ml-1">
-            {level === 1 ? '基础' : '进阶'}
+      render: (level: number) => {
+        const labels: Record<number, string> = { 1: '基础', 2: '较易', 3: '中等', 4: '较难', 5: '困难' };
+        return (
+          <span className="flex items-center justify-center">
+            {'⭐'.repeat(level || 1)}
+            <span className="text-xs text-gray-500 ml-1">
+              {labels[level] || '基础'}
+            </span>
           </span>
-        </span>
-      ),
+        );
+      },
     },
     {
       title: '创建时间',
@@ -182,7 +185,7 @@ export default function QuestionManage() {
   ];
 
   return (
-    <div className="p-6">
+    <div>
       <div className="bg-white rounded-lg shadow p-4 mb-4">
         <div className="flex flex-wrap gap-4 items-center">
           <Input

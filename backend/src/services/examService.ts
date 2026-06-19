@@ -23,6 +23,7 @@ export interface SubmitExamInput {
   answers: AnswerItem[];
   tabSwitchCount: number;
   suspiciousLog: SuspiciousLogItem[];
+  submitStatus?: string;
 }
 
 export interface WrongQuestion {
@@ -79,24 +80,63 @@ function calculateQuestionScore(
 
   if (question.type === 'CASE') {
     const rule = caseScoringRules[question.id];
+    // 解析 CASE 题答案：可能是 JSON 字符串、对象或数组
+    let userAnswerObj: Record<string, unknown> = {};
+    if (typeof userAnswer === 'string') {
+      try {
+        const parsed = JSON.parse(userAnswer as string);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          userAnswerObj = parsed as Record<string, unknown>;
+        } else if (Array.isArray(parsed)) {
+          // 数组形式的答案，使用 normalizeAnswer 比较
+          const normalizedArr = normalizeAnswer(parsed);
+          return {
+            score: normalizedArr === correctAnswer ? question.score : 0,
+            isCorrect: normalizedArr === correctAnswer,
+            correctAnswer,
+          };
+        }
+      } catch {
+        // JSON 解析失败，按字符串比较
+        return {
+          score: normalizedUserAnswer === correctAnswer ? question.score : 0,
+          isCorrect: normalizedUserAnswer === correctAnswer,
+          correctAnswer,
+        };
+      }
+    } else if (typeof userAnswer === 'object' && !Array.isArray(userAnswer)) {
+      userAnswerObj = userAnswer as unknown as Record<string, unknown>;
+    }
+
     if (rule) {
       let totalScore = 0;
-      const userAnswerObj = typeof userAnswer === 'object' && !Array.isArray(userAnswer) ? userAnswer as unknown as Record<string, unknown> : {} as Record<string, unknown>;
-      
       for (const step of rule.steps) {
         const userStepAnswer = userAnswerObj[step.stepKey];
         if (userStepAnswer === step.correctAnswer) {
           totalScore += step.points;
         }
       }
-      
+
       return {
         score: totalScore,
         isCorrect: totalScore === rule.totalPoints,
         correctAnswer: JSON.stringify(rule.steps.map(s => ({ [s.stepKey]: s.correctAnswer }))),
       };
     }
-    
+
+    // 无评分规则时，按对象字段逐一比较
+    if (Object.keys(userAnswerObj).length > 0) {
+      const correctOptionsMap = new Map(correctOptions.map(o => [o.optionKey, o.isCorrect]));
+      const allCorrect = Object.entries(userAnswerObj).every(
+        ([key, val]) => correctOptionsMap.get(key) === true && val === true
+      );
+      return {
+        score: allCorrect ? question.score : 0,
+        isCorrect: allCorrect,
+        correctAnswer,
+      };
+    }
+
     return {
       score: isCorrect ? question.score : 0,
       isCorrect,
@@ -228,7 +268,8 @@ export async function submitExam(input: SubmitExamInput): Promise<SubmitResult> 
         infectionScore,
         isPassed,
         tabSwitchCount: input.tabSwitchCount,
-        status: ExamStatus.SUBMITTED as any,
+        suspiciousLog: input.suspiciousLog && input.suspiciousLog.length > 0 ? JSON.stringify(input.suspiciousLog) : null,
+        status: (input.submitStatus || ExamStatus.SUBMITTED) as any,
       },
     });
 
