@@ -136,7 +136,7 @@ export default function ExamResult() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 print:min-h-0 print:pb-0 print:bg-white max-w-md mx-auto">
+    <div className="min-h-screen bg-gray-50 pb-safe-20 print:min-h-0 print:pb-0 print:bg-white max-w-md mx-auto">
       {/* 屏幕显示的结果头部 - 打印时隐藏 */}
       <div className="print:hidden">
         <div className={`px-4 py-8 text-center text-white ${result.passed ? 'bg-gradient-to-r from-green-500 to-green-600' : 'bg-gradient-to-r from-red-500 to-red-600'}`}>

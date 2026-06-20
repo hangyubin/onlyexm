@@ -193,7 +193,7 @@ const LearningMaterialDetail: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 max-w-md mx-auto">
+    <div className="min-h-screen bg-gray-50 pb-safe-20 max-w-md mx-auto">
       {showPreview && (
         <div className="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-2 sm:p-4">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col">

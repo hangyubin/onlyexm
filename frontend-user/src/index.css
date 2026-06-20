@@ -54,6 +54,31 @@ html, body, #root {
   padding-top: env(safe-area-inset-top);
 }
 
+/* ===== 安全区域 + 基础 padding 组合类 ===== */
+/* 用于替代 pb-8 + safe-area-bottom，避免两个规则冲突 */
+.pb-safe-8 {
+  padding-bottom: calc(2rem + env(safe-area-inset-bottom));
+}
+.pb-safe-32 {
+  padding-bottom: calc(8rem + env(safe-area-inset-bottom));
+}
+/* 用于替代 pb-20（TabLayout 底部导航栏高度 + 安全区域） */
+.pb-safe-20 {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+}
+/* 用于替代 header 的 py-4，自动适配顶部安全区域 */
+.pt-safe {
+  padding-top: calc(1rem + env(safe-area-inset-top));
+}
+/* 用于考试页/练习页固定 header 下方的内容区（pt-20 + 安全区域） */
+.pt-safe-20 {
+  padding-top: calc(5rem + env(safe-area-inset-top));
+}
+/* 用于固定 header 自身的顶部安全区域 */
+.header-safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
 /* ===== 固定定位居中容器（解决 fixed + mx-auto 不生效） ===== */
 /* 用法: className="fixed left-0 right-0 mx-auto max-w-md" 改为 fixed-center max-w-md */
 .fixed-center {

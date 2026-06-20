@@ -338,7 +338,7 @@ export function ExamTaking() {
 
   return (
     <div className="min-h-screen bg-gray-100 max-w-md mx-auto">
-      <header className="fixed top-0 w-full max-w-md fixed-center bg-white shadow-sm z-40">
+      <header className="fixed top-0 w-full max-w-md fixed-center bg-white shadow-sm z-40 header-safe-top">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <button
@@ -380,7 +380,7 @@ export function ExamTaking() {
         </div>
       </header>
 
-      <main className="pt-20 pb-32 px-4">
+      <main className="pt-safe-20 pb-safe-32 px-4">
         <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
           <div className="flex items-center justify-between mb-3">
             <span className={`px-3 py-1 rounded-full text-sm font-medium ${getTypeColor(currentQuestion.type)}`}>

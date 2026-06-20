@@ -159,7 +159,7 @@ export default function MyProfile() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 max-w-md mx-auto">
+    <div className="min-h-screen bg-gray-50 pb-safe-20 max-w-md mx-auto">
       {/* 用户信息头部 */}
       <div className="bg-gradient-to-br from-blue-600 to-blue-800 text-white px-4 pt-8 pb-6 rounded-b-3xl">
         <div className="flex items-center gap-4">

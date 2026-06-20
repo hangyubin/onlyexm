@@ -242,9 +242,9 @@ export function DailyPractice() {
   );
 
   const renderCompletedInfo = () => (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pb-8 max-w-md mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pb-safe-8 max-w-md mx-auto">
       <header className="bg-white shadow-sm">
-        <div className="px-4 py-4">
+        <div className="px-4 pb-4 pt-safe">
           <div className="flex items-center justify-between">
             <button
               onClick={() => navigate('/')}
@@ -317,9 +317,9 @@ export function DailyPractice() {
     };
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pb-8 max-w-md mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pb-safe-8 max-w-md mx-auto">
         <header className="bg-white shadow-sm">
-          <div className="px-4 py-4">
+          <div className="px-4 pb-4 pt-safe">
             <div className="flex items-center justify-between">
               <button
                 onClick={() => navigate('/')}
@@ -458,7 +458,7 @@ export function DailyPractice() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 max-w-md mx-auto">
         <header className="bg-white shadow-sm">
-          <div className="px-4 py-4">
+          <div className="px-4 pb-4 pt-safe">
             <div className="flex items-center justify-between">
               <button
                 onClick={() => navigate('/')}
@@ -487,7 +487,7 @@ export function DailyPractice() {
           </div>
         </header>
 
-        <main className="max-w-md mx-auto px-4 pt-6 pb-32">
+        <main className="px-4 pt-6 pb-safe-32">
           <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
             <div className="flex items-center justify-between mb-3">
               <span className={`px-3 py-1 rounded-full text-sm font-medium ${getTypeColor(currentQuestion.type)}`}>
@@ -618,7 +618,7 @@ export function DailyPractice() {
                   disabled={isSubmitting || answeredCount < practiceData!.questions.length}
                   className="flex-1 py-3 rounded-xl font-medium bg-blue-500 text-white hover:bg-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? '提交中...' : '提交今日练习'}
+                  {isSubmitting ? '提交中...' : '提交'}
                 </button>
               ) : (
                 <button
@@ -868,7 +868,7 @@ export function DailyPractice() {
             const result: JSX.Element[] = [];
 
             for (let i = 0; i < startDay; i++) {
-              result.push(<div key={`empty-${i}`} className="h-10" />);
+              result.push(<div key={`empty-${i}`} className="h-8" />);
             }
 
             for (let i = 1; i <= daysInMonth; i++) {
@@ -879,7 +879,7 @@ export function DailyPractice() {
               result.push(
                 <div
                   key={i}
-                  className={`h-10 flex items-center justify-center rounded-lg text-sm font-medium transition-all ${
+                  className={`h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-all ${
                     isToday ? 'ring-2 ring-blue-500' : ''
                   } ${
                     dayData?.isCompleted
