@@ -34,6 +34,11 @@ export default function MyProfile() {
   const [loading, setLoading] = useState(true);
   const [currentFontScale, setCurrentFontScale] = useState(() => localStorage.getItem('fontScale') || '1');
 
+  // 初始化字体缩放
+  useEffect(() => {
+    document.documentElement.setAttribute('data-font-scale', currentFontScale);
+  }, [currentFontScale]);
+
   // 修改密码
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' });
@@ -73,7 +78,7 @@ export default function MyProfile() {
   const handleFontScaleChange = (value: string) => {
     setCurrentFontScale(value);
     localStorage.setItem('fontScale', value);
-    document.documentElement.style.setProperty('--font-scale', value);
+    document.documentElement.setAttribute('data-font-scale', value);
   };
 
   const handleChangePassword = async () => {

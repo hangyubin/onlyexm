@@ -242,9 +242,9 @@ export function DailyPractice() {
   );
 
   const renderCompletedInfo = () => (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pb-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pb-8 max-w-md mx-auto">
       <header className="bg-white shadow-sm">
-        <div className="max-w-md mx-auto px-4 py-4">
+        <div className="px-4 py-4">
           <div className="flex items-center justify-between">
             <button
               onClick={() => navigate('/')}
@@ -260,7 +260,7 @@ export function DailyPractice() {
         </div>
       </header>
 
-      <main className="max-w-md mx-auto px-4 pt-6">
+      <main className="px-4 pt-6">
         <div className="bg-white rounded-2xl shadow-sm p-6 mb-6 text-center">
           <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -335,7 +335,7 @@ export function DailyPractice() {
           </div>
         </header>
 
-        <main className="max-w-md mx-auto px-4 pt-6">
+        <main className="px-4 pt-6">
           <div className="bg-white rounded-2xl shadow-sm p-6 mb-6 text-center">
             <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 ${
               submitResult!.accuracy >= 80 ? 'bg-green-100' : submitResult!.accuracy >= 60 ? 'bg-yellow-100' : 'bg-red-100'
@@ -598,8 +598,8 @@ export function DailyPractice() {
           </div>
         </main>
 
-        <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
-          <div className="max-w-md mx-auto px-4 py-4">
+        <footer className="fixed bottom-0 w-full max-w-md fixed-center bg-white border-t border-gray-200" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+          <div className="px-4 py-4">
             <div className="flex items-center gap-3">
               <button
                 onClick={prevQuestion}

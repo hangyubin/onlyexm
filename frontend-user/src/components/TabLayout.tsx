@@ -7,7 +7,7 @@ export function TabLayout() {
     <div className="min-h-screen bg-gray-50 max-w-md mx-auto">
       <Outlet />
       <nav
-        className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 shadow-lg z-50 max-w-md mx-auto"
+        className="fixed bottom-0 w-full max-w-md fixed-center bg-white border-t border-gray-100 shadow-lg z-50"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="flex items-center justify-around py-2">
@@ -20,7 +20,7 @@ export function TabLayout() {
             }
           >
             <Home className="w-6 h-6" />
-            <span className="text-sm">首页</span>
+            <span className="text-xs">首页</span>
           </NavLink>
           <NavLink
             to="/exams"
@@ -31,7 +31,7 @@ export function TabLayout() {
             }
           >
             <FileText className="w-6 h-6" />
-            <span className="text-sm">考试</span>
+            <span className="text-xs">考试</span>
           </NavLink>
           <NavLink
             to="/learning"
@@ -42,7 +42,7 @@ export function TabLayout() {
             }
           >
             <BookOpen className="w-6 h-6" />
-            <span className="text-sm">学习</span>
+            <span className="text-xs">学习</span>
           </NavLink>
           <NavLink
             to="/profile"
@@ -53,7 +53,7 @@ export function TabLayout() {
             }
           >
             <User className="w-6 h-6" />
-            <span className="text-sm">我的</span>
+            <span className="text-xs">我的</span>
           </NavLink>
         </div>
       </nav>

@@ -99,13 +99,13 @@ export function OfflinePractice({ userId }: OfflinePracticeProps) {
 
   if (showResult) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pb-8">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pb-8 max-w-md mx-auto">
         <header className="bg-white shadow-sm">
-          <div className="max-w-md mx-auto px-4 py-4">
+          <div className="px-4 py-4">
             <h1 className="font-bold text-lg text-gray-800 text-center">离线练习结果</h1>
           </div>
         </header>
-        <main className="max-w-md mx-auto px-4 pt-6">
+        <main className="px-4 pt-6">
           <div className="bg-white rounded-2xl shadow-sm p-6 text-center">
             <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 ${
               score >= 80 ? 'bg-green-100' : score >= 60 ? 'bg-yellow-100' : 'bg-red-100'
@@ -138,9 +138,9 @@ export function OfflinePractice({ userId }: OfflinePracticeProps) {
   const currentQuestion = questions[currentIndex];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 max-w-md mx-auto">
       <header className="bg-white shadow-sm">
-        <div className="max-w-md mx-auto px-4 py-4">
+        <div className="px-4 py-4">
           <div className="flex items-center justify-between">
             <h1 className="font-bold text-lg text-gray-800">离线练习</h1>
             <span className="text-sm text-gray-500">
@@ -158,7 +158,7 @@ export function OfflinePractice({ userId }: OfflinePracticeProps) {
         </div>
       </header>
 
-      <main className="max-w-md mx-auto px-4 pt-6 pb-32">
+      <main className="px-4 pt-6 pb-32">
         <div className="bg-white rounded-2xl shadow-sm p-4 mb-4">
           <p className="text-gray-800 leading-relaxed">
             <span className="font-bold mr-2">{currentIndex + 1}.</span>
@@ -259,8 +259,8 @@ export function OfflinePractice({ userId }: OfflinePracticeProps) {
         </div>
       </main>
 
-      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200">
-        <div className="max-w-md mx-auto px-4 py-4">
+      <footer className="fixed bottom-0 w-full max-w-md fixed-center bg-white border-t border-gray-200" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <div className="px-4 py-4">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}

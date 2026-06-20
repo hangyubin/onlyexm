@@ -8,11 +8,8 @@
   box-sizing: border-box;
 }
 
-/* 安全区域适配（刘海屏/全面屏手机：小米/红米等） */
+/* ===== 安全区域适配（刘海屏/全面屏：小米/红米等） ===== */
 body {
-  padding-top: env(safe-area-inset-top);
-  padding-left: env(safe-area-inset-left);
-  padding-right: env(safe-area-inset-right);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'PingFang SC', 'Microsoft YaHei', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -25,57 +22,104 @@ body {
   /* 防止横屏时字体缩放 */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  /* MIUI浏览器背景色统一 */
+  background-color: #f9fafb;
 }
 
-/* 根据屏幕宽度动态调整根字号，适配不同手机分辨率 */
-/* 红米/小米常见分辨率：360x640, 393x873, 412x915 */
-/* 用户可通过 localStorage.fontScale 调节（0.85 / 1 / 1.15 / 1.3） */
+/* ===== 固定16px根字号，不随屏幕宽度变化 ===== */
+/* fontScale 通过 data-font-scale 属性控制，不影响布局rem */
 html {
-  font-size: calc(clamp(16px, 4.8vw, 22px) * var(--font-scale, 1));
+  font-size: 16px;
 }
 
 html, body, #root {
-  height: 100%;
+  min-height: 100%;
 }
 
-/* 底导航栏文字放大 */
-nav span.text-xs {
-  font-size: 0.8rem;
+/* ===== 动态视口高度（解决移动端100vh包含地址栏问题） ===== */
+/* dvh: dynamic viewport height, 随地址栏显隐动态变化 */
+@supports (height: 100dvh) {
+  .min-h-screen {
+    min-height: 100dvh;
+  }
 }
 
-/* 卡片内文字最小字号限制，避免过小 */
-.text-xs {
-  font-size: max(0.8rem, 13px);
+/* ===== 底部安全区域 ===== */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-.text-sm {
-  font-size: max(0.9rem, 15px);
+/* ===== 顶部安全区域 ===== */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
 }
 
-/* 按钮最小高度和字号 */
-button {
-  min-height: 44px;
-  font-size: max(0.9rem, 15px);
+/* ===== 固定定位居中容器（解决 fixed + mx-auto 不生效） ===== */
+/* 用法: className="fixed left-0 right-0 mx-auto max-w-md" 改为 fixed-center max-w-md */
+.fixed-center {
+  left: 50%;
+  transform: translateX(-50%);
 }
 
-/* 输入框最小字号（防止 iOS 缩放） */
-input, select, textarea {
-  font-size: max(1rem, 16px);
+/* ===== 字体缩放：通过 data 属性控制，不影响布局rem ===== */
+/* App.tsx 初始化时读取 localStorage，MyProfile 页面可修改 */
+html[data-font-scale="0.85"] {
+  font-size: 13.6px;
+}
+html[data-font-scale="1"] {
+  font-size: 16px;
+}
+html[data-font-scale="1.15"] {
+  font-size: 18.4px;
+}
+html[data-font-scale="1.3"] {
+  font-size: 20.8px;
 }
 
-/* 字体大小设置页面的按钮不受 min-height 影响 */
-.font-scale-btn {
-  min-height: auto;
-}
-
-/* 防止图片溢出 */
+/* ===== 防止图片/视频溢出 ===== */
 img, video {
   max-width: 100%;
   height: auto;
 }
 
-/* 防止长文本溢出容器 */
+/* ===== 防止长文本溢出容器 ===== */
 .break-words {
   word-break: break-word;
   overflow-wrap: break-word;
+}
+
+/* ===== 细分割线（仅用于需要0.5px细线的场景，避免全局覆盖） ===== */
+.hairline-t {
+  border-top: 1px solid #e5e7eb;
+}
+.hairline-b {
+  border-bottom: 1px solid #e5e7eb;
+}
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 2dppx) {
+  .hairline-t {
+    border-top-width: 0.5px;
+  }
+  .hairline-b {
+    border-bottom-width: 0.5px;
+  }
+}
+
+/* ===== 输入框防止 iOS/MIUI 缩放 ===== */
+input, select, textarea {
+  font-size: 16px;
+}
+
+/* ===== 滚动平滑 ===== */
+.scroll-container {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* ===== 隐藏滚动条但保持可滚动 ===== */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }

@@ -129,12 +129,10 @@ const router = createBrowserRouter(
 );
 
 function App() {
-  // 初始化字体缩放
+  // 初始化字体缩放（从 localStorage 读取，通过 data 属性控制）
   useEffect(() => {
-    const savedScale = localStorage.getItem('fontScale');
-    if (savedScale) {
-      document.documentElement.style.setProperty('--font-scale', savedScale);
-    }
+    const savedScale = localStorage.getItem('fontScale') || '1';
+    document.documentElement.setAttribute('data-font-scale', savedScale);
   }, []);
 
   return <RouterProvider router={router} />;

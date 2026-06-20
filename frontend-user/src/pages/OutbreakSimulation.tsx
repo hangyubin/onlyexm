@@ -200,7 +200,7 @@ export function OutbreakSimulation() {
 
   if (report) {
     return (
-      <div className="max-w-md mx-auto px-4 py-6">
+      <div className="min-h-screen bg-gray-50 max-w-md mx-auto px-4 py-6">
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-6 text-white">
             <h1 className="text-xl font-bold text-center mb-2">院感暴发模拟演练报告</h1>
