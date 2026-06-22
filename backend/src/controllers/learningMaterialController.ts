@@ -3,7 +3,7 @@ import * as learningMaterialService from '../services/learningMaterialService';
 
 export const getLearningMaterials = async (req: Request, res: Response) => {
   try {
-    const { keyword, type, category, isActive } = req.query;
+    const { keyword, type, category, isActive, page, pageSize } = req.query;
     
     const filters: {
       keyword?: string;
@@ -19,8 +19,11 @@ export const getLearningMaterials = async (req: Request, res: Response) => {
       filters.isActive = isActive === 'true';
     }
     
-    const materials = await learningMaterialService.getMaterials(filters);
-    res.json({ success: true, data: materials });
+    const result = await learningMaterialService.getMaterials(filters, {
+      page: page ? parseInt(page as string) : undefined,
+      pageSize: pageSize ? parseInt(pageSize as string) : undefined,
+    });
+    res.json({ success: true, data: result.data, total: result.total });
   } catch (error) {
     console.error('Get learning materials error:', error);
     res.status(500).json({ success: false, message: '获取学习资料列表失败' });

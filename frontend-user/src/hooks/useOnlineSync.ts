@@ -61,12 +61,8 @@ export function useOnlineSync() {
           { userId, records: syncData }
         );
 
-        if (response.data.code === 0) {
+        if (response.data.success) {
           totalSynced += response.data.data.syncedCount;
-          if (response.data.data.isUnlocked) {
-            isUnlocked = true;
-          }
-
           const failedIds: number[] = response.data.data.failedIds || [];
           const syncedIds = batch
             .filter(r => !failedIds.includes(r.questionId))

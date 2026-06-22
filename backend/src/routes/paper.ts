@@ -212,16 +212,23 @@ router.get('/:id', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: '无效的试卷ID' });
     }
 
+    const isAdmin = req.user?.role && ['ADMIN', 'INFECTION_OFFICER'].includes(req.user.role);
     const paper = await prisma.paper.findUnique({
       where: { id },
       include: {
         paperQuestions: {
           include: {
             question: {
-              include: {
-                options: {
-                  select: { id: true, optionKey: true, content: true, isCorrect: true },
-                },
+              select: {
+                id: true,
+                content: true,
+                type: true,
+                // 仅管理员可查看选项和正确答案
+                ...(isAdmin ? {
+                  options: {
+                    select: { id: true, optionKey: true, content: true, isCorrect: true },
+                  },
+                } : {}),
               },
             },
           },
@@ -234,7 +241,23 @@ router.get('/:id', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: '试卷不存在' });
     }
 
-    res.json(mapPaperDetail(paper));
+    // 非管理员无法查看未发布/未激活的试卷
+    if (!isAdmin && (!paper.isPublished || !paper.isActive)) {
+      return res.status(404).json({ error: '试卷不存在' });
+    }
+
+    // 构建响应：管理员返回完整信息，普通用户不返回选项
+    const result = mapPaperDetail(paper);
+    if (isAdmin) {
+      (result as any).questions = (paper.paperQuestions || []).map((pq: any) => ({
+        questionId: pq.questionId,
+        content: pq.question.content,
+        type: pq.question.type,
+        score: pq.score,
+        options: pq.question.options || [],
+      }));
+    }
+    res.json(result);
   } catch (err) {
     console.error('Get paper detail error:', err);
     res.status(500).json({ error: '获取试卷详情失败' });

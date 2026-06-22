@@ -11,7 +11,9 @@ export default function LearningMaterialManage() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editData, setEditData] = useState<LearningMaterial | null>(null);
   const [data, setData] = useState<LearningMaterial[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 20 });
 
   const typeDictData = useDictData('MATERIAL_TYPE');
   const typeDict = Object.keys(typeDictData.dictMap).length > 0 ? typeDictData.dictMap : {
@@ -34,26 +36,34 @@ export default function LearningMaterialManage() {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = async (page?: number, pageSize?: number) => {
+    const p = page ?? pagination.page;
+    const ps = pageSize ?? pagination.pageSize;
     try {
       setLoading(true);
-      const params: LearningMaterialListParams = {};
+      const params: LearningMaterialListParams = {
+        page: p,
+        pageSize: ps,
+      };
       if (searchForm.keyword) params.keyword = searchForm.keyword.trim();
       if (searchForm.type) params.type = searchForm.type;
       if (searchForm.category) params.category = searchForm.category.trim();
       if (searchForm.isActive !== undefined) params.isActive = searchForm.isActive;
-      const data = await learningMaterialApi.getList(params);
-      setData(data);
+      const result = await learningMaterialApi.getList(params);
+      setData(result.data);
+      setTotal(result.total);
     } catch (error) {
       message.error('获取学习资料列表失败');
       setData([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
   };
 
   const handleSearch = () => {
-    fetchData();
+    setPagination(prev => ({ ...prev, page: 1 }));
+    fetchData(1, pagination.pageSize);
   };
 
   const handleReset = () => {
@@ -63,7 +73,8 @@ export default function LearningMaterialManage() {
       category: '',
       isActive: undefined,
     });
-    fetchData();
+    setPagination({ page: 1, pageSize: 20 });
+    fetchData(1, 20);
   };
 
   const handleAdd = () => {
@@ -246,6 +257,18 @@ export default function LearningMaterialManage() {
         rowKey="id"
         loading={loading}
         scroll={{ x: 1200 }}
+        pagination={{
+          current: pagination.page,
+          pageSize: pagination.pageSize,
+          total,
+          showSizeChanger: true,
+          pageSizeOptions: ['10', '20', '50', '100'],
+          showTotal: (t) => `共 ${t} 条`,
+          onChange: (page, pageSize) => {
+            setPagination({ page, pageSize });
+            fetchData(page, pageSize);
+          },
+        }}
       />
 
       <LearningMaterialModal

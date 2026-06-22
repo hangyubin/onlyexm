@@ -45,7 +45,7 @@ const normalizeDepartment = async (dept: unknown): Promise<string | undefined> =
   return hit ? hit.code : s;
 };
 
-router.get('/', async (req, res) => {
+router.get('/', roleGuard(['ADMIN', 'INFECTION_OFFICER', 'DEPARTMENT_HEAD']), async (req, res) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const pageSize = parseInt(req.query.pageSize as string) || 10;

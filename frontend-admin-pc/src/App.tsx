@@ -1,15 +1,30 @@
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import AdminLayout from './layouts/AdminLayout';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import QuestionManage from './pages/QuestionManage/QuestionManage';
-import PaperManage from './pages/PaperManage/PaperManage';
-import ExamMonitor from './pages/ExamMonitor';
-import InfectionDashboard from './pages/InfectionDashboard';
-import UserManage from './pages/UserManage';
-import Reports from './pages/Reports';
-import SystemConfig from './pages/SystemConfig';
-import LearningMaterialManage from './pages/LearningMaterialManage/LearningMaterialManage';
+
+// 代码分割：懒加载所有页面组件
+const Login = lazy(() => import('./pages/Login'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const QuestionManage = lazy(() => import('./pages/QuestionManage/QuestionManage'));
+const PaperManage = lazy(() => import('./pages/PaperManage/PaperManage'));
+const ExamMonitor = lazy(() => import('./pages/ExamMonitor'));
+const InfectionDashboard = lazy(() => import('./pages/InfectionDashboard'));
+const UserManage = lazy(() => import('./pages/UserManage'));
+const Reports = lazy(() => import('./pages/Reports'));
+const SystemConfig = lazy(() => import('./pages/SystemConfig'));
+const LearningMaterialManage = lazy(() => import('./pages/LearningMaterialManage/LearningMaterialManage'));
+
+function PageLoading() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+      <div style={{ width: 32, height: 32, border: '3px solid #1890ff', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+    </div>
+  );
+}
+
+function LazyPage({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={<PageLoading />}>{children}</Suspense>;
+}
 
 // 可进入管理后台的角色
 const ADMIN_ROLES = [
@@ -45,7 +60,7 @@ const router = createBrowserRouter(
   [
     {
       path: '/login',
-      element: <Login />,
+      element: <LazyPage><Login /></LazyPage>,
     },
     {
       path: '/',
@@ -61,39 +76,43 @@ const router = createBrowserRouter(
         },
         {
           path: 'dashboard',
-          element: <Dashboard />,
+          element: <LazyPage><Dashboard /></LazyPage>,
         },
         {
           path: 'question-manage',
-          element: <QuestionManage />,
+          element: <LazyPage><QuestionManage /></LazyPage>,
         },
         {
           path: 'paper-manage',
-          element: <PaperManage />,
+          element: <LazyPage><PaperManage /></LazyPage>,
         },
         {
           path: 'exam-monitor',
-          element: <ExamMonitor />,
+          element: <LazyPage><ExamMonitor /></LazyPage>,
         },
         {
           path: 'infection-dashboard',
-          element: <InfectionDashboard />,
+          element: <LazyPage><InfectionDashboard /></LazyPage>,
         },
         {
           path: 'user-manage',
-          element: <UserManage />,
+          element: <LazyPage><UserManage /></LazyPage>,
         },
         {
           path: 'reports',
-          element: <Reports />,
+          element: <LazyPage><Reports /></LazyPage>,
         },
         {
           path: 'system-config',
-          element: <SystemConfig />,
+          element: <LazyPage><SystemConfig /></LazyPage>,
         },
         {
           path: 'learning-material',
-          element: <LearningMaterialManage />,
+          element: <LazyPage><LearningMaterialManage /></LazyPage>,
+        },
+        {
+          path: '*',
+          element: <Navigate to="/dashboard" replace />,
         },
       ],
     },

@@ -91,6 +91,7 @@ export function DailyPractice() {
         setLoading(false);
       } else {
         setError(response.data.message || '获取练习数据失败');
+        setLoading(false);
       }
     } catch (err) {
       setError('获取练习数据失败');
@@ -413,11 +414,11 @@ export function DailyPractice() {
                     )}
                     {question.type === 'JUDGE' && (
                       <div className="flex gap-2 mb-2 text-base">
-                        <span className={result.correctAnswer === 'true' ? 'text-green-600 font-medium' : 'text-gray-500'}>
-                          正确{result.correctAnswer === 'true' && ' ✓'}
+                        <span className={result.correctAnswer === 'A' ? 'text-green-600 font-medium' : 'text-gray-500'}>
+                          正确{result.correctAnswer === 'A' && ' ✓'}
                         </span>
-                        <span className={result.correctAnswer === 'false' ? 'text-green-600 font-medium' : 'text-gray-500'}>
-                          错误{result.correctAnswer === 'false' && ' ✓'}
+                        <span className={result.correctAnswer === 'B' ? 'text-green-600 font-medium' : 'text-gray-500'}>
+                          错误{result.correctAnswer === 'B' && ' ✓'}
                         </span>
                       </div>
                     )}

@@ -104,8 +104,7 @@ export default function ExamList() {
   const fetchPapers = async () => {
     try {
       const res = await api.get('/papers', { params: { isActive: true } });
-      const data = res.data.data || res.data;
-      setPapers(Array.isArray(data) ? data : []);
+      setPapers(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       setError('获取考试列表失败');
     } finally {

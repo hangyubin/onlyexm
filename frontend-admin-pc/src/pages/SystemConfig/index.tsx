@@ -230,8 +230,8 @@ function DictManageTab() {
       setModalVisible(false);
       form.resetFields();
       fetchDictItems();
-    } catch (error) {
-      message.error('操作失败');
+    } catch (error: any) {
+      message.error(error?.message || '保存字典失败');
     }
   };
 
@@ -405,8 +405,8 @@ function HospitalManageTab() {
       setModalVisible(false);
       form.resetFields();
       fetchHospitals();
-    } catch (error) {
-      message.error('操作失败');
+    } catch (error: any) {
+      message.error(error?.message || '保存医院失败');
     }
   };
 

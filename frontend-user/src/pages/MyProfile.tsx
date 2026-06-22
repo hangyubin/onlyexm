@@ -381,6 +381,7 @@ export default function MyProfile() {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             localStorage.removeItem('userRole');
+            localStorage.removeItem('userId');
             navigate('/login');
           }}
           className="w-full py-3 bg-red-50 text-red-600 rounded-xl font-medium flex items-center justify-center gap-2 hover:bg-red-100 transition-colors"

@@ -16,6 +16,14 @@ export function Countdown({ initialSeconds, onTimeUp }: CountdownProps) {
   }, [onTimeUp]);
 
   useEffect(() => {
+    // 监听 seconds 归零，在 effect 中执行副作用（而非 setState 回调中）
+    if (seconds <= 0 && !triggeredRef.current) {
+      triggeredRef.current = true;
+      onTimeUpRef.current();
+    }
+  }, [seconds]);
+
+  useEffect(() => {
     if (initialSeconds <= 0) {
       if (!triggeredRef.current) {
         triggeredRef.current = true;
@@ -25,17 +33,7 @@ export function Countdown({ initialSeconds, onTimeUp }: CountdownProps) {
     }
 
     const timer = setInterval(() => {
-      setSeconds((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          if (!triggeredRef.current) {
-            triggeredRef.current = true;
-            onTimeUpRef.current();
-          }
-          return 0;
-        }
-        return prev - 1;
-      });
+      setSeconds((prev) => Math.max(0, prev - 1));
     }, 1000);
 
     return () => clearInterval(timer);

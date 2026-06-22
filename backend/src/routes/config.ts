@@ -35,7 +35,7 @@ router.get('/', authMiddleware, async (req, res) => {
     res.json(configMap);
   } catch (err) {
     console.error('Get system config error:', err);
-    res.status(500).json({ error: '获取配置失败', detail: String(err) });
+    res.status(500).json({ error: '获取配置失败' });
   }
 });
 
@@ -54,11 +54,13 @@ router.post('/', authMiddleware, roleGuard(['ADMIN']), async (req, res) => {
       });
 
       if (userId) {
+        // 读取旧值用于日志记录
+        const existing = await prisma.systemConfig.findUnique({ where: { configKey: key } });
         await prisma.configLog.create({
           data: {
             userId,
             configKey: key,
-            oldValue: '',
+            oldValue: existing?.configValue || '',
             newValue: configValue,
             action: 'UPDATE',
             description: `更新配置: ${key}`,

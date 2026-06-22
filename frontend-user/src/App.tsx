@@ -1,21 +1,35 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-router-dom';
-import Home from './pages/Home';
-import Login from './pages/Login';
-import { DailyPractice } from './pages/DailyPractice';
-import { WrongQuestionBook } from './pages/WrongQuestionBook';
-import { ExamTaking } from './pages/ExamTaking';
-import ExamList from './pages/ExamList';
-import ExamResult from './pages/ExamResult';
-import { OutbreakSimulation } from './pages/OutbreakSimulation';
-import MyProfile from './pages/MyProfile';
-import LearningMaterials from './pages/LearningMaterials';
-import LearningMaterialDetail from './pages/LearningMaterialDetail';
 import { TabLayout } from './components/TabLayout';
 import { useInfectionStatus } from './hooks/useInfectionStatus';
 import { useOnlineSync } from './hooks/useOnlineSync';
 import { InfectionWarning } from './components/InfectionWarning';
 import { offlineDB } from './utils/offlineDB';
+
+// 代码分割：懒加载所有页面组件
+const Home = lazy(() => import('./pages/Home'));
+const Login = lazy(() => import('./pages/Login'));
+const DailyPractice = lazy(() => import('./pages/DailyPractice').then(m => ({ default: m.DailyPractice })));
+const WrongQuestionBook = lazy(() => import('./pages/WrongQuestionBook').then(m => ({ default: m.WrongQuestionBook })));
+const ExamTaking = lazy(() => import('./pages/ExamTaking').then(m => ({ default: m.ExamTaking })));
+const ExamList = lazy(() => import('./pages/ExamList'));
+const ExamResult = lazy(() => import('./pages/ExamResult'));
+const OutbreakSimulation = lazy(() => import('./pages/OutbreakSimulation').then(m => ({ default: m.OutbreakSimulation })));
+const MyProfile = lazy(() => import('./pages/MyProfile'));
+const LearningMaterials = lazy(() => import('./pages/LearningMaterials'));
+const LearningMaterialDetail = lazy(() => import('./pages/LearningMaterialDetail'));
+
+function PageLoading() {
+  return (
+    <div className="flex items-center justify-center h-screen">
+      <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent" />
+    </div>
+  );
+}
+
+function LazyPage({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={<PageLoading />}>{children}</Suspense>;
+}
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('token');
@@ -33,6 +47,8 @@ function LayoutWrapper() {
   useEffect(() => {
     if (status) {
       setShowWarning(true);
+    } else {
+      setShowWarning(false);
     }
   }, [status]);
 
@@ -87,7 +103,7 @@ const router = createBrowserRouter(
   [
     {
       path: '/login',
-      element: <Login />,
+      element: <LazyPage><Login /></LazyPage>,
     },
     {
       element: (
@@ -100,19 +116,19 @@ const router = createBrowserRouter(
         {
           element: <TabLayout />,
           children: [
-            { path: '/', element: <Home /> },
-            { path: '/exams', element: <ExamList /> },
-            { path: '/learning', element: <LearningMaterials /> },
-            { path: '/learning/:id', element: <LearningMaterialDetail /> },
-            { path: '/wrong-questions', element: <WrongQuestionBook /> },
-            { path: '/profile', element: <MyProfile /> },
+            { path: '/', element: <LazyPage><Home /></LazyPage> },
+            { path: '/exams', element: <LazyPage><ExamList /></LazyPage> },
+            { path: '/learning', element: <LazyPage><LearningMaterials /></LazyPage> },
+            { path: '/learning/:id', element: <LazyPage><LearningMaterialDetail /></LazyPage> },
+            { path: '/wrong-questions', element: <LazyPage><WrongQuestionBook /></LazyPage> },
+            { path: '/profile', element: <LazyPage><MyProfile /></LazyPage> },
           ],
         },
         // 不带 TabBar 的页面
-        { path: '/daily-practice', element: <DailyPractice /> },
-        { path: '/exam/:id', element: <ExamTaking /> },
-        { path: '/exam/result/:id', element: <ExamResult /> },
-        { path: '/outbreak', element: <OutbreakSimulation /> },
+        { path: '/daily-practice', element: <LazyPage><DailyPractice /></LazyPage> },
+        { path: '/exam/:id', element: <LazyPage><ExamTaking /></LazyPage> },
+        { path: '/exam/result/:id', element: <LazyPage><ExamResult /></LazyPage> },
+        { path: '/outbreak', element: <LazyPage><OutbreakSimulation /></LazyPage> },
       ],
     },
     {

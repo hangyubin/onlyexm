@@ -27,7 +27,7 @@ api.interceptors.response.use(
     const data = response.data;
     if (data && typeof data === 'object') {
       // 统一处理 { code, data, message } 和 { success, data, message } 格式
-      if ('code' in data) {
+      if ('code' in data && typeof data.code === 'number') {
         if (data.code === 0) {
           // 如果包含total字段，说明是分页数据，保留原始格式
           if ('total' in data) {

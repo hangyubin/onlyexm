@@ -23,11 +23,13 @@ export interface LearningMaterialListParams {
   type?: string;
   isActive?: boolean;
   keyword?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export const learningMaterialApi = {
-  getList: async (params?: LearningMaterialListParams): Promise<LearningMaterial[]> => {
-    const response = await api.get<LearningMaterial[]>('/learning-materials', { params });
+  getList: async (params?: LearningMaterialListParams): Promise<{ data: LearningMaterial[]; total: number }> => {
+    const response = await api.get<{ data: LearningMaterial[]; total: number }>('/learning-materials', { params });
     return response.data;
   },
 

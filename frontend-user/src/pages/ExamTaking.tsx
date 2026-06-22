@@ -118,13 +118,11 @@ export function ExamTaking() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [examData, isSubmitting]);
 
-  // 组件卸载时清理防抖定时器，避免内存泄漏和卸载后异步请求
+  // 组件卸载时清理所有防抖定时器
   useEffect(() => {
     return () => {
-      if (saveTimerRef.current) {
-        clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = null;
-      }
+      saveTimerRef.current.forEach((timer) => clearTimeout(timer));
+      saveTimerRef.current.clear();
     };
   }, []);
 
@@ -147,24 +145,28 @@ export function ExamTaking() {
     };
   }, [examData]);
 
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveTimerRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
   const saveAnswer = useCallback(async (questionId: number, answer: AnswerType) => {
     if (!examData) return;
 
-    // 防抖：清除之前的定时器，只保留最新的
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(async () => {
+    // 每题独立防抖
+    if (saveTimerRef.current.has(questionId)) {
+      clearTimeout(saveTimerRef.current.get(questionId)!);
+    }
+    const timer = setTimeout(async () => {
       try {
         await api.post('/exam/save-answer', {
           examRecordId: examData.examRecordId,
           questionId,
           answer,
         });
+        saveTimerRef.current.delete(questionId);
       } catch (err) {
         console.error('答案保存失败:', err);
       }
     }, 300);
+    saveTimerRef.current.set(questionId, timer);
   }, [examData]);
 
   const handleAnswer = useCallback(

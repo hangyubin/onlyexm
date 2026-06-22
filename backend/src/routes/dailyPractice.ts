@@ -47,7 +47,7 @@ router.post('/submit', authMiddleware, async (req, res) => {
     const userId = req.user?.userId || 0;
     console.log('提交练习 - 用户ID:', userId, '练习ID:', practiceId, '答案数量:', answers?.length);
     
-    const result = await submitPractice(practiceId, answers);
+    const result = await submitPractice(practiceId, userId, answers);
     console.log('提交结果:', result.success, result.message);
     
     res.json(result);

@@ -91,6 +91,7 @@ export default function ExamResult() {
       URL.revokeObjectURL(url);
     } catch (e) {
       console.error('下载PDF失败:', e);
+      alert('PDF下载失败，请重试');
     }
   };
 
@@ -297,10 +298,10 @@ export default function ExamResult() {
                         {/* 判断题显示 - 打印时隐藏选项，只保留题干中的答案标记 */}
                         {q.type === 'JUDGE' && (
                           <div className="flex gap-3 mb-2 text-xs print:hidden">
-                            <span className={q.correctAnswer === 'true' ? 'text-green-600 font-bold' : 'text-gray-500'}>
+                            <span className={q.correctAnswer === 'A' ? 'text-green-600 font-bold' : 'text-gray-500'}>
                               正确
                             </span>
-                            <span className={q.correctAnswer === 'false' ? 'text-green-600 font-bold' : 'text-gray-500'}>
+                            <span className={q.correctAnswer === 'B' ? 'text-green-600 font-bold' : 'text-gray-500'}>
                               错误
                             </span>
                           </div>
@@ -318,7 +319,7 @@ export default function ExamResult() {
                         )}
                         {q.isCorrect && q.type === 'JUDGE' && (
                           <div className="text-xs text-green-600 print:hidden">
-                            答案：{q.correctAnswer === 'true' ? '正确' : '错误'}
+                            答案：{q.correctAnswer === 'A' ? '正确' : '错误'}
                           </div>
                         )}
                       </div>

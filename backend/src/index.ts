@@ -1,6 +1,8 @@
 /// <reference path="./types/express.d.ts" />
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import prisma from './lib/prisma';
 import multer from 'multer';
@@ -68,7 +70,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 1024 * 1024 * 1024 },
+  limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowedMimeTypes = [
       'image/jpeg', 'image/png', 'image/gif', 'image/jpg', 'image/webp',
@@ -112,8 +114,34 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use(express.json({ limit: '1gb' }));
-app.use(express.urlencoded({ extended: true, limit: '1gb' }));
+// 安全响应头
+app.use(helmet({
+  contentSecurityPolicy: false, // 由 Nginx 层处理 CSP
+  crossOriginEmbedderPolicy: false,
+}));
+
+// 全局速率限制
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15分钟
+  max: 1000, // 每个IP最多1000次请求
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: '请求过于频繁，请稍后再试' },
+});
+app.use('/api', globalLimiter);
+
+// 登录接口严格限流
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: '登录尝试过于频繁，请15分钟后再试' },
+});
+app.use('/api/auth/login', authLimiter);
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use('/uploads', express.static(uploadDir, {
   setHeaders: (res) => {
@@ -205,7 +233,10 @@ app.use((req, res) => {
 });
 
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error(err.stack);
+  console.error('Unhandled error:', err.message);
+  if (process.env.NODE_ENV !== 'production') {
+    console.error(err.stack);
+  }
   res.status(500).json({ error: 'Internal Server Error' });
 });
 

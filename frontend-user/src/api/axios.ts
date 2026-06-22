@@ -26,7 +26,7 @@ api.interceptors.response.use(
     const data = response.data;
     if (data && typeof data === 'object') {
       // 处理 { code, data, message } 格式
-      if ('code' in data) {
+      if ('code' in data && typeof data.code === 'number') {
         if (data.code === 0) {
           if ('total' in data) {
             response.data = data;

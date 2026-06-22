@@ -2,6 +2,7 @@ import express from 'express';
 import prisma from '../lib/prisma';
 import { authMiddleware } from '../middleware/auth';
 import bcrypt from 'bcryptjs';
+import { getInfectionConfig } from '../services/configService';
 
 const router = express.Router();
 
@@ -48,6 +49,9 @@ router.get('/stats', authMiddleware, async (req, res) => {
       include: { paper: true },
     });
 
+    let config = null;
+    try { config = await getInfectionConfig(); } catch (_) {}
+
     const stats = {
       user: {
         realName: user?.realName || '',
@@ -58,18 +62,18 @@ router.get('/stats', authMiddleware, async (req, res) => {
         email: (user as any)?.email || '',
       },
       infectionStatus: {
-        isQualified: (infectionRequirement?.completedCount || 0) >= 20 && Number(infectionRequirement?.accuracyRate || 0) >= 70,
+        isQualified: (infectionRequirement?.completedCount || 0) >= (config?.monthlyRequiredCount || 20) && Number(infectionRequirement?.accuracyRate || 0) >= (config?.passRateThreshold || 70),
         completedCount: infectionRequirement?.completedCount || 0,
-        requiredCount: infectionRequirement?.requiredCount || 20,
+        requiredCount: infectionRequirement?.requiredCount || config?.monthlyRequiredCount || 20,
         accuracyRate: Number(infectionRequirement?.accuracyRate || 0),
-        remainingCount: Math.max(0, (infectionRequirement?.requiredCount || 20) - (infectionRequirement?.completedCount || 0)),
+        remainingCount: Math.max(0, (infectionRequirement?.requiredCount || config?.monthlyRequiredCount || 20) - (infectionRequirement?.completedCount || 0)),
       },
       studyStats: {
         totalStudyHours: Math.round(totalStudyMinutes / 60 * 10) / 10,
         totalPracticeCount: totalPracticeCount,
         monthlyInfectionProgress: {
           completed: infectionRequirement?.completedCount || 0,
-          total: infectionRequirement?.requiredCount || 20,
+          total: infectionRequirement?.requiredCount || config?.monthlyRequiredCount || 20,
         },
       },
       pendingTasks: {

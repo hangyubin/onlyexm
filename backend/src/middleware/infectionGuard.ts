@@ -16,66 +16,64 @@ export async function infectionGuard(req: Request, res: Response, next: NextFunc
   const currentMonth = new Date().toISOString().slice(0, 7);
 
   try {
-    const requirement = await prisma.infectionRequirement.findFirst({
-      where: {
-        userId: user.userId,
-        month: currentMonth,
-      },
-    });
-
-    if (!requirement) {
-      const config = await getInfectionConfig();
-      await prisma.infectionRequirement.create({
-        data: {
+    const config = await getInfectionConfig();
+    
+    // 使用事务确保读取和写入是原子的，避免 TOCTOU 竞态
+    const requirement = await prisma.$transaction(async (tx) => {
+      let req = await tx.infectionRequirement.findFirst({
+        where: {
           userId: user.userId,
           month: currentMonth,
-          requiredCount: config.monthlyRequiredCount,
-          completedCount: 0,
         },
       });
-      return next();
-    }
 
-    const { requiredCount, completedCount, accuracyRate } = requirement;
-    const needCount = requiredCount - completedCount;
-    const currentAccuracy = accuracyRate ? Number(accuracyRate) : 0;
+      if (!req) {
+        req = await tx.infectionRequirement.create({
+          data: {
+            userId: user.userId,
+            month: currentMonth,
+            requiredCount: config.monthlyRequiredCount,
+            completedCount: 0,
+          },
+        });
+        return { requirement: req, isLocked: false };
+      }
 
-    const isLocked = needCount > 0 || currentAccuracy < 70;
+      const { requiredCount, completedCount, accuracyRate } = req;
+      const needCount = requiredCount - completedCount;
+      const currentAccuracy = accuracyRate ? Number(accuracyRate) : 0;
+      const isLocked = needCount > 0 || currentAccuracy < config.passRateThreshold;
 
-    if (isLocked && !requirement.isLocked) {
-      await prisma.$transaction([
-        prisma.infectionRequirement.update({
-          where: { id: requirement.id },
+      if (isLocked && !req.isLocked) {
+        await tx.infectionRequirement.update({
+          where: { id: req.id },
           data: { isLocked: true },
-        }),
-        prisma.user.update({
+        });
+        await tx.user.update({
           where: { id: user.userId },
           data: { isLocked: true },
-        }),
-      ]);
-    }
-
-    if (!isLocked && requirement.isLocked) {
-      await prisma.$transaction([
-        prisma.infectionRequirement.update({
-          where: { id: requirement.id },
+        });
+      } else if (!isLocked && req.isLocked) {
+        await tx.infectionRequirement.update({
+          where: { id: req.id },
           data: { isLocked: false },
-        }),
-        prisma.user.update({
+        });
+        await tx.user.update({
           where: { id: user.userId },
           data: { isLocked: false },
-        }),
-      ]);
-      return next();
-    }
+        });
+      }
 
-    if (isLocked) {
+      return { requirement: req, isLocked, needCount, currentAccuracy };
+    });
+
+    if (requirement.isLocked) {
       return res.status(403).json({
         code: 403,
-        message: `院感学习未达标，还需完成 ${needCount > 0 ? needCount : 0} 道题，当前正确率 ${currentAccuracy}%`,
+        message: `院感学习未达标，还需完成 ${requirement.needCount > 0 ? requirement.needCount : 0} 道题，当前正确率 ${requirement.currentAccuracy}%`,
         data: {
-          needCount: needCount > 0 ? needCount : 0,
-          currentAccuracy,
+          needCount: requirement.needCount > 0 ? requirement.needCount : 0,
+          currentAccuracy: requirement.currentAccuracy,
         },
       });
     }

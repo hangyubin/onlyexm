@@ -69,9 +69,6 @@ const Home: React.FC = () => {
       if (results.every(r => r.status === 'rejected')) {
         setError(true);
       }
-    } catch (error) {
-      console.error('Failed to fetch home data:', error);
-      setError(true);
     } finally {
       setLoading(false);
     }

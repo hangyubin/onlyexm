@@ -21,7 +21,10 @@ export const getMaterials = async (filters?: {
   type?: string;
   category?: string;
   isActive?: boolean;
-}): Promise<LearningMaterial[]> => {
+}, pagination?: {
+  page?: number;
+  pageSize?: number;
+}): Promise<{ data: LearningMaterial[]; total: number }> => {
   const where: any = {};
   
   if (filters) {
@@ -42,17 +45,28 @@ export const getMaterials = async (filters?: {
       where.isActive = filters.isActive;
     }
   }
+
+  const page = Math.max(1, pagination?.page || 1);
+  const pageSize = Math.min(100, Math.max(1, pagination?.pageSize || 20));
   
-  const materials = await prisma.learningMaterial.findMany({
-    where,
-    orderBy: { sortOrder: 'asc' },
-  });
+  const [materials, total] = await Promise.all([
+    prisma.learningMaterial.findMany({
+      where,
+      orderBy: { sortOrder: 'asc' },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.learningMaterial.count({ where }),
+  ]);
   
-  return materials.map(m => ({
-    ...m,
-    createdAt: m.createdAt.toISOString(),
-    updatedAt: m.updatedAt.toISOString(),
-  }));
+  return {
+    data: materials.map(m => ({
+      ...m,
+      createdAt: m.createdAt.toISOString(),
+      updatedAt: m.updatedAt.toISOString(),
+    })),
+    total,
+  };
 };
 
 export const getMaterialById = async (id: number): Promise<LearningMaterial | null> => {

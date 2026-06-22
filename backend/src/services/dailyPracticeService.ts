@@ -382,8 +382,8 @@ export interface SubmitResult {
 // ============================================================
 // 提交练习（核心事务只做原子操作，错题/院感异步处理）
 // ============================================================
-export async function submitPractice(practiceId: number, answers: SubmitAnswer[]): Promise<SubmitResult> {
-  console.log('[每日一练] 提交练习 - ID:', practiceId);
+export async function submitPractice(practiceId: number, userId: number, answers: SubmitAnswer[]): Promise<SubmitResult> {
+  console.log('[每日一练] 提交练习 - ID:', practiceId, '用户:', userId);
 
   const safePracticeId = typeof practiceId === 'string' ? parseInt(practiceId) : practiceId;
 
@@ -395,6 +395,11 @@ export async function submitPractice(practiceId: number, answers: SubmitAnswer[]
 
     if (!practice) {
       return { status: 'not_found' as const };
+    }
+
+    // 校验所有权：只允许提交自己的练习
+    if (practice.userId !== userId) {
+      return { status: 'forbidden' as const };
     }
 
     if (practice.isCompleted) {
@@ -469,19 +474,22 @@ export async function submitPractice(practiceId: number, answers: SubmitAnswer[]
   if (coreResult.status === 'already_completed') {
     return { success: false, score: 0, totalQuestions: 0, correctCount: 0, accuracy: 0, earnedBonus: false, message: '练习已完成', results: [] };
   }
+  if (coreResult.status === 'forbidden') {
+    return { success: false, score: 0, totalQuestions: 0, correctCount: 0, accuracy: 0, earnedBonus: false, message: '无权操作此练习', results: [] };
+  }
 
-  const { userId, questions, results, correctCount, totalQuestions, accuracy, score } = coreResult;
+  const { userId: practiceUserId, questions, results, correctCount, totalQuestions, accuracy, score } = coreResult;
   const earnedBonus = accuracy >= 80;
 
   // 阶段3：副作用异步处理（不阻塞用户响应）
   // 使用 setImmediate 确保在响应返回后执行
   setImmediate(() => {
-    syncWrongQuestions(userId, results).catch(e =>
+    syncWrongQuestions(practiceUserId, results).catch(e =>
       console.error('[每日一练] 错题同步失败:', e?.message || e)
     );
   });
   setImmediate(() => {
-    syncInfectionRequirement(userId, questions, results).catch(e =>
+    syncInfectionRequirement(practiceUserId, questions, results).catch(e =>
       console.error('[每日一练] 院感指标同步失败:', e?.message || e)
     );
   });

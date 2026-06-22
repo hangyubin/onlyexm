@@ -454,7 +454,6 @@ export function WrongQuestionBook() {
     try {
       const response = await api.delete(`/wrong-questions/${id}`);
       if (response.data.success) {
-        alert('已标记为已掌握');
         fetchWrongQuestions();
       }
     } catch (error) {

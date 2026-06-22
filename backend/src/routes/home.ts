@@ -25,6 +25,7 @@ router.get('/infection-status', authMiddleware, async (req, res) => {
 
   try {
     let requirement = null;
+    let config = null;
     try {
       requirement = await prisma.infectionRequirement.findFirst({
         where: { userId: user.userId, month: currentMonth },
@@ -32,13 +33,12 @@ router.get('/infection-status', authMiddleware, async (req, res) => {
     } catch (e: any) {
       console.warn('[infection-status] infectionRequirement 查询失败（可能未 migrate）:', e?.message);
     }
+    try {
+      config = await getInfectionConfig();
+    } catch (_) {}
 
     if (!requirement) {
-      let monthlyRequiredCount = 20;
-      try {
-        const config = await getInfectionConfig();
-        monthlyRequiredCount = config.monthlyRequiredCount;
-      } catch (_) {}
+      const monthlyRequiredCount = config?.monthlyRequiredCount || 20;
       
       return res.json({
         isLocked: false,
@@ -51,7 +51,7 @@ router.get('/infection-status', authMiddleware, async (req, res) => {
 
     const { requiredCount, completedCount, accuracyRate, isLocked } = requirement;
     const currentAccuracy = accuracyRate ? Number(accuracyRate) : 0;
-    const isCompliant = completedCount >= requiredCount && currentAccuracy >= 70;
+    const isCompliant = completedCount >= requiredCount && currentAccuracy >= (config?.passRateThreshold || 70);
 
     res.json({
       isLocked,
@@ -112,7 +112,7 @@ router.get('/tasks', authMiddleware, async (req, res) => {
     }
 
     // 3. 启用中的学习资料（取前 3 条）
-    const activeMaterials = (await learningMaterialService.getMaterials({ isActive: true }))
+    const activeMaterials = (await learningMaterialService.getMaterials({ isActive: true })).data
       .sort((a, b) => {
         if (a.sortOrder !== b.sortOrder) return (a.sortOrder || 0) - (b.sortOrder || 0);
         return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();

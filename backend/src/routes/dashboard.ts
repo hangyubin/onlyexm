@@ -2,6 +2,7 @@ import express from 'express';
 import prisma from '../lib/prisma';
 import { authMiddleware } from '../middleware/auth';
 import { roleGuard } from '../middleware/roleGuard';
+import { getInfectionConfig } from '../services/configService';
 
 const router = express.Router();
 
@@ -10,6 +11,7 @@ router.use(roleGuard(['ADMIN', 'INFECTION_OFFICER']));
 
 router.get('/stats', async (req, res) => {
   try {
+    const config = await getInfectionConfig();
     const [
       totalUsers,
       totalQuestions,
@@ -29,8 +31,8 @@ router.get('/stats', async (req, res) => {
     const qualifiedDoctors = await prisma.infectionRequirement.count({
       where: {
         month: currentMonth,
-        completedCount: { gte: 20 },
-        accuracyRate: { gte: 70 },
+        completedCount: { gte: config.monthlyRequiredCount },
+        accuracyRate: { gte: config.passRateThreshold },
       },
     });
     const complianceRate = allDoctors > 0 ? Math.round((qualifiedDoctors / allDoctors) * 100) : 0;
@@ -79,24 +81,47 @@ router.get('/recent-exams', async (req, res) => {
       where: { isPublished: true },
       orderBy: { createdAt: 'desc' },
       take: 5,
-      include: {
-        examRecords: {
-          select: {
-            id: true,
-            isPassed: true,
-            status: true,
-          },
-        },
+      select: {
+        id: true,
+        name: true,
+        examStartTime: true,
+        examEndTime: true,
+        createdAt: true,
+        _count: { select: { examRecords: true } },
       },
     });
+
+    // 批量获取每张试卷的通过人数和进行中状态
+    const paperIds = recentPapers.map(p => p.id);
+    const [paperPassCounts, paperInProgress] = await Promise.all([
+      prisma.examRecord.groupBy({
+        by: ['paperId'],
+        where: {
+          paperId: { in: paperIds },
+          isPassed: true,
+        },
+        _count: { id: true },
+      }),
+      prisma.examRecord.groupBy({
+        by: ['paperId'],
+        where: {
+          paperId: { in: paperIds },
+          status: 'IN_PROGRESS',
+        },
+        _count: { id: true },
+      }),
+    ]);
+
+    const passCountMap = new Map(paperPassCounts.map(p => [p.paperId, p._count.id]));
+    const inProgressMap = new Map(paperInProgress.map(p => [p.paperId, p._count.id]));
 
     const now = new Date();
 
     const examData = recentPapers.map((paper) => {
-      const participants = paper.examRecords.length;
-      const passedCount = paper.examRecords.filter((r) => r.isPassed).length;
+      const participants = paper._count.examRecords;
+      const passedCount = passCountMap.get(paper.id) || 0;
       const passRate = participants > 0 ? Math.round((passedCount / participants) * 100) : 0;
-      const hasInProgress = paper.examRecords.some((r) => r.status === 'IN_PROGRESS');
+      const hasInProgress = (inProgressMap.get(paper.id) || 0) > 0;
 
       // 基于 examStartTime/examEndTime 判断考试状态
       let status: string;
@@ -107,13 +132,9 @@ router.get('/recent-exams', async (req, res) => {
       } else if (paper.examEndTime && now > new Date(paper.examEndTime)) {
         status = '已结束';
       } else if (paper.examStartTime && paper.examEndTime) {
-        // 在考试时间范围内但无人答题
         status = '进行中';
       } else {
-        // 未设置考试时间，按有无交卷记录判断
-        const hasSubmitted = paper.examRecords.some((r) =>
-          ['SUBMITTED', 'AUTO_SUBMIT', 'FORCE_SUBMIT'].includes(r.status)
-        );
+        const hasSubmitted = !hasInProgress && participants > 0;
         status = hasSubmitted ? '已结束' : '进行中';
       }
 
@@ -317,6 +338,7 @@ router.get('/weekly-stats', async (req, res) => {
 
 router.get('/progress', async (req, res) => {
   try {
+    const config = await getInfectionConfig();
     const currentMonth = new Date().toISOString().slice(0, 7);
     const monthStart = new Date(`${currentMonth}-01`);
     const nextMonth = new Date(monthStart);
@@ -337,8 +359,8 @@ router.get('/progress', async (req, res) => {
     const qualifiedDoctors = await prisma.infectionRequirement.count({
       where: {
         month: currentMonth,
-        completedCount: { gte: 20 },
-        accuracyRate: { gte: 70 },
+        completedCount: { gte: config.monthlyRequiredCount },
+        accuracyRate: { gte: config.passRateThreshold },
       },
     });
     const complianceProgress = allDoctors > 0 ? Math.round((qualifiedDoctors / allDoctors) * 100) : 0;

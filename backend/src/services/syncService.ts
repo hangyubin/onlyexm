@@ -36,6 +36,8 @@ export async function syncPracticeRecords(userId: number, records: SyncRecord[])
       const questionMap = new Map(questions.map(q => [q.id, q]));
       const knownInfectionTags = ['HAND_HYGIENE', 'MEDICAL_WASTE', 'DISINFECTION', 'EXPOSURE', 'ISOLATION', 'STERILIZATION', 'MDRO', 'AIR_QUALITY'];
 
+      // 收集有效记录，批量创建
+      const validRecords: { userId: number; questionId: number; userAnswer: string; isCorrect: boolean; syncTime: Date }[] = [];
       for (const record of records) {
         const question = questionMap.get(record.questionId);
 
@@ -46,14 +48,12 @@ export async function syncPracticeRecords(userId: number, records: SyncRecord[])
 
         const isInfectionQuestion = knownInfectionTags.includes(question.infectionTag) || knownInfectionTags.includes(question.subCategory);
 
-        await tx.practiceSyncRecord.create({
-          data: {
-            userId,
-            questionId: record.questionId,
-            userAnswer: record.userAnswer,
-            isCorrect: record.isCorrect,
-            syncTime: new Date(record.timestamp),
-          },
+        validRecords.push({
+          userId,
+          questionId: record.questionId,
+          userAnswer: record.userAnswer,
+          isCorrect: record.isCorrect,
+          syncTime: new Date(record.timestamp),
         });
 
         if (isInfectionQuestion && record.isCorrect) {
@@ -62,6 +62,13 @@ export async function syncPracticeRecords(userId: number, records: SyncRecord[])
         if (isInfectionQuestion) {
           totalCount++;
         }
+      }
+
+      // 批量创建同步记录
+      if (validRecords.length > 0) {
+        await tx.practiceSyncRecord.createMany({
+          data: validRecords,
+        });
       }
 
       // 批量更新院感达标（避免 N+1 查询）
@@ -114,7 +121,7 @@ export async function syncPracticeRecords(userId: number, records: SyncRecord[])
         const updatedReq = await tx.infectionRequirement.findFirst({
           where: { userId, month: currentMonth },
         });
-        if (updatedReq && updatedReq.completedCount >= 20 && Number(updatedReq.accuracyRate || 0) >= 70) {
+        if (updatedReq && updatedReq.completedCount >= config.monthlyRequiredCount && Number(updatedReq.accuracyRate || 0) >= config.passRateThreshold) {
           await tx.user.update({
             where: { id: userId },
             data: { isLocked: false },

@@ -148,7 +148,10 @@ model ExamRecord {
   @@index([paperId])
   @@index([status])
   @@index([createdAt])
+  @@index([startTime])
+  @@index([endTime])
   @@index([userId, status])
+  @@index([userId, paperId])
 }
 
 model AnswerDetail {
@@ -164,6 +167,7 @@ model AnswerDetail {
 
   @@index([examRecordId])
   @@index([questionId])
+  @@index([examRecordId, isCorrect])
   @@unique([examRecordId, questionId])
 }
 
@@ -220,6 +224,7 @@ model InfectionRequirement {
 
   @@index([userId])
   @@index([month])
+  @@index([userId, month])
 }
 
 model OfflineSync {
@@ -369,6 +374,7 @@ model DailyPractice {
   @@index([userId])
   @@index([date])
   @@index([isCompleted])
+  @@index([userId, date])
 }
 
 model PracticeQuestionRecord {
@@ -407,6 +413,7 @@ model PracticeSyncRecord {
 
   @@index([userId])
   @@index([questionId])
+  @@index([syncTime])
 }
 
 model SystemConfig {
@@ -433,6 +440,7 @@ model ConfigLog {
 
   @@index([userId])
   @@index([configKey])
+  @@index([createdAt])
 }
 
 // ============ 全局字典表：所有原先用 enum 的分类全部走字典表 ============

@@ -8,10 +8,14 @@ echo "============================================"
 # 执行数据库迁移（如果需要）
 cd /app/backend
 echo "[1/4] 执行数据库迁移..."
-npx prisma migrate deploy 2>/dev/null || echo "  数据库迁移跳过（可能已最新）"
+npx prisma migrate deploy 2>/tmp/migrate_error.log || {
+  echo "  数据库迁移失败！请检查日志: /tmp/migrate_error.log"
+  cat /tmp/migrate_error.log 2>/dev/null
+  exit 1
+}
 
 echo "[2/4] 初始化种子数据..."
-npx prisma db seed 2>/dev/null || echo "  种子数据初始化（已存在则跳过）"
+npx prisma db seed 2>/tmp/seed_error.log || echo "  种子数据跳过（可能已存在）"
 
 # 确保 uploads 目录存在
 mkdir -p /app/backend/uploads

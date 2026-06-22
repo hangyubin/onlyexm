@@ -36,7 +36,7 @@ export const fetchDefaultWeakPoints = async (): Promise<WeakPoint[]> => {
     const tags = await systemApi.getDict('INFECTION_TAG');
     return tags.map((tag: DictItem) => ({
       name: tag.name,
-      score: Math.floor(Math.random() * 40) + 40
+      score: 40 + (tag.name.length * 7) % 60
     }));
   } catch {
     return DEFAULT_WEAK_POINTS;

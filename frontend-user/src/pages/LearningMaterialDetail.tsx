@@ -16,6 +16,7 @@ import {
   Loader
 } from 'lucide-react';
 import { learningMaterialApi, LearningMaterial } from '../api/learningMaterial';
+import api from '../api/axios';
 import mammoth from 'mammoth';
 
 const typeIconMap = {
@@ -116,15 +117,24 @@ const LearningMaterialDetail: React.FC = () => {
     setPreviewError(null);
     try {
       const url = normalizeUrl(material.attachmentUrl);
-      const token = localStorage.getItem('token');
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status} ${response.statusText}`);
+      const isExternal = url.startsWith('http://') || url.startsWith('https://') || url.startsWith('//');
+      let arrayBuffer: ArrayBuffer;
+      
+      if (isExternal) {
+        const token = localStorage.getItem('token');
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status} ${response.statusText}`);
+        }
+        arrayBuffer = await response.arrayBuffer();
+      } else {
+        const response = await api.get(url, { responseType: 'arraybuffer' });
+        arrayBuffer = response.data;
       }
-      const arrayBuffer = await response.arrayBuffer();
+      
       const result = await mammoth.convertToHtml({ arrayBuffer });
       if (!result.value || result.value.trim() === '') {
         throw new Error('文档内容为空');

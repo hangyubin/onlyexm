@@ -121,24 +121,27 @@ export function OutbreakSimulation() {
       isCorrect,
     };
 
-    setStepResults((prev) => [...prev, result]);
-    setShowFeedback(true);
+    setStepResults((prev) => {
+      const newResults = [...prev, result];
+      setShowFeedback(true);
+      nextStep(newResults);
+      return newResults;
+    });
   };
 
-  const nextStep = () => {
+  const nextStep = (finalStepResults: StepResult[]) => {
     if (currentStep < DRILL_STEPS.length - 1) {
       setCurrentStep(currentStep + 1);
       setSelectedAnswers([]);
       setShowFeedback(false);
     } else {
-      generateReport();
+      generateReport(finalStepResults);
     }
   };
 
-  const generateReport = () => {
-    // 直接使用当前 stepResults 状态计算报告
-    const correctSteps = stepResults.filter((r) => r.isCorrect).length;
-    const wrongSteps = stepResults.filter((r) => !r.isCorrect);
+  const generateReport = (finalStepResults: StepResult[]) => {
+    const correctSteps = finalStepResults.filter((r) => r.isCorrect).length;
+    const wrongSteps = finalStepResults.filter((r) => !r.isCorrect);
     const score = DRILL_STEPS.length > 0 ? Math.round((correctSteps / DRILL_STEPS.length) * 100) : 0;
 
     const reportData: DrillReport = {
@@ -200,7 +203,7 @@ export function OutbreakSimulation() {
 
   if (report) {
     return (
-      <div className="min-h-screen bg-gray-50 max-w-md mx-auto px-4 py-6">
+      <div className="min-h-screen bg-gray-50 max-w-md mx-auto px-4 py-6 pb-safe-20">
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-6 text-white">
             <h1 className="text-xl font-bold text-center mb-2">院感暴发模拟演练报告</h1>
@@ -294,7 +297,7 @@ export function OutbreakSimulation() {
   }
 
   return (
-    <div className="max-w-md mx-auto px-4 py-6">
+    <div className="max-w-md mx-auto px-4 py-6 pb-safe-20">
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden mb-4">
         <div className="bg-gradient-to-r from-red-600 to-orange-600 p-6 text-white">
           <h1 className="text-xl font-bold text-center mb-2">院感暴发模拟演练</h1>
@@ -382,7 +385,7 @@ export function OutbreakSimulation() {
         )}
 
         <button
-          onClick={showFeedback ? nextStep : checkAnswers}
+          onClick={showFeedback ? () => nextStep(stepResults) : checkAnswers}
           disabled={!showFeedback && selectedAnswers.length === 0}
           className="w-full mt-6 py-4 rounded-xl font-medium bg-blue-500 text-white hover:bg-blue-600 transition-all disabled:opacity-50"
         >

@@ -79,7 +79,21 @@ function calculateQuestionScore(
   const isCorrect = normalizedUserAnswer === correctAnswer;
 
   if (question.type === 'CASE') {
-    const rule = caseScoringRules[question.id];
+    // 延迟构建评分规则：从题目的 options 中提取步骤定义
+    let rule = caseScoringRules[question.id];
+    if (!rule && options.length > 0) {
+      const steps: CaseStep[] = options.map((opt) => ({
+        stepKey: opt.optionKey,
+        points: question.score > 0 ? Math.round(question.score / options.length) || 1 : 1,
+        correctAnswer: String(opt.content || ''),
+      }));
+      rule = {
+        questionId: question.id,
+        steps,
+        totalPoints: steps.reduce((sum, s) => sum + s.points, 0),
+      };
+      caseScoringRules[question.id] = rule;
+    }
     // 解析 CASE 题答案：可能是 JSON 字符串、对象或数组
     let userAnswerObj: Record<string, unknown> = {};
     if (typeof userAnswer === 'string') {
@@ -152,6 +166,7 @@ function calculateQuestionScore(
 }
 
 export async function submitExam(input: SubmitExamInput): Promise<SubmitResult> {
+  const config = await getInfectionConfig();
   return prisma.$transaction(async (tx) => {
     const examRecord = await tx.examRecord.findUnique({
       where: { id: input.examRecordId },
@@ -273,18 +288,26 @@ export async function submitExam(input: SubmitExamInput): Promise<SubmitResult> 
       },
     });
 
+    // 院感需求数据（提前声明，避免重复查询）
+    let requirement: any = null;
+    let updatedCompletedCount = 0;
+    let updatedAccuracyRate = 0;
+
     if (examRecord.userId) {
       const currentMonth = new Date().toISOString().slice(0, 7);
       
-      const requirement = await tx.infectionRequirement.findFirst({
+      requirement = await tx.infectionRequirement.findFirst({
         where: {
           userId: examRecord.userId,
           month: currentMonth,
         },
       });
 
-      if (requirement && infectionAccuracy >= 70) {
-        const infectionQuestionCount = infectionTotal > 0 ? Math.round((infectionTotal * infectionCorrectCount) / infectionTotal) : 0;
+      // 计算更新后的值（用于后续判断）
+      updatedCompletedCount = requirement?.completedCount || 0;
+      updatedAccuracyRate = Number(requirement?.accuracyRate || 0);
+
+      if (requirement && infectionAccuracy >= (config.passRateThreshold || 70)) {
         // 加权平均正确率：(旧正确率 × 旧题数 + 新正确率 × 新题数) / 总题数
         const oldCompletedCount = requirement.completedCount;
         const oldAccuracy = Number(requirement.accuracyRate || 0);
@@ -299,6 +322,8 @@ export async function submitExam(input: SubmitExamInput): Promise<SubmitResult> 
             accuracyRate: newAccuracy,
           },
         });
+        updatedCompletedCount = newCompletedCount;
+        updatedAccuracyRate = newAccuracy;
       }
 
       // 批量处理错题记录（避免逐个查询）
@@ -340,19 +365,12 @@ export async function submitExam(input: SubmitExamInput): Promise<SubmitResult> 
       }
     }
 
-    const updatedRequirement = examRecord.userId
-      ? await tx.infectionRequirement.findFirst({
-          where: {
-            userId: examRecord.userId,
-            month: new Date().toISOString().slice(0, 7),
-          },
-        })
-      : null;
-
+    // 复用已查询的院感需求数据，避免重复查询
     const needMoreInfection =
-      updatedRequirement &&
-      (updatedRequirement.completedCount < updatedRequirement.requiredCount ||
-        Number(updatedRequirement.accuracyRate || 0) < 70);
+      examRecord.userId
+        ? (updatedCompletedCount < (requirement?.requiredCount || 0) ||
+            updatedAccuracyRate < 70)
+        : false;
 
     return {
       code: 0,
