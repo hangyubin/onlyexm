@@ -196,7 +196,40 @@ export default function UserManage() {
   const handleViewProfile = async (id: number) => {
     try {
       const response = await userApi.getLearningProfile(id);
-      setLearningProfile(response);
+      // 将后端返回的结构映射为前端 LearningProfile 接口
+      const profile: LearningProfile = {
+        userId: response.user?.id ?? id,
+        examRecords: (response.examStats?.recentExams ?? []).map((r: any) => ({
+          id: r.id,
+          paperTitle: r.paperName ?? '已删除试卷',
+          score: r.score ?? 0,
+          totalScore: r.totalScore ?? 100,
+          examDate: r.startTime ?? r.endTime ?? '',
+          status: r.isPassed ? 'PASS' as const : 'FAIL' as const,
+        })),
+        complianceProgress: (() => {
+          const current = response.infectionCompliance?.currentMonth;
+          if (!current) return 0;
+          return current.requiredCount > 0
+            ? Math.round((current.completedCount / current.requiredCount) * 100)
+            : 0;
+        })(),
+        wrongQuestionCount: response.wrongQuestionCount ?? 0,
+        totalStudyMinutes: Math.round((response.learningStats?.totalStudySeconds ?? 0) / 60),
+        infectionRequirement: (() => {
+          const current = response.infectionCompliance?.currentMonth;
+          if (!current) return null;
+          return {
+            id: 0,
+            userId: id,
+            requirementType: 'monthly',
+            isCompliant: current.isCompliant ?? false,
+            lastExamDate: current.month ?? '',
+            nextExamDate: '',
+          };
+        })(),
+      };
+      setLearningProfile(profile);
       setProfileModalVisible(true);
     } catch (error) {
       message.error('获取学习档案失败');

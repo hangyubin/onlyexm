@@ -59,7 +59,7 @@ export interface UserApi {
   delete: (id: number) => Promise<void>;
   resetPassword: (id: number) => Promise<{ tempPassword: string }>;
   toggleLock: (id: number) => Promise<User>;
-  getLearningProfile: (id: number) => Promise<LearningProfile>;
+  getLearningProfile: (id: number) => Promise<any>;
   batchImport: (file: File, onUploadProgress?: (progressEvent: { loaded: number; total?: number }) => void) => Promise<BatchImportResult>;
   downloadTemplate: () => Promise<Blob>;
   getHospitals: () => Promise<Hospital[]>;
@@ -100,8 +100,8 @@ export const userApi: UserApi = {
     return response.data;
   },
 
-  getLearningProfile: async (id: number): Promise<LearningProfile> => {
-    const response = await api.get<LearningProfile>(`/users/${id}/learning-profile`);
+  getLearningProfile: async (id: number): Promise<any> => {
+    const response = await api.get<any>(`/users/${id}/learning-profile`);
     return response.data;
   },
 
