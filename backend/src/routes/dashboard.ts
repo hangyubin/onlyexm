@@ -346,6 +346,7 @@ router.get('/progress', async (req, res) => {
 
     const totalUsers = await prisma.user.count({ where: { role: 'DOCTOR' } });
 
+    // 本月培训完成：本月至少参加过一次考试的人数
     const usersWithExam = await prisma.examRecord.findMany({
       where: {
         createdAt: { gte: monthStart, lt: nextMonth },
@@ -353,9 +354,10 @@ router.get('/progress', async (req, res) => {
       select: { userId: true },
       distinct: ['userId'],
     });
-    const trainingCompletion = totalUsers > 0 ? Math.round((usersWithExam.length / totalUsers) * 100) : 0;
+    const trainingCount = usersWithExam.length;
+    const trainingCompletion = totalUsers > 0 ? Math.round((trainingCount / totalUsers) * 100) : 0;
 
-    const allDoctors = await prisma.user.count({ where: { role: 'DOCTOR' } });
+    // 院感达标进度：本月院感达标的人数
     const qualifiedDoctors = await prisma.infectionRequirement.count({
       where: {
         month: currentMonth,
@@ -363,21 +365,21 @@ router.get('/progress', async (req, res) => {
         accuracyRate: { gte: config.passRateThreshold },
       },
     });
-    const complianceProgress = allDoctors > 0 ? Math.round((qualifiedDoctors / allDoctors) * 100) : 0;
+    const complianceProgress = totalUsers > 0 ? Math.round((qualifiedDoctors / totalUsers) * 100) : 0;
 
+    // 每日练习完成：今日完成练习的人数 / 全体医生
     const today = new Date().toISOString().slice(0, 10);
-    const todayPractices = await prisma.dailyPractice.count({
+    const todayCompletedUsers = await prisma.dailyPractice.findMany({
       where: { date: today, isCompleted: true },
+      select: { userId: true },
+      distinct: ['userId'],
     });
-    const totalTodayPractices = await prisma.dailyPractice.count({
-      where: { date: today },
-    });
-    const dailyPracticeCompletion = totalTodayPractices > 0 ? Math.round((todayPractices / totalTodayPractices) * 100) : 0;
+    const dailyPracticeCompletion = totalUsers > 0 ? Math.round((todayCompletedUsers.length / totalUsers) * 100) : 0;
 
     res.json([
-      { label: '本月培训完成', value: trainingCompletion, color: '#1890ff' },
-      { label: '院感达标进度', value: complianceProgress, color: '#52c41a' },
-      { label: '每日练习完成', value: dailyPracticeCompletion, color: '#722ed1' },
+      { label: '本月培训完成', value: trainingCompletion, count: trainingCount, total: totalUsers, color: '#1890ff' },
+      { label: '院感达标进度', value: complianceProgress, count: qualifiedDoctors, total: totalUsers, color: '#52c41a' },
+      { label: '每日练习完成', value: dailyPracticeCompletion, count: todayCompletedUsers.length, total: totalUsers, color: '#722ed1' },
     ]);
   } catch (err) {
     console.error('Get progress error:', err);

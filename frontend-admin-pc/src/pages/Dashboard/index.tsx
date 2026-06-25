@@ -34,6 +34,8 @@ interface RecentActivity {
 interface ProgressItem {
   label: string;
   value: number;
+  count: number;
+  total: number;
   color: string;
 }
 
@@ -198,19 +200,25 @@ export default function Dashboard() {
                   <div key={item.label}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                       <span style={{ fontSize: 14, color: '#475569' }}>{item.label}</span>
-                      <span style={{ fontSize: 14, fontWeight: 500 }}>{item.value}%</span>
+                      <span style={{ fontSize: 14, fontWeight: 500 }}>
+                        {item.count}/{item.total}人 <span style={{ color: item.color }}>{item.value}%</span>
+                      </span>
                     </div>
                     <div style={{ width: '100%', height: 8, background: '#e2e8f0', borderRadius: 4, overflow: 'hidden' }}>
                       <div style={{
                         height: '100%',
-                        background: item.color,
+                        background: item.value === 0 ? '#e2e8f0' : item.color,
                         borderRadius: 4,
-                        width: `${item.value}%`,
+                        width: `${Math.max(item.value, 2)}%`,
+                        minWidth: item.value > 0 ? 8 : 0,
                         transition: 'width 0.3s'
                       }} />
                     </div>
                   </div>
                 ))}
+                {progressItems.length === 0 && (
+                  <div style={{ textAlign: 'center', color: '#94a3b8', padding: 24 }}>暂无数据</div>
+                )}
               </div>
             </Card>
           </Col>
