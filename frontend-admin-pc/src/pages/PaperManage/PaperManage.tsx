@@ -228,18 +228,21 @@ export default function PaperManage() {
               const startTime = record.examStartTime ? new Date(record.examStartTime) : null;
               const endTime = record.examEndTime ? new Date(record.examEndTime) : null;
               const inProgress = !!(startTime && endTime && now >= startTime && now <= endTime);
+              const hasEnded = !!(endTime && now > endTime);
+              const cannotUnpublish = inProgress || hasEnded;
+              const disabledTitle = inProgress ? '考试进行中，无法取消发布' : '考试已结束，无法取消发布';
               return (
                 <Popconfirm
                   title="确定取消发布吗？取消后用户将无法看到此试卷。"
                   onConfirm={() => handleUnpublish(record)}
-                  disabled={inProgress}
+                  disabled={cannotUnpublish}
                 >
                   <Button
                     icon={<PauseCircleOutlined />}
                     size="small"
                     danger
-                    disabled={inProgress}
-                    title={inProgress ? '考试进行中，无法取消发布' : '取消发布'}
+                    disabled={cannotUnpublish}
+                    title={cannotUnpublish ? disabledTitle : '取消发布'}
                   >
                     取消发布
                   </Button>

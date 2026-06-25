@@ -219,13 +219,17 @@ export default function UserManage() {
         infectionRequirement: (() => {
           const current = response.infectionCompliance?.currentMonth;
           if (!current) return null;
+          // 计算下个月日期
+          const monthStr = current.month || '';
+          const [y, m] = monthStr.split('-').map(Number);
+          const nextMonth = y && m ? new Date(y, m, 1) : null; // 月份从0开始，m=6则下个月是7月
           return {
             id: 0,
             userId: id,
             requirementType: 'monthly',
             isCompliant: current.isCompliant ?? false,
-            lastExamDate: current.month ?? '',
-            nextExamDate: '',
+            lastExamDate: monthStr,
+            nextExamDate: nextMonth ? nextMonth.toISOString().slice(0, 10) : '',
           };
         })(),
       };
@@ -485,10 +489,14 @@ export default function UserManage() {
                   {learningProfile.infectionRequirement && (
                     <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                       <p className="text-sm">
-                        最近考试: {new Date(learningProfile.infectionRequirement.lastExamDate).toLocaleDateString('zh-CN')}
+                        最近考试: {learningProfile.infectionRequirement.lastExamDate
+                          ? new Date(learningProfile.infectionRequirement.lastExamDate).toLocaleDateString('zh-CN')
+                          : '暂无'}
                       </p>
                       <p className="text-sm">
-                        下次考试: {new Date(learningProfile.infectionRequirement.nextExamDate).toLocaleDateString('zh-CN')}
+                        下次考试: {learningProfile.infectionRequirement.nextExamDate
+                          ? new Date(learningProfile.infectionRequirement.nextExamDate).toLocaleDateString('zh-CN')
+                          : '暂无'}
                       </p>
                     </div>
                   )}

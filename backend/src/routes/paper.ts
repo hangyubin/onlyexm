@@ -419,6 +419,10 @@ router.patch('/:id/publish', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFI
       if (inProgressCount > 0) {
         return res.status(400).json({ error: `有${inProgressCount}人正在考试中，无法取消发布` });
       }
+      // 检查考试是否已结束
+      if (existing.examEndTime && new Date(existing.examEndTime) < new Date()) {
+        return res.status(400).json({ error: '考试已结束，无法取消发布' });
+      }
 
       const paper = await prisma.paper.update({
         where: { id },
