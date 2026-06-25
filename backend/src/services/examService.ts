@@ -1,6 +1,11 @@
 import prisma from '../lib/prisma';
 import { getInfectionConfig } from './configService';
 
+const INFECTION_TAGS = [
+  'HAND_HYGIENE', 'MEDICAL_WASTE', 'DISINFECTION', 'EXPOSURE',
+  'ISOLATION', 'STERILIZATION', 'MDRO', 'AIR_QUALITY',
+] as const;
+
 export const ExamStatus = {
   IN_PROGRESS: 'IN_PROGRESS',
   SUBMITTED: 'SUBMITTED',
@@ -235,8 +240,7 @@ export async function submitExam(input: SubmitExamInput): Promise<SubmitResult> 
 
       totalScore += result.score;
 
-      const knownInfectionTags = ['HAND_HYGIENE', 'MEDICAL_WASTE', 'DISINFECTION', 'EXPOSURE', 'ISOLATION', 'STERILIZATION', 'MDRO', 'AIR_QUALITY'];
-      const isInfectionQuestion = knownInfectionTags.includes(question.infectionTag) || knownInfectionTags.includes(question.subCategory);
+      const isInfectionQuestion = INFECTION_TAGS.includes(question.infectionTag as any) || INFECTION_TAGS.includes(question.subCategory as any);
       
       if (isInfectionQuestion) {
         infectionScore += result.score;
@@ -264,14 +268,17 @@ export async function submitExam(input: SubmitExamInput): Promise<SubmitResult> 
       data: answerDetails.filter((ad: any) => !existingAnswerIds.has(ad.questionId)),
     });
 
-    // 更新已有答案记录的得分
-    for (const ad of answerDetails) {
-      if (existingAnswerIds.has(ad.questionId)) {
-        await tx.answerDetail.updateMany({
-          where: { examRecordId: input.examRecordId, questionId: ad.questionId },
-          data: { isCorrect: ad.isCorrect, scoreObtained: ad.scoreObtained, userAnswer: ad.userAnswer },
-        });
-      }
+    // 更新已有答案记录的得分（批量更新代替逐个循环）
+    const answersToUpdate = answerDetails.filter((ad: any) => existingAnswerIds.has(ad.questionId));
+    if (answersToUpdate.length > 0) {
+      await Promise.all(
+        answersToUpdate.map((ad: any) =>
+          tx.answerDetail.updateMany({
+            where: { examRecordId: input.examRecordId, questionId: ad.questionId },
+            data: { isCorrect: ad.isCorrect, scoreObtained: ad.scoreObtained, userAnswer: ad.userAnswer },
+          }),
+        ),
+      );
     }
 
     await tx.examRecord.update({
@@ -670,7 +677,6 @@ export async function autoSubmitExam(examRecordId: number, status: string = 'AUT
 
     // 更新院感达标（自动提交也需要计入）
     if (examRecord.userId) {
-      const knownInfectionTags = ['HAND_HYGIENE', 'MEDICAL_WASTE', 'DISINFECTION', 'EXPOSURE', 'ISOLATION', 'STERILIZATION', 'MDRO', 'AIR_QUALITY'];
       const infectionAccuracy = infectionTotal > 0 ? Math.round((infectionScore / infectionTotal) * 100) : 0;
 
       if (infectionAccuracy >= 70) {
@@ -680,7 +686,7 @@ export async function autoSubmitExam(examRecordId: number, status: string = 'AUT
           const detail = examRecord.answerDetails.find((d) => d.id === update.id);
           if (detail) {
             const qInfo = questionMap.get(detail.questionId);
-            if (qInfo && (knownInfectionTags.includes(qInfo.question.infectionTag) || knownInfectionTags.includes(qInfo.question.subCategory)) && update.isCorrect) {
+            if (qInfo && (INFECTION_TAGS.includes(qInfo.question.infectionTag as any) || INFECTION_TAGS.includes(qInfo.question.subCategory as any)) && update.isCorrect) {
               correctCount++;
             }
           }

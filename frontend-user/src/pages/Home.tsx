@@ -27,6 +27,7 @@ const Home: React.FC = () => {
   const [pendingExamCount, setPendingExamCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<boolean | null>(null);
+  const [partialError, setPartialError] = useState<string[]>([]);
   const [studyStats, setStudyStats] = useState<StudyStats | null>(null);
 
   useEffect(() => {
@@ -37,7 +38,9 @@ const Home: React.FC = () => {
   const fetchAllData = async () => {
     setLoading(true);
     setError(null);
+    setPartialError([]);
     try {
+      const apiNames = ['院感状态', '任务列表', '错题数', '薄弱知识点', '学习统计'];
       const results = await Promise.allSettled([
         homeApi.getInfectionStatus(),
         homeApi.getTasks(),
@@ -46,28 +49,30 @@ const Home: React.FC = () => {
         homeApi.getStudyStats(),
       ]);
       
-      // 每个API独立处理，单个失败不影响其他
+      const failedApis: string[] = [];
+
       if (results[0].status === 'fulfilled') {
         setInfectionStatus(results[0].value);
-      }
+      } else { failedApis.push(apiNames[0]); }
       if (results[1].status === 'fulfilled') {
         setTasks(results[1].value);
         const pendingExams = results[1].value.filter((t: Task) => t.type === 'exam' && (t.status === 'pending' || t.status === 'not_started'));
         setPendingExamCount(pendingExams.length);
-      }
+      } else { failedApis.push(apiNames[1]); }
       if (results[2].status === 'fulfilled') {
         setWrongCount(results[2].value.count);
-      }
+      } else { failedApis.push(apiNames[2]); }
       if (results[3].status === 'fulfilled') {
         setWeakPoints(results[3].value);
-      }
+      } else { failedApis.push(apiNames[3]); }
       if (results[4].status === 'fulfilled') {
         setStudyStats(results[4].value);
-      }
+      } else { failedApis.push(apiNames[4]); }
       
-      // 检查是否所有请求都失败了
-      if (results.every(r => r.status === 'rejected')) {
+      if (failedApis.length === results.length) {
         setError(true);
+      } else if (failedApis.length > 0) {
+        setPartialError(failedApis);
       }
     } finally {
       setLoading(false);
@@ -167,6 +172,12 @@ const Home: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-safe-20 max-w-md mx-auto">
+      {partialError.length > 0 && (
+        <div className="bg-yellow-50 border-b border-yellow-200 px-4 py-2 text-sm text-yellow-700 flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>部分数据加载失败：{partialError.join('、')}，下拉刷新重试</span>
+        </div>
+      )}
       {infectionStatus?.isLocked && (
         <div className="bg-red-500 text-white py-2 px-4 text-sm flex items-center justify-center gap-2">
           <AlertCircle className="w-4 h-4" />
