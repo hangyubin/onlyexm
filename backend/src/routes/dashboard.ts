@@ -18,16 +18,13 @@ router.get('/stats', async (req, res) => {
       totalPapers,
       totalExamRecords,
     ] = await Promise.all([
-      prisma.user.count(),
+      prisma.user.count({ where: { role: { notIn: ['ADMIN', 'INFECTION_OFFICER'] } } }),
       prisma.question.count({ where: { deletedAt: null } }),
       prisma.paper.count(),
       prisma.examRecord.count(),
     ]);
 
     const currentMonth = new Date().toISOString().slice(0, 7);
-    const allDoctors = await prisma.user.count({
-      where: { role: 'DOCTOR' },
-    });
     const qualifiedDoctors = await prisma.infectionRequirement.count({
       where: {
         month: currentMonth,
@@ -35,7 +32,7 @@ router.get('/stats', async (req, res) => {
         accuracyRate: { gte: config.passRateThreshold },
       },
     });
-    const complianceRate = allDoctors > 0 ? Math.round((qualifiedDoctors / allDoctors) * 100) : 0;
+    const complianceRate = totalUsers > 0 ? Math.round((qualifiedDoctors / totalUsers) * 100) : 0;
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -344,7 +341,9 @@ router.get('/progress', async (req, res) => {
     const nextMonth = new Date(monthStart);
     nextMonth.setMonth(nextMonth.getMonth() + 1);
 
-    const totalUsers = await prisma.user.count({ where: { role: 'DOCTOR' } });
+    const totalUsers = await prisma.user.count({
+      where: { role: { notIn: ['ADMIN', 'INFECTION_OFFICER'] } },
+    });
 
     // 本月培训完成：本月至少参加过一次考试的人数
     const usersWithExam = await prisma.examRecord.findMany({
