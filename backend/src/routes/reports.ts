@@ -14,6 +14,22 @@ const router = express.Router();
 
 const MAX_REPORT_LIMIT = 5000;
 
+/** 获取科室 code → name 映射 */
+async function getDeptNameMap(): Promise<Map<string, string>> {
+  const deptDict = await prisma.systemDict.findMany({
+    where: { category: 'DEPARTMENT', isActive: true },
+    select: { code: true, name: true },
+  });
+  const map = new Map<string, string>();
+  deptDict.forEach(d => map.set(d.code, d.name));
+  return map;
+}
+
+/** 将科室代码转为中文名 */
+function resolveDept(deptNameMap: Map<string, string>, code: string): string {
+  return deptNameMap.get(code) || code || '未分配';
+}
+
 // ============ JSON 数据接口（前端表格展示） ============
 
 // 考试成绩汇总
@@ -29,12 +45,7 @@ router.post('/exam-summary/data', authMiddleware, roleGuard(['ADMIN', 'INFECTION
     }
 
     // 获取科室字典
-    const deptDict = await prisma.systemDict.findMany({
-      where: { category: 'DEPARTMENT', isActive: true },
-      select: { code: true, name: true },
-    });
-    const deptNameMap = new Map<string, string>();
-    deptDict.forEach(d => deptNameMap.set(d.code, d.name));
+    const deptNameMap = await getDeptNameMap();
 
     const records = await prisma.examRecord.findMany({
       where,
@@ -45,7 +56,7 @@ router.post('/exam-summary/data', authMiddleware, roleGuard(['ADMIN', 'INFECTION
     const items = records.map((r) => ({
       id: r.id,
       realName: r.user.realName || '',
-      department: deptNameMap.get(r.user.department) || r.user.department || '未分配',
+      department: resolveDept(deptNameMap, r.user.department || ''),
       examName: r.paper?.name || '已删除试卷',
       score: r.score || 0,
       totalScore: r.paper?.totalScore ?? 0,
@@ -78,6 +89,8 @@ router.post('/practice-records/data', authMiddleware, roleGuard(['ADMIN', 'INFEC
       where.createdAt = { gte: new Date(startDate), lte: new Date(endDate + 'T23:59:59') };
     }
 
+    const deptNameMap = await getDeptNameMap();
+
     const records = await prisma.dailyPractice.findMany({
       where,
       include: { user: { select: { realName: true, department: true } } },
@@ -105,7 +118,7 @@ router.post('/practice-records/data', authMiddleware, roleGuard(['ADMIN', 'INFEC
       } else {
         userMap.set(r.userId, {
           realName: r.user.realName || '',
-          department: r.user.department || '',
+          department: resolveDept(deptNameMap, r.user.department || ''),
           correct: correctQs,
           total: totalQs,
           lastTime: r.createdAt.toISOString().slice(0, 16) || '',
@@ -135,6 +148,8 @@ router.post('/practice-records/data', authMiddleware, roleGuard(['ADMIN', 'INFEC
 router.post('/infection-compliance/data', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER']), async (req, res) => {
   try {
     const currentMonth = new Date().toISOString().slice(0, 7);
+    const deptNameMap = await getDeptNameMap();
+
     const reqs = await prisma.infectionRequirement.findMany({
       where: { month: currentMonth },
       include: { user: { select: { realName: true, department: true } } },
@@ -144,7 +159,7 @@ router.post('/infection-compliance/data', authMiddleware, roleGuard(['ADMIN', 'I
     const items = reqs.map((r, idx) => ({
       id: r.id || idx + 1,
       realName: r.user.realName || '',
-      department: r.user.department || '',
+      department: resolveDept(deptNameMap, r.user.department || ''),
       requirementType: '月度院感考核',
       isCompliant: r.completedCount >= r.requiredCount && Number(r.accuracyRate || 0) >= 70,
       lastExamDate: '',
@@ -162,6 +177,8 @@ router.post('/infection-compliance/data', authMiddleware, roleGuard(['ADMIN', 'I
 // 用户学习情况
 router.post('/user-study/data', authMiddleware, roleGuard(['ADMIN', 'INFECTION_OFFICER']), async (req, res) => {
   try {
+    const deptNameMap = await getDeptNameMap();
+
     const users = await prisma.user.findMany({
       where: { role: 'DOCTOR' },
       select: { id: true, realName: true, department: true },
@@ -222,7 +239,7 @@ router.post('/user-study/data', authMiddleware, roleGuard(['ADMIN', 'INFECTION_O
       return {
         id: user.id,
         realName: user.realName || '',
-        department: user.department || '',
+        department: resolveDept(deptNameMap, user.department || ''),
         totalStudyMinutes: Math.round((studyMinutesMap.get(user.id) || 0) / 60),
         practiceCount: practiceCountMap.get(user.id) || 0,
         wrongQuestionCount: wrongCountMap.get(user.id) || 0,
