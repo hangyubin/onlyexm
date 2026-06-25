@@ -77,6 +77,19 @@ export interface UserStudyItem {
   complianceProgress: number;
 }
 
+/** 下载 Excel 文件 */
+async function downloadExcel(url: string, params: Record<string, any>, filename: string): Promise<void> {
+  const response = await api.post(url, params, { responseType: 'blob' });
+  const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(link.href);
+}
+
 export const reportApi = {
   getExamSummary: async (params: ExamSummaryParams): Promise<ExamSummaryResponse> => {
     const response = await api.post('/reports/exam-summary/data', params);
@@ -96,5 +109,28 @@ export const reportApi = {
   getUserStudy: async (params: UserStudyParams): Promise<UserStudyItem[]> => {
     const response = await api.post('/reports/user-study/data', params);
     return response.data.items;
+  },
+
+  // Excel 导出接口
+  downloadExamSummary: async (startDate: string, endDate: string): Promise<void> => {
+    return downloadExcel('/reports/exam-summary', { startDate, endDate }, `exam_summary_${startDate}_${endDate}.xlsx`);
+  },
+
+  downloadUnqualifiedStaff: async (): Promise<void> => {
+    const today = new Date().toISOString().split('T')[0];
+    return downloadExcel('/reports/unqualified-staff', {}, `unqualified_staff_${today}.xlsx`);
+  },
+
+  downloadDeptRanking: async (startDate: string, endDate: string): Promise<void> => {
+    return downloadExcel('/reports/dept-ranking', { startDate, endDate }, `dept_ranking_${startDate}_${endDate}.xlsx`);
+  },
+
+  downloadQuestionErrorRate: async (): Promise<void> => {
+    const today = new Date().toISOString().split('T')[0];
+    return downloadExcel('/reports/question-error-rate', {}, `question_error_rate_${today}.xlsx`);
+  },
+
+  downloadActivity: async (startDate: string, endDate: string): Promise<void> => {
+    return downloadExcel('/reports/activity', { startDate, endDate }, `activity_report_${startDate}_${endDate}.xlsx`);
   },
 };

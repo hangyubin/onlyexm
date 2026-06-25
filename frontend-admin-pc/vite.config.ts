@@ -35,7 +35,6 @@ export default defineConfig({
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-antd': ['antd', '@ant-design/pro-table'],
           'vendor-echarts': ['echarts', 'echarts-for-react'],
-          'vendor-exceljs': ['exceljs'],
           'vendor-utils': ['axios', 'dayjs', 'file-saver'],
         },
       },
