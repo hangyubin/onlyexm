@@ -32,10 +32,10 @@ router.get('/', authMiddleware, async (req, res) => {
         configMap[c.configKey] = c.configValue;
       }
     });
-    res.json(configMap);
+    res.json({ code: 0, data: configMap });
   } catch (err) {
     console.error('Get system config error:', err);
-    res.status(500).json({ error: '获取配置失败' });
+    res.status(500).json({ code: -1, message: '获取配置失败' });
   }
 });
 
@@ -47,6 +47,9 @@ router.post('/', authMiddleware, roleGuard(['ADMIN']), async (req, res) => {
     for (const [key, value] of Object.entries(configData)) {
       const configValue = typeof value === 'string' ? value : JSON.stringify(value);
       
+      // 先读取旧值，再 upsert，确保日志记录正确
+      const existing = await prisma.systemConfig.findUnique({ where: { configKey: key } });
+      
       await prisma.systemConfig.upsert({
         where: { configKey: key },
         update: { configValue },
@@ -54,16 +57,14 @@ router.post('/', authMiddleware, roleGuard(['ADMIN']), async (req, res) => {
       });
 
       if (userId) {
-        // 读取旧值用于日志记录
-        const existing = await prisma.systemConfig.findUnique({ where: { configKey: key } });
         await prisma.configLog.create({
           data: {
             userId,
             configKey: key,
             oldValue: existing?.configValue || '',
             newValue: configValue,
-            action: 'UPDATE',
-            description: `更新配置: ${key}`,
+            action: existing ? 'UPDATE' : 'CREATE',
+            description: existing ? `更新配置: ${key}` : `创建配置: ${key}`,
           },
         });
       }

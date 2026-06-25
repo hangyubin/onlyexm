@@ -129,22 +129,22 @@ export const systemApi = {
   },
 
   getHospitals: async (): Promise<{ id: number; name: string; level: string }[]> => {
-    const response = await request.get('/system/hospitals');
+    const response = await request.get('/hospitals');
     return response.data;
   },
 
   createHospital: async (data: { name: string; level?: string }): Promise<{ id: number; name: string; level: string }> => {
-    const response = await request.post('/system/hospitals', data);
+    const response = await request.post('/hospitals', data);
     return response.data;
   },
 
   updateHospital: async (id: number, data: { name?: string; level?: string }): Promise<{ id: number; name: string; level: string }> => {
-    const response = await request.put(`/system/hospitals/${id}`, data);
+    const response = await request.put(`/hospitals/${id}`, data);
     return response.data;
   },
 
   deleteHospital: async (id: number): Promise<void> => {
-    await request.delete(`/system/hospitals/${id}`);
+    await request.delete(`/hospitals/${id}`);
   },
 
   getConfig: async (): Promise<Record<string, any>> => {
@@ -152,8 +152,37 @@ export const systemApi = {
     return response.data;
   },
 
+  /** 获取院感配置（结构化，带缓存） */
+  getInfectionConfig: async (): Promise<{
+    monthlyRequiredCount: number;
+    passRateThreshold: number;
+    lockEnabled: boolean;
+    weakPointThreshold: number;
+    unlockAccuracy: number;
+    unlockCompletedCount: number;
+  }> => {
+    const response = await request.get('/system/config/infection');
+    return response.data;
+  },
+
+  /** 更新院感配置（带校验） */
+  updateInfectionConfig: async (data: Record<string, any>): Promise<void> => {
+    await request.put('/system/config', data);
+  },
+
   saveConfig: async (data: Record<string, any>): Promise<void> => {
     await request.post('/system/config', data);
+  },
+
+  /** 获取配置变更日志 */
+  getConfigLogs: async (page: number = 1, pageSize: number = 20): Promise<{
+    data: { id: number; operator: string; configKey: string; oldValue: string; newValue: string; action: string; description: string; createdAt: string }[];
+    total: number;
+    page: number;
+    pageSize: number;
+  }> => {
+    const response = await request.get('/system/config/logs', { params: { page, pageSize } });
+    return response.data;
   },
 };
 

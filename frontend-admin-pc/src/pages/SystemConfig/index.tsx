@@ -8,7 +8,8 @@ import { pinyin } from 'pinyin-pro';
 const { Option } = Select;
 
 function ConfigTab() {
-  const [form] = Form.useForm();
+  const [infectionForm] = Form.useForm();
+  const [generalForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -17,17 +18,26 @@ function ConfigTab() {
 
   const loadConfig = async () => {
     try {
-      const config = await systemApi.getConfig();
-      form.setFieldsValue({
-        monthlyRequiredCount: config.monthlyRequiredCount ?? 20,
-        infectionTargetScore: config.infectionTargetScore ?? 60,
-        infectionTargetRate: config.infectionTargetRate ?? 80,
-        practiceCount: config.practiceCount ?? 3,
-        wrongQuestionReviewDays: config.wrongQuestionReviewDays ?? 7,
-        antiCheatEnabled: config.antiCheatEnabled ?? true,
-        offlineEnabled: config.offlineEnabled ?? false,
-        autoSyncEnabled: config.autoSyncEnabled ?? true,
-        syncInterval: config.syncInterval ?? 30,
+      const [infectionConfig, generalConfig] = await Promise.all([
+        systemApi.getInfectionConfig(),
+        systemApi.getConfig(),
+      ]);
+      infectionForm.setFieldsValue({
+        monthlyRequiredCount: infectionConfig.monthlyRequiredCount ?? 20,
+        passRateThreshold: infectionConfig.passRateThreshold ?? 70,
+        lockEnabled: infectionConfig.lockEnabled ?? true,
+        weakPointThreshold: infectionConfig.weakPointThreshold ?? 60,
+        unlockAccuracy: infectionConfig.unlockAccuracy ?? 70,
+        unlockCompletedCount: infectionConfig.unlockCompletedCount ?? 20,
+      });
+      generalForm.setFieldsValue({
+        infectionTargetRate: generalConfig.infectionTargetRate ?? 80,
+        practiceCount: generalConfig.practiceCount ?? 3,
+        wrongQuestionReviewDays: generalConfig.wrongQuestionReviewDays ?? 7,
+        antiCheatEnabled: generalConfig.antiCheatEnabled ?? true,
+        offlineEnabled: generalConfig.offlineEnabled ?? false,
+        autoSyncEnabled: generalConfig.autoSyncEnabled ?? true,
+        syncInterval: generalConfig.syncInterval ?? 30,
       });
     } catch (error) {
       console.error('加载配置失败:', error);
@@ -36,15 +46,19 @@ function ConfigTab() {
 
   const handleSave = async () => {
     try {
-      const values = await form.validateFields();
+      const infectionValues = await infectionForm.validateFields();
+      const generalValues = await generalForm.validateFields();
       setLoading(true);
       try {
-        await systemApi.saveConfig(values);
+        await Promise.all([
+          systemApi.updateInfectionConfig(infectionValues),
+          systemApi.saveConfig(generalValues),
+        ]);
         message.success('配置保存成功');
       } catch (apiError) {
         message.error('配置保存失败，请稍后重试');
       }
-    } catch (validationError) {
+    } catch {
       // 表单验证失败，Ant Design 会自动展示验证错误提示
     } finally {
       setLoading(false);
@@ -52,7 +66,8 @@ function ConfigTab() {
   };
 
   const handleReset = () => {
-    form.resetFields();
+    infectionForm.resetFields();
+    generalForm.resetFields();
     loadConfig();
   };
 
@@ -65,8 +80,8 @@ function ConfigTab() {
         </Button>
       </div>
 
-      <Card title="院感达标配置">
-        <Form form={form} layout="vertical">
+      <Card title="院感考核配置">
+        <Form form={infectionForm} layout="vertical">
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="monthlyRequiredCount" label="每月院感要求题数" rules={[{ required: true, message: '请输入每月院感要求题数' }]}>
@@ -74,34 +89,17 @@ function ConfigTab() {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="infectionTargetScore" label="达标分数" rules={[{ required: true, message: '请输入达标分数' }]}>
-                <InputNumber min={0} max={100} placeholder="请输入达标分数" style={{ width: '100%' }} />
+              <Form.Item name="passRateThreshold" label="院感及格线(%)" rules={[{ required: true, message: '请输入院感及格线' }]}>
+                <InputNumber min={0} max={100} placeholder="院感及格线" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="infectionTargetRate" label="达标正确率" rules={[{ required: true, message: '请输入达标正确率' }]}>
-                <InputNumber min={0} max={100} placeholder="请输入达标正确率(%)" style={{ width: '100%' }} />
+              <Form.Item name="weakPointThreshold" label="薄弱知识点阈值(%)" rules={[{ required: true, message: '请输入薄弱知识点阈值' }]}>
+                <InputNumber min={0} max={100} placeholder="低于此值标记为薄弱知识点" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="practiceCount" label="每日练习次数" rules={[{ required: true, message: '请输入每日练习次数' }]}>
-                <InputNumber min={1} max={50} placeholder="请输入每日练习次数" style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="wrongQuestionReviewDays" label="错题复习天数" rules={[{ required: true, message: '请输入错题复习天数' }]}>
-                <InputNumber min={1} max={30} placeholder="请输入错题复习天数" style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-        </Form>
-      </Card>
-
-      <Card title="防作弊配置" className="mt-4">
-        <Form form={form} layout="vertical">
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="antiCheatEnabled" label="启用防作弊" valuePropName="checked">
+              <Form.Item name="lockEnabled" label="启用院感内容锁定" valuePropName="checked">
                 <Switch />
               </Form.Item>
             </Col>
@@ -109,9 +107,53 @@ function ConfigTab() {
         </Form>
       </Card>
 
-      <Card title="离线配置" className="mt-4">
-        <Form form={form} layout="vertical">
+      <Card title="自动解锁配置" className="mt-4">
+        <Form form={infectionForm} layout="vertical">
           <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="unlockAccuracy" label="解锁正确率要求(%)" rules={[{ required: true, message: '请输入解锁正确率' }]}>
+                <InputNumber min={0} max={100} placeholder="正确率达到此值自动解锁" style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="unlockCompletedCount" label="解锁完成数要求" rules={[{ required: true, message: '请输入解锁完成数' }]}>
+                <InputNumber min={1} max={100} placeholder="完成数达到此值自动解锁" style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+      </Card>
+
+      <Card title="学习与考试配置" className="mt-4">
+        <Form form={generalForm} layout="vertical">
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="infectionTargetRate" label="院感达标正确率(%)" rules={[{ required: true, message: '请输入达标正确率' }]}>
+                <InputNumber min={0} max={100} placeholder="院感达标正确率" style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="practiceCount" label="每日练习题目数" rules={[{ required: true, message: '请输入每日练习题目数' }]}>
+                <InputNumber min={1} max={50} placeholder="每日练习题目数" style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item name="wrongQuestionReviewDays" label="错题复习天数" rules={[{ required: true, message: '请输入错题复习天数' }]}>
+                <InputNumber min={1} max={30} placeholder="错题复习天数" style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+      </Card>
+
+      <Card title="防作弊与离线配置" className="mt-4">
+        <Form form={generalForm} layout="vertical">
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item name="antiCheatEnabled" label="启用防作弊" valuePropName="checked">
+                <Switch />
+              </Form.Item>
+            </Col>
             <Col span={12}>
               <Form.Item name="offlineEnabled" label="启用离线模式" valuePropName="checked">
                 <Switch />
@@ -124,7 +166,7 @@ function ConfigTab() {
             </Col>
             <Col span={12}>
               <Form.Item name="syncInterval" label="同步间隔(分钟)" rules={[{ required: true, message: '请输入同步间隔' }]}>
-                <InputNumber min={1} max={1440} placeholder="请输入同步间隔" style={{ width: '100%' }} />
+                <InputNumber min={1} max={1440} placeholder="同步间隔" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
           </Row>
@@ -290,7 +332,8 @@ function DictManageTab() {
           <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
             <Input placeholder="请输入名称" onChange={(e) => {
               if (!editingItem && e.target.value) {
-                const py = pinyin(e.target.value, { toneType: 'none', type: 'array' }).join('').toUpperCase();
+                const py = pinyin(e.target.value, { toneType: 'none', type: 'array' }).join('').toUpperCase()
+                  || e.target.value.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase();
                 form.setFieldsValue({ code: py });
               }
             }} />
@@ -460,11 +503,77 @@ function HospitalManageTab() {
   );
 }
 
+function ConfigLogsTab() {
+  const [logs, setLogs] = useState<{ id: number; operator: string; configKey: string; oldValue: string; newValue: string; action: string; description: string; createdAt: string }[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({ current: 1, pageSize: 20, total: 0 });
+
+  const fetchLogs = async (page = 1, pageSize = 20) => {
+    setLoading(true);
+    try {
+      const result = await systemApi.getConfigLogs(page, pageSize);
+      setLogs(result.data);
+      setPagination({ current: result.page, pageSize: result.pageSize, total: result.total });
+    } catch {
+      message.error('获取配置日志失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLogs();
+  }, []);
+
+  const configKeyLabels: Record<string, string> = {
+    monthlyRequiredCount: '每月院感要求题数',
+    passRateThreshold: '院感及格线',
+    lockEnabled: '院感内容锁定',
+    weakPointThreshold: '薄弱知识点阈值',
+    unlockAccuracy: '解锁正确率',
+    unlockCompletedCount: '解锁完成数',
+    antiCheatEnabled: '防作弊',
+    offlineEnabled: '离线模式',
+    autoSyncEnabled: '自动同步',
+    syncInterval: '同步间隔',
+    practiceCount: '每日练习题目数',
+    wrongQuestionReviewDays: '错题复习天数',
+    infectionTargetRate: '院感达标正确率',
+  };
+
+  const columns = [
+    { title: '操作人', dataIndex: 'operator', key: 'operator' },
+    { title: '配置项', dataIndex: 'configKey', key: 'configKey', render: (v: string) => configKeyLabels[v] || v },
+    { title: '旧值', dataIndex: 'oldValue', key: 'oldValue', render: (v: string) => v || '-' },
+    { title: '新值', dataIndex: 'newValue', key: 'newValue' },
+    { title: '操作', dataIndex: 'action', key: 'action', render: (v: string) => (
+      <Tag color={v === 'CREATE' ? 'green' : 'blue'}>{v === 'CREATE' ? '创建' : '更新'}</Tag>
+    )},
+    { title: '操作时间', dataIndex: 'createdAt', key: 'createdAt', render: (v: string) => new Date(v).toLocaleString() },
+  ];
+
+  return (
+    <Table
+      columns={columns}
+      dataSource={logs}
+      rowKey="id"
+      loading={loading}
+      pagination={{
+        ...pagination,
+        onChange: (page, pageSize) => fetchLogs(page, pageSize),
+        showSizeChanger: true,
+        showTotal: (total) => `共 ${total} 条`,
+      }}
+    />
+  );
+}
+
 export default function SystemConfig() {
   const tabItems = [
     { key: 'config', label: '系统配置', children: <ConfigTab /> },
     { key: 'dict', label: '字典管理', children: <DictManageTab /> },
     { key: 'hospital', label: '医院管理', children: <HospitalManageTab /> },
+    { key: 'logs', label: '配置日志', children: <ConfigLogsTab /> },
   ];
 
   return (
