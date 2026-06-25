@@ -1,6 +1,7 @@
-import ReactECharts from 'echarts-for-react';
+import ReactECharts from 'echarts-for-react/esm/core';
 import { useNavigate } from 'react-router-dom';
 import { WeakPoint, DEFAULT_WEAK_POINTS } from '../api/home';
+import echarts from '../utils/echarts';
 
 // 院感标签名称到代码的映射
 const TAG_NAME_TO_CODE: Record<string, string> = {
@@ -84,6 +85,7 @@ export const RadarChart: React.FC<RadarChartProps> = ({ data }) => {
 
   return (
     <ReactECharts 
+      echarts={echarts}
       option={option} 
       style={{ height: 200, width: '100%' }}
       opts={{ renderer: 'canvas' }}

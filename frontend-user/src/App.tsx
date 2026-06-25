@@ -41,7 +41,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 function LayoutWrapper() {
   const { status, checkUnlock } = useInfectionStatus();
-  const { isOnline } = useOnlineSync();
+  useOnlineSync();
   const [showWarning, setShowWarning] = useState(false);
 
   useEffect(() => {
@@ -59,22 +59,7 @@ function LayoutWrapper() {
     initDB();
   }, []);
 
-  useEffect(() => {
-    const syncQuestions = async () => {
-      if (!isOnline) return;
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) return;
-        // 在线同步逻辑：后续可在此处实现与服务器的数据同步
-      } catch (error) {
-        console.error('Failed to sync questions:', error);
-      }
-    };
-
-    if (isOnline) {
-      syncQuestions();
-    }
-  }, [isOnline]);
+  
 
   const handleCheckUnlock = async () => {
     const result = await checkUnlock();

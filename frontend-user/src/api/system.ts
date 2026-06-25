@@ -15,9 +15,6 @@ export interface DictItem {
 const baseUrl = '/system';
 
 export const systemApi = {
-  getDictByCategory: (category: string) =>
-    api.get(`${baseUrl}/dict/${category}`).then((r) => r.data as DictItem[]),
-
   getDict: (category: string) =>
     api.get(`${baseUrl}/dict/${category}`).then((r) => r.data as DictItem[]),
 

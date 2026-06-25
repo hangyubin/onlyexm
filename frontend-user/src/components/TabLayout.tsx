@@ -1,8 +1,14 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { Home, FileText, BookOpen, User } from 'lucide-react';
+import { Home, FileText, BookOpen, User, type LucideIcon } from 'lucide-react';
+
+const tabs: { to: string; icon: LucideIcon; label: string }[] = [
+  { to: '/', icon: Home, label: '首页' },
+  { to: '/exams', icon: FileText, label: '考试' },
+  { to: '/learning', icon: BookOpen, label: '学习' },
+  { to: '/profile', icon: User, label: '我的' },
+];
 
 export function TabLayout() {
-
   return (
     <div className="min-h-screen bg-gray-50 max-w-md mx-auto">
       <Outlet />
@@ -11,50 +17,20 @@ export function TabLayout() {
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="flex items-center justify-around py-2">
-          <NavLink
-            to="/"
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-1 px-4 py-2 ${
-                isActive ? 'text-blue-600' : 'text-gray-400'
-              }`
-            }
-          >
-            <Home className="w-6 h-6" />
-            <span className="text-xs">首页</span>
-          </NavLink>
-          <NavLink
-            to="/exams"
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-1 px-4 py-2 ${
-                isActive ? 'text-blue-600' : 'text-gray-400'
-              }`
-            }
-          >
-            <FileText className="w-6 h-6" />
-            <span className="text-xs">考试</span>
-          </NavLink>
-          <NavLink
-            to="/learning"
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-1 px-4 py-2 ${
-                isActive ? 'text-blue-600' : 'text-gray-400'
-              }`
-            }
-          >
-            <BookOpen className="w-6 h-6" />
-            <span className="text-xs">学习</span>
-          </NavLink>
-          <NavLink
-            to="/profile"
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-1 px-4 py-2 ${
-                isActive ? 'text-blue-600' : 'text-gray-400'
-              }`
-            }
-          >
-            <User className="w-6 h-6" />
-            <span className="text-xs">我的</span>
-          </NavLink>
+          {tabs.map(({ to, icon: Icon, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                `flex flex-col items-center gap-1 px-4 py-2 ${
+                  isActive ? 'text-blue-600' : 'text-gray-400'
+                }`
+              }
+            >
+              <Icon className="w-6 h-6" />
+              <span className="text-xs">{label}</span>
+            </NavLink>
+          ))}
         </div>
       </nav>
     </div>

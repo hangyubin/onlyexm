@@ -15,6 +15,8 @@ export function useOnlineSync() {
   const [lastSyncTime, setLastSyncTime] = useState<number | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
 
+  const isSyncingRef = useRef(false);
+
   const checkPendingRecords = useCallback(async () => {
     const records = await offlineDB.getPendingSync();
     setPendingCount(records.length);
@@ -25,26 +27,27 @@ export function useOnlineSync() {
     if (!navigator.onLine) {
       return { success: false, message: '网络未连接', syncedCount: 0 };
     }
+    if (isSyncingRef.current) {
+      return { success: false, message: '正在同步中', syncedCount: 0 };
+    }
 
+    isSyncingRef.current = true;
     setIsSyncing(true);
 
     try {
       const pendingRecords = await offlineDB.getPendingSync();
 
       if (pendingRecords.length === 0) {
-        setIsSyncing(false);
         return { success: true, message: '没有待同步的数据', syncedCount: 0 };
       }
 
       const userId = parseInt(localStorage.getItem('userId') || '0');
       if (!userId) {
-        setIsSyncing(false);
         return { success: false, message: '用户ID不存在', syncedCount: 0 };
       }
 
       const batchSize = 50;
       let totalSynced = 0;
-      let isUnlocked = false;
 
       for (let i = 0; i < pendingRecords.length; i += batchSize) {
         const batch = pendingRecords.slice(i, i + batchSize);
@@ -75,34 +78,32 @@ export function useOnlineSync() {
 
       await checkPendingRecords();
       setLastSyncTime(Date.now());
-      setIsSyncing(false);
 
       return {
         success: true,
         message: `成功同步 ${totalSynced} 条记录`,
         syncedCount: totalSynced,
-        isUnlocked,
       };
     } catch (error) {
       console.error('Sync failed:', error);
-      setIsSyncing(false);
       return {
         success: false,
         message: '同步失败，请稍后重试',
         syncedCount: 0,
       };
+    } finally {
+      isSyncingRef.current = false;
+      setIsSyncing(false);
     }
   }, [checkPendingRecords]);
 
+  // 网络状态监听
   useEffect(() => {
-    const handleOnline = async () => {
+    const handleOnline = () => {
       setIsOnline(true);
-      await syncPendingRecords();
+      syncPendingRecords();
     };
-
-    const handleOffline = () => {
-      setIsOnline(false);
-    };
+    const handleOffline = () => setIsOnline(false);
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
@@ -113,24 +114,21 @@ export function useOnlineSync() {
     };
   }, [syncPendingRecords]);
 
-  // 使用 ref 保存 isSyncing，避免定时器因状态变化而重建
-  const isSyncingRef = useRef(isSyncing);
-  useEffect(() => {
-    isSyncingRef.current = isSyncing;
-  }, [isSyncing]);
-
+  // 初始化检查 + 仅在有待同步数据时启动轮询
   useEffect(() => {
     checkPendingRecords();
+  }, [checkPendingRecords]);
+
+  useEffect(() => {
+    if (pendingCount === 0) return;
 
     const timer = setInterval(async () => {
-      await checkPendingRecords();
-      if (navigator.onLine && !isSyncingRef.current) {
-        await syncPendingRecords();
-      }
+      if (!navigator.onLine || isSyncingRef.current) return;
+      await syncPendingRecords();
     }, 60000);
 
     return () => clearInterval(timer);
-  }, [checkPendingRecords, syncPendingRecords]);
+  }, [pendingCount, syncPendingRecords]);
 
   return {
     isOnline,

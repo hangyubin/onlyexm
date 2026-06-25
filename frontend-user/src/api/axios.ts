@@ -24,40 +24,19 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => {
     const data = response.data;
-    if (data && typeof data === 'object') {
-      // 处理 { code, data, message } 格式
-      if ('code' in data && typeof data.code === 'number') {
-        if (data.code === 0) {
-          if ('total' in data) {
-            response.data = data;
-          } else {
-            response.data = data.data ?? data;
-          }
-        } else {
-          console.error('API Error:', data.message);
-          return Promise.reject(new Error(data.message || '操作失败'));
-        }
+    if (!data || typeof data !== 'object') return response;
+
+    // 统一的响应格式处理：{ code, data, message } 或 { success, data, message }
+    const isCodeFormat = 'code' in data && typeof data.code === 'number';
+    const isSuccessFormat = 'success' in data;
+
+    if (isCodeFormat || isSuccessFormat) {
+      const isSuccess = isCodeFormat ? data.code === 0 : data.success;
+      if (!isSuccess) {
+        return Promise.reject(new Error(data.message || '操作失败'));
       }
-      // 处理 { success, data, message } 格式
-      else if ('success' in data) {
-        if (data.success) {
-          if ('total' in data) {
-            response.data = data;
-          } else {
-            const unwrapped = data.data ?? data;
-            // 保留被展开时丢失的顶层元数据字段（仅当 unwrapped 是对象时）
-            if (unwrapped && typeof unwrapped === 'object' && !Array.isArray(unwrapped)) {
-              if (data.success !== undefined) unwrapped.success = data.success;
-              if (data.autoRemoved !== undefined) unwrapped.autoRemoved = data.autoRemoved;
-              if (data.message !== undefined) unwrapped.message = data.message;
-            }
-            response.data = unwrapped;
-          }
-        } else {
-          console.error('API Error:', data.message);
-          return Promise.reject(new Error(data.message || '操作失败'));
-        }
-      }
+      // 带分页的响应保留完整结构，否则展开 data.data
+      response.data = 'total' in data ? data : (data.data ?? data);
     }
     return response;
   },
@@ -67,7 +46,6 @@ api.interceptors.response.use(
     const isLoginPage = currentPath === '/login' || currentPath === '/user/login';
 
     if (status === 401) {
-      // token 过期或无效，清除并跳转登录页
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       localStorage.removeItem('userId');

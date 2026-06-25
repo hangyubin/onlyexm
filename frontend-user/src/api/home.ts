@@ -1,5 +1,4 @@
 import api from './axios';
-import { systemApi, DictItem } from './system';
 
 export interface InfectionStatus {
   completedCount: number;
@@ -30,18 +29,6 @@ export const DEFAULT_WEAK_POINTS: WeakPoint[] = [
   { name: '无菌操作', score: 70 },
   { name: '感染监测', score: 55 }
 ];
-
-export const fetchDefaultWeakPoints = async (): Promise<WeakPoint[]> => {
-  try {
-    const tags = await systemApi.getDict('INFECTION_TAG');
-    return tags.map((tag: DictItem) => ({
-      name: tag.name,
-      score: 40 + (tag.name.length * 7) % 60
-    }));
-  } catch {
-    return DEFAULT_WEAK_POINTS;
-  }
-};
 
 export interface HomeApi {
   getInfectionStatus: () => Promise<InfectionStatus>;
@@ -85,9 +72,9 @@ export const homeApi: HomeApi = {
   getWeakPoints: async (): Promise<WeakPoint[]> => {
     try {
       const response = await api.get('/home/weak-points');
-      return response.data && response.data.length > 0 ? response.data : await fetchDefaultWeakPoints();
+      return response.data && response.data.length > 0 ? response.data : DEFAULT_WEAK_POINTS;
     } catch {
-      return await fetchDefaultWeakPoints();
+      return DEFAULT_WEAK_POINTS;
     }
   },
 

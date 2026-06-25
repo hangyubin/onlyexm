@@ -32,7 +32,7 @@ export interface PracticeRecord {
 }
 
 const DB_NAME = 'OfflineExamDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 export class OfflineDBManager {
   private db: IDBPDatabase | null = null;
@@ -41,30 +41,40 @@ export class OfflineDBManager {
     if (this.db) return;
 
     this.db = await openDB(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains('questions')) {
-          const questionStore = db.createObjectStore('questions', { keyPath: 'id' });
-          questionStore.createIndex('type', 'type');
-          questionStore.createIndex('infectionTag', 'infectionTag');
+      upgrade(db, oldVersion, _newVersion, transaction) {
+        if (oldVersion < 1) {
+          if (!db.objectStoreNames.contains('questions')) {
+            const questionStore = db.createObjectStore('questions', { keyPath: 'id' });
+            questionStore.createIndex('type', 'type');
+            questionStore.createIndex('infectionTag', 'infectionTag');
+          }
+
+          if (!db.objectStoreNames.contains('userProgress')) {
+            const progressStore = db.createObjectStore('userProgress', { 
+              keyPath: 'id',
+              autoIncrement: true 
+            });
+            progressStore.createIndex('userId', 'userId');
+            progressStore.createIndex('questionId', 'questionId');
+          }
+
+          if (!db.objectStoreNames.contains('practiceRecords')) {
+            const recordStore = db.createObjectStore('practiceRecords', { 
+              keyPath: 'id',
+              autoIncrement: true 
+            });
+            recordStore.createIndex('syncStatus', 'syncStatus');
+            recordStore.createIndex('userId', 'userId');
+            recordStore.createIndex('timestamp', 'timestamp');
+          }
         }
 
-        if (!db.objectStoreNames.contains('userProgress')) {
-          const progressStore = db.createObjectStore('userProgress', { 
-            keyPath: 'id',
-            autoIncrement: true 
-          });
-          progressStore.createIndex('userId', 'userId');
-          progressStore.createIndex('questionId', 'questionId');
-        }
-
-        if (!db.objectStoreNames.contains('practiceRecords')) {
-          const recordStore = db.createObjectStore('practiceRecords', { 
-            keyPath: 'id',
-            autoIncrement: true 
-          });
-          recordStore.createIndex('syncStatus', 'syncStatus');
-          recordStore.createIndex('userId', 'userId');
-          recordStore.createIndex('timestamp', 'timestamp');
+        if (oldVersion < 2) {
+          // v2: 添加 pendingSync 索引，优化待同步数据查询
+          const progressStore = transaction.objectStore('userProgress');
+          if (!progressStore.indexNames.contains('pendingSync')) {
+            progressStore.createIndex('pendingSync', 'pendingSync');
+          }
         }
       },
     });
@@ -116,10 +126,8 @@ export class OfflineDBManager {
     const tx = this.db.transaction(['userProgress', 'practiceRecords'], 'readwrite');
 
     const progressStore = tx.objectStore('userProgress');
-    const allProgress = await progressStore.getAll();
-    const existingProgress = allProgress.filter((p: UserProgress) => p.userId === userId);
-    
-    const questionProgress = existingProgress.find((p: UserProgress) => p.questionId === questionId);
+    const userProgressList = await progressStore.index('userId').getAll(userId);
+    const questionProgress = userProgressList.find((p: UserProgress) => p.questionId === questionId);
     
     if (questionProgress) {
       await progressStore.put({
@@ -169,8 +177,7 @@ export class OfflineDBManager {
     await this.openDB();
     if (!this.db) return [];
     const tx = this.db.transaction('userProgress', 'readonly');
-    const allProgress = await tx.store.getAll();
-    return allProgress.filter((p: UserProgress) => p.pendingSync);
+    return tx.store.index('pendingSync').getAll(IDBKeyRange.only(true));
   }
 
   async markSynced(ids: number[]): Promise<void> {
@@ -196,10 +203,10 @@ export class OfflineDBManager {
 
     const tx = this.db.transaction('userProgress', 'readwrite');
     const store = tx.objectStore('userProgress');
-    const allProgress = await store.getAll();
+    const userProgress = await store.index('userId').getAll(userId);
     
-    for (const progress of allProgress as UserProgress[]) {
-      if (progress.userId === userId && questionIds.includes(progress.questionId)) {
+    for (const progress of userProgress) {
+      if (questionIds.includes(progress.questionId)) {
         await store.put({ ...progress, pendingSync: false });
       }
     }
@@ -215,12 +222,10 @@ export class OfflineDBManager {
 
     const tx = this.db.transaction('practiceRecords', 'readwrite');
     const store = tx.objectStore('practiceRecords');
-    const allRecords = await store.getAll();
+    const oldRecords = await store.index('timestamp').getAll(IDBKeyRange.upperBound(cutoffTime));
     
-    for (const record of allRecords as PracticeRecord[]) {
-      if (record.timestamp < cutoffTime) {
-        await store.delete(record.id!);
-      }
+    for (const record of oldRecords) {
+      await store.delete(record.id!);
     }
     
     await tx.done;
@@ -230,24 +235,22 @@ export class OfflineDBManager {
     await this.openDB();
     if (!this.db) return [];
     const tx = this.db.transaction('userProgress', 'readonly');
-    const allProgress = await tx.store.getAll();
-    return allProgress.filter((p: UserProgress) => p.userId === userId);
+    return tx.store.index('userId').getAll(userId);
   }
 
   async getUserProgressByQuestion(userId: number, questionId: number): Promise<UserProgress | undefined> {
     await this.openDB();
     if (!this.db) return undefined;
     const tx = this.db.transaction('userProgress', 'readonly');
-    const allProgress = await tx.store.getAll();
-    return allProgress.find((p: UserProgress) => p.userId === userId && p.questionId === questionId);
+    const byUserId = await tx.store.index('userId').getAll(userId);
+    return byUserId.find((p: UserProgress) => p.questionId === questionId);
   }
 
   async getPracticeRecords(userId: number): Promise<PracticeRecord[]> {
     await this.openDB();
     if (!this.db) return [];
     const tx = this.db.transaction('practiceRecords', 'readonly');
-    const allRecords = await tx.store.getAll();
-    return allRecords.filter((r: PracticeRecord) => r.userId === userId);
+    return tx.store.index('userId').getAll(userId);
   }
 
   async deleteQuestion(id: number): Promise<void> {

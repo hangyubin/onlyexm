@@ -24,6 +24,9 @@ export function Countdown({ initialSeconds, onTimeUp }: CountdownProps) {
   }, [seconds]);
 
   useEffect(() => {
+    // 重置触发标记，避免新倒计时被旧标记阻止
+    triggeredRef.current = false;
+
     if (initialSeconds <= 0) {
       if (!triggeredRef.current) {
         triggeredRef.current = true;
