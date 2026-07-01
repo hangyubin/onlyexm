@@ -375,7 +375,7 @@ export default function MyProfile() {
       )}
 
       {/* 退出登录按钮 */}
-      <div className="px-4 mt-6 mb-8">
+      <div className="px-4 mt-6 mb-4">
         <button
           onClick={() => {
             localStorage.removeItem('token');
@@ -389,6 +389,14 @@ export default function MyProfile() {
           <LogOut className="w-5 h-5" />
           退出登录
         </button>
+      </div>
+
+      {/* 版本信息 */}
+      <div className="px-4 mb-8">
+        <p className="text-center text-xs text-gray-400">
+          v{__APP_VERSION__}{__GIT_COMMIT__ ? ` (${__GIT_COMMIT__})` : ''}
+          &nbsp;|&nbsp;{__BUILD_TIME__ ? new Date(__BUILD_TIME__).toLocaleDateString('zh-CN') : ''}
+        </p>
       </div>
     </div>
   );

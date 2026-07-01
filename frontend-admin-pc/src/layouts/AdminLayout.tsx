@@ -148,10 +148,28 @@ export default function AdminLayout() {
           style={{
             background: 'transparent',
             borderRight: 'none',
-            height: 'calc(100vh - 64px)',
+            height: 'calc(100vh - 64px - 40px)',
             overflowY: 'auto',
           }}
         />
+        {!collapsed && (
+          <div style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: 40,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderTop: '1px solid #334155',
+            padding: '0 12px',
+          }}>
+            <span style={{ color: '#64748b', fontSize: 11, whiteSpace: 'nowrap' }}>
+              v{__APP_VERSION__} {__GIT_COMMIT__ && `(${__GIT_COMMIT__})`}
+            </span>
+          </div>
+        )}
       </Sider>
       <Layout style={{ marginLeft: collapsed ? 64 : 200, transition: 'margin-left 0.2s' }}>
         <Header style={{

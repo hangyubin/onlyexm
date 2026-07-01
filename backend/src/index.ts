@@ -8,6 +8,7 @@ import prisma from './lib/prisma';
 import multer from 'multer';
 import path from 'path';
 import crypto from 'crypto';
+import { execSync } from 'child_process';
 import fs from 'fs';
 import { authMiddleware } from './middleware/auth';
 import authRoutes from './routes/auth';
@@ -179,6 +180,27 @@ app.get('/user/*', (req, res) => {
 // 健康检查
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// 版本信息
+const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf-8'));
+let gitCommit = '';
+try {
+  gitCommit = execSync('git rev-parse --short HEAD', { encoding: 'utf-8', cwd: path.join(__dirname, '..') }).trim();
+} catch { /* 非 git 环境 */ }
+let gitBranch = '';
+try {
+  gitBranch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf-8', cwd: path.join(__dirname, '..') }).trim();
+} catch { /* 非 git 环境 */ }
+
+app.get('/api/version', (req, res) => {
+  res.json({
+    version: pkg.version || '1.0.0',
+    buildTime: new Date().toISOString(),
+    gitCommit,
+    gitBranch,
+    nodeEnv: process.env.NODE_ENV || 'development',
+  });
 });
 
 // 处理浏览器自动请求 favicon.ico（避免 404 错误）
