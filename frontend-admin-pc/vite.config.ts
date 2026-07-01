@@ -2,8 +2,9 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { execSync } from 'child_process';
+import fs from 'fs';
 
-const pkg = JSON.parse(require('fs').readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8'));
+const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8'));
 let gitCommit = '';
 try { gitCommit = execSync('git rev-parse --short HEAD', { encoding: 'utf-8', cwd: __dirname }).trim(); } catch { /* no git */ }
 let gitBranch = '';

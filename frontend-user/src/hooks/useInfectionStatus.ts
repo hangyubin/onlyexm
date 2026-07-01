@@ -7,6 +7,7 @@ export interface InfectionStatus {
   currentAccuracy: number;
   requiredCount: number;
   completedCount: number;
+  isCompliant: boolean;
 }
 
 export function useInfectionStatus() {

@@ -7,7 +7,7 @@ interface InfectionWarningProps {
 }
 
 export function InfectionWarning({ status, onCheckUnlock }: InfectionWarningProps) {
-  if (!status.isLocked) {
+  if (status.isCompliant) {
     return (
       <div className="bg-green-50 border-b border-green-200 px-4 py-3 print:hidden">
         <div className="flex items-center justify-between max-w-md mx-auto">

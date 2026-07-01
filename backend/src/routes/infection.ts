@@ -3,6 +3,7 @@ import prisma from '../lib/prisma';
 import { authMiddleware } from '../middleware/auth';
 import { roleGuard } from '../middleware/roleGuard';
 import { htmlToPdf } from '../utils/pdf';
+import { getInfectionConfig } from '../services/configService';
 
 const router = express.Router();
 
@@ -23,19 +24,27 @@ router.get('/status', authMiddleware, async (req, res) => {
       },
     });
 
+    let config = null;
+    try {
+      config = await getInfectionConfig();
+    } catch (_) {}
+
     if (!requirement) {
+      const monthlyRequiredCount = config?.monthlyRequiredCount || 20;
       return res.json({
         isLocked: false,
-        needCount: 20,
+        needCount: monthlyRequiredCount,
         currentAccuracy: 0,
-        requiredCount: 20,
+        requiredCount: monthlyRequiredCount,
         completedCount: 0,
+        isCompliant: false,
       });
     }
 
     const { requiredCount, completedCount, accuracyRate, isLocked } = requirement;
     const needCount = requiredCount - completedCount;
     const currentAccuracy = accuracyRate ? Number(accuracyRate) : 0;
+    const isCompliant = completedCount >= requiredCount && currentAccuracy >= (config?.passRateThreshold || 70);
 
     res.json({
       isLocked,
@@ -43,6 +52,7 @@ router.get('/status', authMiddleware, async (req, res) => {
       currentAccuracy,
       requiredCount,
       completedCount,
+      isCompliant,
     });
   } catch (err) {
     console.error('Get infection status error:', err);
