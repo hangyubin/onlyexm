@@ -144,22 +144,21 @@ function PracticeModal({
         '/wrong-questions/practice',
         { questionId: question.id, isCorrect }
       );
-      if (response.data.success) {
-        setResult({
-          isCorrect,
-          autoRemoved: response.data.autoRemoved,
-          message: response.data.message,
-          newCorrectCount: response.data.correctCount,
-          newWrongCount: response.data.wrongCount,
-        });
-        onSuccess({
-          isCorrect,
-          autoRemoved: response.data.autoRemoved,
-          message: response.data.message,
-          newCorrectCount: response.data.correctCount,
-          newWrongCount: response.data.wrongCount,
-        });
-      }
+      // 拦截器已处理 success/error，autoRemoved/message 已复制到 data 上
+      setResult({
+        isCorrect,
+        autoRemoved: response.data.autoRemoved,
+        message: response.data.message,
+        newCorrectCount: response.data.correctCount,
+        newWrongCount: response.data.wrongCount,
+      });
+      onSuccess({
+        isCorrect,
+        autoRemoved: response.data.autoRemoved,
+        message: response.data.message,
+        newCorrectCount: response.data.correctCount,
+        newWrongCount: response.data.wrongCount,
+      });
     } catch (err) {
       console.error('Practice failed:', err);
     }
@@ -394,10 +393,9 @@ export function WrongQuestionBook() {
       params.pageSize = pageSize.toString();
 
       const response = await api.get('/wrong-questions', { params });
-      if (response.data.success) {
-        setWrongQuestions(response.data.data);
-        setTotal(response.data.total);
-      }
+      // 拦截器已处理 success/error 并展开 { success, data, total } → 数组 + total 属性
+      setWrongQuestions(response.data);
+      setTotal(response.data.total || 0);
     } catch (err) {
       console.error('Fetch wrong questions failed:', err);
       setError('加载错题本失败，请重试');

@@ -64,16 +64,15 @@ export function useOnlineSync() {
           { userId, records: syncData }
         );
 
-        if (response.data.success) {
-          totalSynced += response.data.data.syncedCount;
-          const failedIds: number[] = response.data.data.failedIds || [];
-          const syncedIds = batch
-            .filter(r => !failedIds.includes(r.questionId))
-            .map(r => r.id!)
-            .filter(id => id !== undefined);
+        // 拦截器已处理 code/error 并展开 { code, data } → data
+        totalSynced += response.data.syncedCount;
+        const failedIds: number[] = response.data.failedIds || [];
+        const syncedIds = batch
+          .filter(r => !failedIds.includes(r.questionId))
+          .map(r => r.id!)
+          .filter(id => id !== undefined);
 
-          await offlineDB.markSynced(syncedIds);
-        }
+        await offlineDB.markSynced(syncedIds);
       }
 
       await checkPendingRecords();

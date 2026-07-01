@@ -34,7 +34,16 @@ api.interceptors.response.use(
       if (!isSuccess) {
         return Promise.reject(new Error(data.message || '操作失败'));
       }
-      response.data = data.data ?? data;
+      const innerData = data.data ?? data;
+      if (innerData !== data && typeof innerData === 'object' && innerData !== null) {
+        // 将 wrapper 上的额外字段（如 total、autoRemoved）复制到 innerData 上，避免丢失
+        for (const key of Object.keys(data)) {
+          if (!['code', 'success', 'message', 'data'].includes(key)) {
+            (innerData as any)[key] = data[key];
+          }
+        }
+      }
+      response.data = innerData;
     }
     return response;
   },
