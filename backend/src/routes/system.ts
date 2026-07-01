@@ -342,33 +342,38 @@ router.post('/dict/init', roleGuard(['ADMIN']), async (req, res) => {
     for (const dict of defaultDictData) {
       if (!targetCategories.includes(dict.category)) continue;
 
-      for (const item of dict.items) {
-        const existing = await prisma.systemDict.findUnique({
-          where: { category_code: { category: dict.category, code: item.code } },
-        });
-        if (existing) {
-          skipped++;
-          continue;
-        }
-        await prisma.systemDict.create({
-          data: {
-            category: dict.category,
-            code: item.code,
-            name: item.name,
-            color: item.color,
-            sortOrder: item.sortOrder,
-            isActive: true,
-          },
-        });
-        created++;
+      // 先批量查询所有已存在的 code
+      const codes = dict.items.map((item) => item.code);
+      const existingCodes = await prisma.systemDict.findMany({
+        where: { category: dict.category, code: { in: codes } },
+        select: { code: true },
+      });
+      const existingSet = new Set(existingCodes.map((e) => e.code));
+
+      // 批量创建不存在的记录
+      const toCreate = dict.items
+        .filter((item) => !existingSet.has(item.code))
+        .map((item) => ({
+          category: dict.category,
+          code: item.code,
+          name: item.name,
+          color: item.color,
+          sortOrder: item.sortOrder,
+          isActive: true,
+        }));
+
+      skipped += dict.items.length - toCreate.length;
+      if (toCreate.length > 0) {
+        await prisma.systemDict.createMany({ data: toCreate });
+        created += toCreate.length;
       }
     }
 
     if (req.body.categories) {
-        targetCategories.forEach(c => clearDictCache(c.trim()));
-      } else {
-        clearDictCache();
-      }
+      targetCategories.forEach((c) => clearDictCache(c.trim()));
+    } else {
+      clearDictCache();
+    }
     res.json({
       message: `初始化完成，新增 ${created} 条，跳过 ${skipped} 条已存在的记录`,
       created,
@@ -422,57 +427,6 @@ router.post('/dict/batch', roleGuard(['ADMIN']), async (req, res) => {
   } catch (err) {
     console.error('批量创建字典失败:', err);
     res.status(500).json({ error: '批量创建字典失败' });
-  }
-});
-
-// =============== Hospital ===============
-
-router.get('/hospitals', async (req, res) => {
-  try {
-    const hospitals = await prisma.hospital.findMany({ orderBy: { id: 'asc' } });
-    res.json(hospitals);
-  } catch (err) {
-    console.error('获取医院列表失败:', err);
-    res.status(500).json({ error: '获取医院列表失败' });
-  }
-});
-
-router.post('/hospitals', roleGuard(['ADMIN']), async (req, res) => {
-  try {
-    const { name, level } = req.body;
-    if (!name) return res.status(400).json({ error: 'name 必填' });
-    const data: any = { name: String(name), level: String(level || 'TOWNSHIP') };
-    const hospital = await prisma.hospital.create({ data });
-    res.status(201).json(hospital);
-  } catch (err) {
-    console.error('创建医院失败:', err);
-    res.status(500).json({ error: '创建医院失败' });
-  }
-});
-
-router.put('/hospitals/:id', roleGuard(['ADMIN']), async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    const { name, level } = req.body;
-    const data: any = {};
-    if (name !== undefined) data.name = String(name);
-    if (level !== undefined && level !== null) data.level = String(level);
-    const hospital = await prisma.hospital.update({ where: { id }, data });
-    res.json(hospital);
-  } catch (err) {
-    console.error('修改医院失败:', err);
-    res.status(500).json({ error: '修改医院失败' });
-  }
-});
-
-router.delete('/hospitals/:id', roleGuard(['ADMIN']), async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    await prisma.hospital.delete({ where: { id } });
-    res.json({ message: '删除成功' });
-  } catch (err) {
-    console.error('删除医院失败:', err);
-    res.status(500).json({ error: '删除医院失败' });
   }
 });
 
