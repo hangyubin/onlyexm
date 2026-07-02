@@ -1,12 +1,13 @@
-import { AlertTriangle, Lock, Unlock } from 'lucide-react';
+import { ArrowRight, Lock, Unlock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { InfectionStatus } from '../hooks/useInfectionStatus';
 
 interface InfectionWarningProps {
   status: InfectionStatus;
-  onCheckUnlock: () => Promise<{ success: boolean; message: string }>;
 }
 
-export function InfectionWarning({ status, onCheckUnlock }: InfectionWarningProps) {
+export function InfectionWarning({ status }: InfectionWarningProps) {
+  const navigate = useNavigate();
   if (status.isCompliant) {
     return (
       <div className="bg-green-50 border-b border-green-200 px-4 py-3 print:hidden">
@@ -40,10 +41,10 @@ export function InfectionWarning({ status, onCheckUnlock }: InfectionWarningProp
           </div>
         </div>
         <button
-          onClick={onCheckUnlock}
+          onClick={() => navigate('/learning')}
           className="ml-3 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded-full flex items-center gap-1 transition-colors"
         >
-          <AlertTriangle className="w-3.5 h-3.5" />
+          <ArrowRight className="w-3.5 h-3.5" />
           去学习
         </button>
       </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { Card, Row, Col, Table, Tag, Button, Select, Input, message, Spin, Switch, Modal, Space, Descriptions, Progress, Popconfirm } from 'antd';
-import { ClockCircleOutlined, WarningOutlined, CheckCircleOutlined, SearchOutlined, EyeOutlined } from '@ant-design/icons';
+import { ClockCircleOutlined, WarningOutlined, CheckCircleOutlined, SearchOutlined, EyeOutlined, PrinterOutlined } from '@ant-design/icons';
 import { examApi, ExamRecordItem, ExamStats } from '../../api/exam';
 import { paperApi } from '../../api/paper';
 
@@ -118,6 +118,14 @@ export default function ExamMonitor() {
     }
   };
 
+  const handlePrint = async (record: ExamRecordItem) => {
+    try {
+      await examApi.printRecord(record.id, record.paperName, record.userName);
+    } catch {
+      message.error('打印试卷失败');
+    }
+  };
+
   const columns = [
     { title: '考生', dataIndex: 'userName', key: 'userName' },
     { title: '试卷', dataIndex: 'paperName', key: 'paperName' },
@@ -136,6 +144,9 @@ export default function ExamMonitor() {
     { title: '操作', key: 'actions', render: (_: unknown, record: ExamRecordItem) => (
       <Space size="small">
         <Button size="small" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>详情</Button>
+        {record.status !== 'IN_PROGRESS' && (
+          <Button size="small" icon={<PrinterOutlined />} onClick={() => handlePrint(record)}>打印</Button>
+        )}
         {record.status === 'IN_PROGRESS' && (
           <Popconfirm
             title="确认强制交卷？"
@@ -272,7 +283,15 @@ export default function ExamMonitor() {
         title="考试详情"
         open={detailVisible}
         onCancel={() => setDetailVisible(false)}
-        footer={null}
+        footer={
+          detailRecord && detailRecord.status !== 'IN_PROGRESS' ? (
+            <Button icon={<PrinterOutlined />} onClick={() => {
+              handlePrint({ id: detailRecord.id, paperName: detailRecord.paperName, userName: detailRecord.userName } as ExamRecordItem);
+            }}>
+              打印试卷
+            </Button>
+          ) : null
+        }
         width={700}
       >
         <Spin spinning={detailLoading}>

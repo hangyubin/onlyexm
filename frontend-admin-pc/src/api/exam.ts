@@ -86,4 +86,17 @@ export const examApi = {
     const response = await api.get<ExamRecordDetail>(`/exam/monitor/${examRecordId}`);
     return response.data;
   },
+
+  printRecord: async (examRecordId: number, paperName?: string, userName?: string): Promise<void> => {
+    const response = await api.get(`/exam/records/${examRecordId}/print`, {
+      responseType: 'blob',
+    });
+    const url = URL.createObjectURL(response.data);
+    const a = document.createElement('a');
+    a.href = url;
+    const filename = [paperName, userName, '答题卡'].filter(Boolean).join('_') + '.pdf';
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
 };

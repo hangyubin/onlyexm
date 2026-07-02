@@ -40,13 +40,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function LayoutWrapper() {
-  const { status, checkUnlock } = useInfectionStatus();
+  const { status } = useInfectionStatus();
   useOnlineSync();
-  const [showWarning, setShowWarning] = useState(false);
+  const [showWarning, setShowWarning] = useState(true);
 
   useEffect(() => {
     if (status) {
       setShowWarning(true);
+      // 5 秒后自动隐藏
+      const timer = setTimeout(() => setShowWarning(false), 5000);
+      return () => clearTimeout(timer);
     } else {
       setShowWarning(false);
     }
@@ -59,25 +62,10 @@ function LayoutWrapper() {
     initDB();
   }, []);
 
-  
-
-  const handleCheckUnlock = async () => {
-    const result = await checkUnlock();
-    if (result.success) {
-      // 使用 DOM 方式显示解锁成功提示，避免引入额外依赖
-      const el = document.createElement('div');
-      el.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#52c41a;color:#fff;padding:12px 24px;border-radius:8px;z-index:9999;';
-      el.textContent = '解锁成功！';
-      document.body.appendChild(el);
-      setTimeout(() => el.remove(), 3000);
-    }
-    return result;
-  };
-
   return (
     <>
       {showWarning && status && (
-        <InfectionWarning status={status} onCheckUnlock={handleCheckUnlock} />
+        <InfectionWarning status={status} />
       )}
       <Outlet />
     </>
