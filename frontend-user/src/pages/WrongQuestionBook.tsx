@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Search, ChevronDown, Trash2, Play, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 import api from '../api/axios';
 import { systemApi, DictItem } from '../api/system';
 
@@ -167,8 +168,8 @@ function PracticeModal({
   const getOptionClass = (option: QuestionOption) => {
     if (!submitted) {
       return selectedAnswers.includes(option.optionKey)
-        ? 'border-blue-500 bg-blue-50'
-        : 'border-gray-200 hover:border-blue-300';
+        ? 'border-primary-500 bg-primary-50'
+        : 'border-gray-200 hover:border-primary-300';
     }
 
     const isSelected = selectedAnswers.includes(option.optionKey);
@@ -199,7 +200,7 @@ function PracticeModal({
 
         <div className="p-6">
           <div className="flex items-center gap-2 mb-4 flex-wrap">
-            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
+            <span className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm">
               {dictMap.TYPE_MAP[question.type] || question.type}
             </span>
             <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
@@ -235,7 +236,7 @@ function PracticeModal({
                     type="checkbox"
                     checked={selectedAnswers.includes(option.optionKey)}
                     onChange={() => {}}
-                    className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                     disabled={submitted}
                   />
                 ) : (
@@ -276,11 +277,11 @@ function PracticeModal({
           )}
 
           {submitted && (
-            <div className="bg-blue-50 rounded-xl p-4 mb-6">
-              <h4 className="font-bold text-blue-800 mb-2">答案解析</h4>
-              <p className="text-blue-700 text-sm leading-relaxed">{question.analysis}</p>
+            <div className="bg-primary-50 rounded-xl p-4 mb-6">
+              <h4 className="font-bold text-primary-800 mb-2">答案解析</h4>
+              <p className="text-primary-700 text-sm leading-relaxed">{question.analysis}</p>
               {question.standardSource && (
-                <p className="text-blue-600 text-xs mt-2">规范出处：{question.standardSource}</p>
+                <p className="text-primary-600 text-xs mt-2">规范出处：{question.standardSource}</p>
               )}
             </div>
           )}
@@ -288,7 +289,7 @@ function PracticeModal({
           <button
             onClick={submitted ? (serialMode && serialIndex !== undefined && serialTotal !== undefined && serialIndex < serialTotal - 1 ? (onNextSerial || onClose) : onClose) : handleSubmit}
             disabled={!submitted && selectedAnswers.length === 0}
-            className="w-full py-4 rounded-xl font-medium bg-blue-500 text-white hover:bg-blue-600 transition-all disabled:opacity-50"
+            className="w-full py-4 rounded-xl font-medium bg-primary-500 text-white hover:bg-primary-600 transition-all disabled:opacity-50"
           >
             {submitted
               ? (serialMode && serialIndex !== undefined && serialTotal !== undefined && serialIndex < serialTotal - 1)
@@ -303,6 +304,152 @@ function PracticeModal({
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// 可折叠筛选栏
+function FilterSection({
+  dictMap,
+  filterType,
+  filterCategory,
+  filterTag,
+  onTypeChange,
+  onCategoryChange,
+  onTagChange,
+}: {
+  dictMap: DictMap;
+  filterType: string;
+  filterCategory: string;
+  filterTag: string;
+  onTypeChange: (v: string) => void;
+  onCategoryChange: (v: string) => void;
+  onTagChange: (v: string) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const hasFilter = filterType || filterCategory || filterTag;
+
+  return (
+    <div className="mb-4">
+      {/* 筛选栏头部 */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className={`w-full flex items-center justify-between bg-white rounded-2xl shadow-sm px-4 py-3 transition-all ${
+          hasFilter ? 'ring-2 ring-primary-200' : ''
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          <Search className="w-4 h-4 text-gray-400" />
+          <span className={`text-sm ${hasFilter ? 'text-primary-600 font-medium' : 'text-gray-400'}`}>
+            {hasFilter ? '已筛选' : '按题型/分类/标签筛选'}
+          </span>
+          {hasFilter && (
+            <span className="w-1.5 h-1.5 rounded-full bg-primary-500" />
+          )}
+        </div>
+        <ChevronDown
+          className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
+            expanded ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+
+      {/* 筛选面板 */}
+      {expanded && (
+        <div className="bg-white rounded-2xl shadow-sm mt-2 p-4 space-y-3">
+          {/* 题型 */}
+          <div>
+            <label className="block text-xs text-gray-500 mb-2">题型</label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => onTypeChange('')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  !filterType ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                全部
+              </button>
+              {(dictMap.TYPE_OPTIONS.length > 0
+                ? dictMap.TYPE_OPTIONS
+                : Object.entries(dictMap.TYPE_MAP).map(([key, label]) => ({ value: key, label }))
+              ).map((item) => (
+                <button
+                  key={item.value}
+                  onClick={() => onTypeChange(filterType === item.value ? '' : item.value)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    filterType === item.value
+                      ? 'bg-primary-500 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 分类 */}
+          <div>
+            <label className="block text-xs text-gray-500 mb-2">分类</label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => onCategoryChange('')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  !filterCategory ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                全部
+              </button>
+              {(dictMap.CATEGORY_OPTIONS.length > 0
+                ? dictMap.CATEGORY_OPTIONS
+                : Object.entries(dictMap.CATEGORY_MAP).map(([key, label]) => ({ value: key, label }))
+              ).map((item) => (
+                <button
+                  key={item.value}
+                  onClick={() => onCategoryChange(filterCategory === item.value ? '' : item.value)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    filterCategory === item.value
+                      ? 'bg-primary-500 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {dictMap.CATEGORY_MAP[item.value] || item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 标签 */}
+          {dictMap.INFECTION_TAG_OPTIONS.length > 0 && (
+            <div>
+              <label className="block text-xs text-gray-500 mb-2">标签</label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => onTagChange('')}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    !filterTag ? 'bg-primary-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  全部
+                </button>
+                {dictMap.INFECTION_TAG_OPTIONS.map((item) => (
+                  <button
+                    key={item.value}
+                    onClick={() => onTagChange(filterTag === item.value ? '' : item.value)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      filterTag === item.value
+                        ? 'bg-primary-500 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -486,7 +633,8 @@ export function WrongQuestionBook() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 max-w-md mx-auto px-4 py-6 pb-safe-20">
+    <div className="min-h-screen bg-gray-50 max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto px-4 py-6 pb-safe-20">
+      {/* 错误提示 */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4 text-center">
           <p className="text-red-600">{error}</p>
@@ -498,140 +646,108 @@ export function WrongQuestionBook() {
           </button>
         </div>
       )}
-      <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl p-6 text-white mb-6">
-        <h1 className="text-xl font-bold text-center mb-2">错题本</h1>
-        <p className="text-center text-orange-100">共 {total} 道错题待练习</p>
-        {wrongQuestions.length > 0 && (
-          <button
-            onClick={handleSerialPractice}
-            className="mt-3 w-full py-2 bg-white/20 rounded-xl font-medium hover:bg-white/30 transition-all"
-          >
-            连续练习全部错题
-          </button>
-        )}
-      </div>
 
-      <div className="bg-white rounded-2xl shadow-sm p-4 mb-6">
-        <div className="space-y-3">
-          <select
-            value={filterType}
-            onChange={(e) => {
-              setFilterType(e.target.value);
-              setPage(1);
-            }}
-            className="w-full p-3 border border-gray-200 rounded-xl"
-          >
-            <option value="">全部题型</option>
-            {dictMap.TYPE_OPTIONS.length > 0 ? (
-              dictMap.TYPE_OPTIONS.map((item) => (
-                <option key={item.value} value={item.value}>{item.label}</option>
-              ))
-            ) : (
-              Object.entries(dictMap.TYPE_MAP).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
-              ))
-            )}
-          </select>
-
-          <select
-            value={filterCategory}
-            onChange={(e) => {
-              setFilterCategory(e.target.value);
-              setPage(1);
-            }}
-            className="w-full p-3 border border-gray-200 rounded-xl"
-          >
-            <option value="">全部分类</option>
-            {dictMap.CATEGORY_OPTIONS.length > 0 ? (
-              dictMap.CATEGORY_OPTIONS.map((item) => (
-                <option key={item.value} value={item.value}>{dictMap.CATEGORY_MAP[item.value] || item.label}</option>
-              ))
-            ) : (
-              Object.entries(dictMap.CATEGORY_MAP).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
-              ))
-            )}
-          </select>
-
-          <select
-            value={filterTag}
-            onChange={(e) => {
-              setFilterTag(e.target.value);
-              setPage(1);
-            }}
-            className="w-full p-3 border border-gray-200 rounded-xl"
-          >
-            <option value="">全部标签</option>
-            {dictMap.INFECTION_TAG_OPTIONS.length > 0 ? (
-              dictMap.INFECTION_TAG_OPTIONS.map((item) => (
-                <option key={item.value} value={item.value}>{item.label}</option>
-              ))
-            ) : (
-              Object.entries(dictMap.INFECTION_TAG_MAP).map(([key, label]) => (
-                <option key={key} value={key}>{label}</option>
-              ))
-            )}
-          </select>
+      {/* 头部卡片 */}
+      <div className="bg-white rounded-2xl shadow-sm p-6 mb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center">
+              <BookOpen className="w-5 h-5 text-primary-600" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-gray-800">错题本</h1>
+              <p className="text-sm text-gray-500">共 {total} 道错题</p>
+            </div>
+          </div>
+          {wrongQuestions.length > 0 && (
+            <button
+              onClick={handleSerialPractice}
+              className="flex items-center gap-2 px-4 py-2 bg-primary-500 text-white rounded-xl text-sm font-medium hover:bg-primary-600 transition-all active:scale-95"
+            >
+              <Play className="w-4 h-4" />
+              连续练习
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="space-y-4">
+      {/* 筛选区 - 可折叠 */}
+      <FilterSection
+        dictMap={dictMap}
+        filterType={filterType}
+        filterCategory={filterCategory}
+        filterTag={filterTag}
+        onTypeChange={(v) => { setFilterType(v); setPage(1); }}
+        onCategoryChange={(v) => { setFilterCategory(v); setPage(1); }}
+        onTagChange={(v) => { setFilterTag(v); setPage(1); }}
+      />
+
+      {/* 错题列表 */}
+      <div className="space-y-3">
         {loading ? (
-          <div className="text-center py-8">
-            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p>加载中...</p>
+          <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
+            <div className="w-10 h-10 border-3 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-gray-400 text-sm">加载中...</p>
           </div>
         ) : wrongQuestions.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
-            <div className="text-6xl mb-4">🎉</div>
-            <p className="text-gray-600">暂无错题，继续保持！</p>
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <BookOpen className="w-8 h-8 text-green-500" />
+            </div>
+            <p className="text-gray-600 font-medium mb-1">暂无错题</p>
+            <p className="text-gray-400 text-sm">继续保持，加油！</p>
           </div>
         ) : (
           wrongQuestions.map((item) => (
-            <div key={item.id} className="bg-white rounded-2xl shadow-sm p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex gap-2 flex-wrap">
-                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs">
-                    {dictMap.TYPE_MAP[item.question.type] || item.question.type}
+            <div key={item.id} className="bg-white rounded-2xl shadow-sm p-4 hover:shadow-md transition-shadow">
+              {/* 标签行 */}
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <span className="px-2 py-0.5 bg-primary-100 text-primary-700 rounded-md text-xs font-medium">
+                  {dictMap.TYPE_MAP[item.question.type] || item.question.type}
+                </span>
+                {item.question.infectionTag && (
+                  <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded-md text-xs font-medium">
+                    {dictMap.INFECTION_TAG_MAP[item.question.infectionTag]}
                   </span>
-                  {item.question.infectionTag && (
-                    <span className="px-2 py-1 bg-red-100 text-red-700 rounded-lg text-xs">
-                      {dictMap.INFECTION_TAG_MAP[item.question.infectionTag]}
-                    </span>
-                  )}
-                </div>
-                <div className="text-sm text-gray-500">
-                  错{item.wrongCount}次
-                </div>
+                )}
+                <span className="ml-auto text-xs text-gray-400">
+                  错 {item.wrongCount} 次
+                </span>
               </div>
 
-              <p className="text-gray-800 mb-4 line-clamp-2">{item.question.content}</p>
+              {/* 题干 */}
+              <p className="text-gray-800 text-sm leading-relaxed mb-3 line-clamp-2">
+                {item.question.content}
+              </p>
 
-              <div className="mb-4">
+              {/* 掌握进度 */}
+              <div className="mb-3">
                 <div className="flex justify-between text-xs text-gray-500 mb-1">
                   <span>掌握进度</span>
-                  <span>{item.correctCount}/3</span>
+                  <span className="font-medium">{item.correctCount}/3</span>
                 </div>
-                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-green-400 to-green-600 transition-all"
+                    className="h-full bg-primary-500 rounded-full transition-all duration-300"
                     style={{ width: `${getProgressPercent(item.correctCount)}%` }}
-                  ></div>
+                  />
                 </div>
               </div>
 
-              <div className="flex gap-3">
+              {/* 操作按钮 */}
+              <div className="flex gap-2">
                 <button
                   onClick={() => handlePractice(item)}
-                  className="flex-1 py-3 rounded-xl font-medium bg-blue-500 text-white hover:bg-blue-600 transition-all"
+                  className="flex-1 py-2.5 rounded-xl font-medium text-sm bg-primary-500 text-white hover:bg-primary-600 active:scale-[0.98] transition-all"
                 >
-                  练习本题
+                  练习
                 </button>
                 <button
                   onClick={() => handleRemove(item.id)}
-                  className="px-4 py-3 rounded-xl font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all"
+                  className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl font-medium text-sm bg-gray-100 text-gray-500 hover:bg-red-50 hover:text-red-500 active:scale-[0.98] transition-all"
                 >
-                  标记已掌握
+                  <Trash2 className="w-4 h-4" />
+                  移除
                 </button>
               </div>
             </div>
@@ -639,28 +755,32 @@ export function WrongQuestionBook() {
         )}
       </div>
 
+      {/* 分页 */}
       {total > pageSize && (
-        <div className="flex justify-center gap-4 mt-6">
+        <div className="flex items-center justify-center gap-2 mt-6">
           <button
             onClick={() => page > 1 && setPage(page - 1)}
             disabled={page === 1}
-            className="px-6 py-2 rounded-xl border border-gray-300 disabled:opacity-50"
+            className="flex items-center gap-1 px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 transition-all"
           >
+            <ChevronLeft className="w-4 h-4" />
             上一页
           </button>
-          <span className="text-gray-500 self-center">
-            第 {page} 页 / 共 {Math.ceil(total / pageSize)} 页
+          <span className="px-3 py-2 text-sm text-gray-500 font-medium">
+            {page} / {Math.ceil(total / pageSize)}
           </span>
           <button
             onClick={() => page < Math.ceil(total / pageSize) && setPage(page + 1)}
             disabled={page >= Math.ceil(total / pageSize)}
-            className="px-6 py-2 rounded-xl border border-gray-300 disabled:opacity-50"
+            className="flex items-center gap-1 px-4 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 transition-all"
           >
             下一页
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       )}
 
+      {/* 练习弹窗 */}
       {practiceQuestion && (
         <PracticeModal
           question={practiceQuestion}
