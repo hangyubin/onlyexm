@@ -481,7 +481,7 @@ export default function UserManage() {
                         percent={learningProfile.complianceProgress}
                         strokeColor={{
                           '0%': '#10b981',
-                          '100%': '#3b82f6',
+                          '100%': 'var(--color-primary, #3b82f6)',
                         }}
                       />
                     </div>

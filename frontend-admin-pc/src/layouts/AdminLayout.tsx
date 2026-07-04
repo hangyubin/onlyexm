@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Layout, Menu, Button, Avatar, Dropdown } from 'antd';
 import {
   DashboardOutlined,
@@ -32,10 +32,38 @@ const allMenuItems = [
   { key: '/system-config', label: '系统配置', icon: SettingOutlined, roles: ['ADMIN'] },
 ];
 
+// 主题色常量
+const THEME = {
+  sidebarBg: 'var(--color-sidebar-bg, #1e293b)',
+  sidebarBorder: 'var(--color-sidebar-border, #334155)',
+  sidebarText: 'var(--color-sidebar-text, #94a3b8)',
+  sidebarTextMuted: 'var(--color-sidebar-text-muted, #64748b)',
+  primary: 'var(--color-primary, #3b82f6)',
+  primaryLight: 'var(--color-primary-light, #eff6ff)',
+  headerBorder: 'var(--color-header-border, #e2e8f0)',
+  contentBg: 'var(--color-content-bg, #f8fafc)',
+  textPrimary: 'var(--color-text-primary, #1e293b)',
+  textSecondary: 'var(--color-text-secondary, #64748b)',
+  textMuted: 'var(--color-text-muted, #94a3b8)',
+};
+
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // 响应式：小屏自动折叠侧边栏
+  useEffect(() => {
+    const mql = window.matchMedia('(max-width: 768px)');
+    const handler = (e: MediaQueryListEvent | MediaQueryList) => {
+      setIsMobile(e.matches);
+      setCollapsed(e.matches);
+    };
+    handler(mql);
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -52,7 +80,6 @@ export default function AdminLayout() {
     { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', onClick: handleLogout } as const,
   ];
 
-  // 安全解析 localStorage 中的用户信息
   let currentUser: any = {};
   try {
     currentUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -61,24 +88,22 @@ export default function AdminLayout() {
   }
   const userRole = currentUser.role || localStorage.getItem('userRole') || '';
 
-  // 根据角色过滤菜单
   const menuItems = allMenuItems.filter(item => item.roles.includes(userRole));
-
   const currentKey = location.pathname;
 
   const navItems = menuItems.map((item) => {
     const isSelected = currentKey === item.key;
     return {
       key: item.key,
-      icon: <item.icon 
-        style={{ 
-          color: isSelected ? '#3b82f6' : '#94a3b8',
+      icon: <item.icon
+        style={{
+          color: isSelected ? THEME.primary : THEME.sidebarText,
           fontSize: 16,
-        }} 
+        }}
       />,
-      label: <span 
-        style={{ 
-          color: isSelected ? '#ffffff' : '#94a3b8',
+      label: <span
+        style={{
+          color: isSelected ? '#ffffff' : THEME.sidebarText,
           fontWeight: isSelected ? 600 : 400,
           fontSize: 14,
         }}
@@ -88,8 +113,8 @@ export default function AdminLayout() {
         marginRight: 8,
         marginBottom: 4,
         borderRadius: 6,
-        backgroundColor: isSelected ? '#3b82f620' : 'transparent',
-        borderLeft: isSelected ? '3px solid #3b82f6' : '3px solid transparent',
+        backgroundColor: isSelected ? `${THEME.primary}20` : 'transparent',
+        borderLeft: isSelected ? `3px solid ${THEME.primary}` : '3px solid transparent',
         transition: 'all 0.2s ease',
       },
       onClick: () => navigate(item.key),
@@ -105,7 +130,7 @@ export default function AdminLayout() {
         width={200}
         collapsedWidth={64}
         style={{
-          background: '#1e293b',
+          background: THEME.sidebarBg,
           height: '100vh',
           position: 'fixed',
           left: 0,
@@ -119,14 +144,13 @@ export default function AdminLayout() {
           alignItems: 'center',
           justifyContent: collapsed ? 'center' : 'space-between',
           height: 64,
-          padding: collapsed ? '0 16px' : '0 16px',
-          borderBottom: '1px solid #334155',
+          padding: '0 16px',
+          borderBottom: `1px solid ${THEME.sidebarBorder}`,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{
-              width: 32,
-              height: 32,
-              background: '#3b82f6',
+              width: 32, height: 32,
+              background: THEME.primary,
               borderRadius: 8,
               display: 'flex',
               alignItems: 'center',
@@ -155,17 +179,15 @@ export default function AdminLayout() {
         {!collapsed && (
           <div style={{
             position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
+            bottom: 0, left: 0, right: 0,
             height: 40,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            borderTop: '1px solid #334155',
+            borderTop: `1px solid ${THEME.sidebarBorder}`,
             padding: '0 12px',
           }}>
-            <span style={{ color: '#64748b', fontSize: 11, whiteSpace: 'nowrap' }}>
+            <span style={{ color: THEME.sidebarTextMuted, fontSize: 11, whiteSpace: 'nowrap' }}>
               v{__APP_VERSION__} {__GIT_COMMIT__ && `(${__GIT_COMMIT__})`}
             </span>
           </div>
@@ -174,7 +196,7 @@ export default function AdminLayout() {
       <Layout style={{ marginLeft: collapsed ? 64 : 200, transition: 'margin-left 0.2s' }}>
         <Header style={{
           background: 'white',
-          borderBottom: '1px solid #e2e8f0',
+          borderBottom: `1px solid ${THEME.headerBorder}`,
           padding: '0 24px',
           height: 64,
           lineHeight: '64px',
@@ -195,7 +217,7 @@ export default function AdminLayout() {
             <Button
               icon={<HomeOutlined />}
               onClick={goToUserFrontend}
-              style={{ color: '#3b82f6' }}
+              style={{ color: THEME.primary }}
             >
               用户端
             </Button>
@@ -213,16 +235,16 @@ export default function AdminLayout() {
                 borderRadius: 8,
                 transition: 'background-color 0.2s',
               }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = THEME.contentBg}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
-                <Avatar icon={<UserOutlined />} style={{ backgroundColor: '#3b82f6' }} />
+                <Avatar icon={<UserOutlined />} style={{ backgroundColor: THEME.primary }} />
                 <div style={{ textAlign: 'left' }}>
-                  <p style={{ margin: 0, fontWeight: 500, color: '#1e293b', lineHeight: '20px' }}>
+                  <p style={{ margin: 0, fontWeight: 500, color: THEME.textPrimary, lineHeight: '20px' }}>
                     {currentUser.realName || '管理员'}
                   </p>
-                  <p style={{ margin: 0, fontSize: 12, color: '#64748b', lineHeight: '16px' }}>
-                    {currentUser.role === 'ADMIN' ? '管理员' : 
+                  <p style={{ margin: 0, fontSize: 12, color: THEME.textSecondary, lineHeight: '16px' }}>
+                    {currentUser.role === 'ADMIN' ? '管理员' :
                      currentUser.role === 'INFECTION_OFFICER' ? '院感专员' :
                      currentUser.role === 'DEPT_HEAD' ? '科室主任' :
                      currentUser.role === 'DOCTOR' ? '医生' : '用户'}
@@ -232,7 +254,7 @@ export default function AdminLayout() {
             </Dropdown>
           </div>
         </Header>
-        <Content style={{ background: '#f8fafc', padding: 24, minHeight: 'calc(100vh - 64px)' }}>
+        <Content style={{ background: THEME.contentBg, padding: isMobile ? 12 : 24, minHeight: 'calc(100vh - 64px)' }}>
           <Outlet />
         </Content>
       </Layout>

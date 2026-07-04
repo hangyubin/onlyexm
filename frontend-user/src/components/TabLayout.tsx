@@ -10,10 +10,10 @@ const tabs: { to: string; icon: LucideIcon; label: string }[] = [
 
 export function TabLayout() {
   return (
-    <div className="min-h-screen bg-gray-50 max-w-md mx-auto">
+    <div className="min-h-screen bg-gray-50 max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto">
       <Outlet />
       <nav
-        className="fixed bottom-0 w-full max-w-md fixed-center bg-white border-t border-gray-100 shadow-lg z-50"
+        className="fixed bottom-0 w-full max-w-md xl:max-w-lg 2xl:max-w-xl fixed-center bg-white border-t border-gray-100 shadow-lg z-50"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="flex items-center justify-around py-2">
@@ -23,7 +23,7 @@ export function TabLayout() {
               to={to}
               className={({ isActive }) =>
                 `flex flex-col items-center gap-1 px-4 py-2 ${
-                  isActive ? 'text-blue-600' : 'text-gray-400'
+                  isActive ? 'text-primary-600' : 'text-gray-400'
                 }`
               }
             >

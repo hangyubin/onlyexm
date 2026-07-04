@@ -339,8 +339,8 @@ export function ExamTaking() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 max-w-md mx-auto">
-      <header className="fixed top-0 w-full max-w-md fixed-center bg-white shadow-sm z-40 header-safe-top">
+    <div className="min-h-screen bg-gray-100 max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto landscape-adaptive">
+      <header className="fixed top-0 w-full max-w-md xl:max-w-lg 2xl:max-w-xl fixed-center bg-white shadow-sm z-40 header-safe-top">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <button
@@ -505,7 +505,7 @@ export function ExamTaking() {
         </div>
       </main>
 
-      <footer className="fixed bottom-0 w-full max-w-md fixed-center bg-white border-t border-gray-200 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      <footer className="fixed bottom-0 w-full max-w-md xl:max-w-lg 2xl:max-w-xl fixed-center bg-white border-t border-gray-200 z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="px-4 py-3">
           <div className="flex items-center gap-3">
             <button

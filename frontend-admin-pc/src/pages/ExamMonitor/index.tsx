@@ -173,7 +173,7 @@ export default function ExamMonitor() {
       type: 'line' as const,
       smooth: true,
       data: stats?.trend.data || [],
-      lineStyle: { color: '#3b82f6', width: 3 },
+      lineStyle: { color: 'var(--color-primary, #3b82f6)', width: 3 },
       areaStyle: { color: 'rgba(59, 130, 246, 0.1)' },
     }],
   };

@@ -8,6 +8,17 @@ import { getDictItems } from '../utils/dictCache';
 import { success, error, paginate } from '../utils/response';
 import { htmlToPdf } from '../utils/pdf';
 
+// PDF 主题色常量
+const PDF_THEME = {
+  primary: '#2563eb',
+  success: '#16a34a',
+  error: '#dc2626',
+  textSecondary: '#666',
+  textMuted: '#555',
+  bodyColor: '#222',
+  bodyBg: '#f5f5f5',
+};
+
 async function getDepartmentName(code: string): Promise<string> {
   if (!code) return '';
   const items = await getDictItems('DEPARTMENT');
@@ -719,17 +730,17 @@ router.get('/records/:id/print', authMiddleware, async (req, res) => {
             const isO1Correct = o1.isCorrect;
             const isO2Correct = o2?.isCorrect;
             bodyHtml += `<div style="display:flex;gap:40px;margin-bottom:2px;">`;
-            bodyHtml += `<span style="font-weight:${isO1Correct ? 'bold' : 'normal'};color:${isO1Correct ? '#16a34a' : '#333'};">${o1.optionKey}. ${escapeHtml(o1.content)}</span>`;
-            if (o2) bodyHtml += `<span style="font-weight:${isO2Correct ? 'bold' : 'normal'};color:${isO2Correct ? '#16a34a' : '#333'};">${o2.optionKey}. ${escapeHtml(o2.content)}</span>`;
+            bodyHtml += `<span style="font-weight:${isO1Correct ? 'bold' : 'normal'};color:${isO1Correct ? PDF_THEME.success : '#333'};">${o1.optionKey}. ${escapeHtml(o1.content)}</span>`;
+            if (o2) bodyHtml += `<span style="font-weight:${isO2Correct ? 'bold' : 'normal'};color:${isO2Correct ? PDF_THEME.success : '#333'};">${o2.optionKey}. ${escapeHtml(o2.content)}</span>`;
             bodyHtml += `</div>`;
           }
           bodyHtml += '</div>';
         }
 
         bodyHtml += `<p style="font-size:12px;margin:4px 0 0;padding:0 20px;">`;
-        bodyHtml += `<span style="color:#666;">考生答案：</span><span style="color:${isCorrect ? '#16a34a' : '#dc2626'};font-weight:bold;">${escapeHtml(q.userAnswer || '未作答')}</span>`;
-        bodyHtml += `&emsp;<span style="color:#666;">正确答案：</span><span style="color:#16a34a;font-weight:bold;">${escapeHtml(q.correctAnswer)}</span>`;
-        bodyHtml += `&emsp;<span style="color:#666;">得分：</span><span style="color:#2563eb;font-weight:bold;">${q.earnedScore}</span>`;
+        bodyHtml += `<span style="color:${PDF_THEME.textSecondary};">考生答案：</span><span style="color:${isCorrect ? PDF_THEME.success : PDF_THEME.error};font-weight:bold;">${escapeHtml(q.userAnswer || '未作答')}</span>`;
+        bodyHtml += `&emsp;<span style="color:${PDF_THEME.textSecondary};">正确答案：</span><span style="color:${PDF_THEME.success};font-weight:bold;">${escapeHtml(q.correctAnswer)}</span>`;
+        bodyHtml += `&emsp;<span style="color:${PDF_THEME.textSecondary};">得分：</span><span style="color:${PDF_THEME.primary};font-weight:bold;">${q.earnedScore}</span>`;
         bodyHtml += `</p></div>`;
       }
       typeIndex++;
@@ -741,9 +752,9 @@ router.get('/records/:id/print', authMiddleware, async (req, res) => {
 <head><meta charset="UTF-8">
 <style>
   @page { margin: 15mm; }
-  body { font-family: 'SimHei', 'Microsoft YaHei', 'PingFang SC', sans-serif; color: #222; }
+  body { font-family: 'SimHei', 'Microsoft YaHei', 'PingFang SC', sans-serif; color: ${PDF_THEME.bodyColor}; }
   h1 { text-align: center; font-size: 20px; margin-bottom: 2px; }
-  .subtitle { text-align: center; font-size: 13px; color: #555; margin-bottom: 12px; }
+  .subtitle { text-align: center; font-size: 13px; color: ${PDF_THEME.textMuted}; margin-bottom: 12px; }
 </style>
 </head>
 <body>

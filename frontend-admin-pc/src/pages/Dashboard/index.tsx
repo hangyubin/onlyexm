@@ -199,15 +199,15 @@ export default function Dashboard() {
                 {progressItems.map((item) => (
                   <div key={item.label}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <span style={{ fontSize: 14, color: '#475569' }}>{item.label}</span>
+                      <span style={{ fontSize: 14, color: 'var(--color-text-secondary, #475569)' }}>{item.label}</span>
                       <span style={{ fontSize: 14, fontWeight: 500 }}>
                         {item.count}/{item.total}人 <span style={{ color: item.color }}>{item.value}%</span>
                       </span>
                     </div>
-                    <div style={{ width: '100%', height: 8, background: '#e2e8f0', borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{ width: '100%', height: 8, background: 'var(--color-header-border, #e2e8f0)', borderRadius: 4, overflow: 'hidden' }}>
                       <div style={{
                         height: '100%',
-                        background: item.value === 0 ? '#e2e8f0' : item.color,
+                        background: item.value === 0 ? 'var(--color-header-border, #e2e8f0)' : item.color,
                         borderRadius: 4,
                         width: `${Math.max(item.value, 2)}%`,
                         minWidth: item.value > 0 ? 8 : 0,
@@ -217,7 +217,7 @@ export default function Dashboard() {
                   </div>
                 ))}
                 {progressItems.length === 0 && (
-                  <div style={{ textAlign: 'center', color: '#94a3b8', padding: 24 }}>暂无数据</div>
+                  <div style={{ textAlign: 'center', color: 'var(--color-text-muted, #94a3b8)', padding: 24 }}>暂无数据</div>
                 )}
               </div>
             </Card>
@@ -227,7 +227,7 @@ export default function Dashboard() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {recentActivities.map((activity, idx) => {
                   const typeConfig: Record<string, { icon: React.ReactNode; bg: string; color: string; targetColor: string }> = {
-                    exam: { icon: <FileTextOutlined />, bg: '#eff6ff', color: '#3b82f6', targetColor: '#1890ff' },
+                    exam: { icon: <FileTextOutlined />, bg: 'var(--color-primary-light, #eff6ff)', color: 'var(--color-primary, #3b82f6)', targetColor: '#1890ff' },
                     practice: { icon: <EditOutlined />, bg: '#f0fdf4', color: '#22c55e', targetColor: '#52c41a' },
                     learning: { icon: <ReadOutlined />, bg: '#faf5ff', color: '#a855f7', targetColor: '#722ed1' },
                   };
@@ -243,7 +243,7 @@ export default function Dashboard() {
                         borderRadius: 8,
                         transition: 'background-color 0.2s',
                       }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-content-bg, #f8fafc)'}
                       onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                     >
                       <div style={{
@@ -260,13 +260,13 @@ export default function Dashboard() {
                       <div style={{ flex: 1 }}>
                         <p style={{ margin: 0, fontSize: 14 }}>
                           <span style={{ fontWeight: 500 }}>{activity.user}</span>
-                          <span style={{ color: '#64748b', margin: '0 4px' }}>{activity.action}</span>
+                          <span style={{ color: 'var(--color-text-secondary, #64748b)', margin: '0 4px' }}>{activity.action}</span>
                           <span style={{ color: cfg.targetColor }}>{activity.target}</span>
                           {activity.score != null && (
                             <span style={{ marginLeft: 8, color: '#52c41a' }}>({activity.score}分)</span>
                           )}
                         </p>
-                        <p style={{ margin: 0, fontSize: 12, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <p style={{ margin: 0, fontSize: 12, color: 'var(--color-text-muted, #94a3b8)', display: 'flex', alignItems: 'center', gap: 4 }}>
                           <ClockCircleOutlined />
                           {formatTimeAgo(activity.time)}
                         </p>

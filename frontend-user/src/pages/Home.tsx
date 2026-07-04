@@ -139,7 +139,7 @@ const Home: React.FC = () => {
   ];
 
   const colorMap = {
-    blue: { bg: 'bg-blue-500', light: 'bg-blue-100', text: 'text-blue-600' },
+    blue: { bg: 'bg-primary-500', light: 'bg-primary-100', text: 'text-primary-600' },
     green: { bg: 'bg-green-500', light: 'bg-green-100', text: 'text-green-600' },
     orange: { bg: 'bg-orange-500', light: 'bg-orange-100', text: 'text-orange-600' },
     purple: { bg: 'bg-purple-500', light: 'bg-purple-100', text: 'text-purple-600' }
@@ -148,7 +148,7 @@ const Home: React.FC = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500" />
       </div>
     );
   }
@@ -161,7 +161,7 @@ const Home: React.FC = () => {
           <p className="text-gray-500 mb-4">数据加载失败，请检查网络后重试</p>
           <button
             onClick={() => { setError(null); fetchAllData(); }}
-            className="px-6 py-2 bg-blue-500 text-white rounded-full text-sm"
+            className="px-6 py-2 bg-primary-500 text-white rounded-full text-sm"
           >
             重新加载
           </button>
@@ -185,7 +185,7 @@ const Home: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-6">
+      <div className="bg-gradient-to-r from-primary-600 to-primary-700 text-white px-4 py-6">
         <h1 className="text-xl font-bold">
             {getGreeting()}，{(() => { try { return JSON.parse(localStorage.getItem('user') || '{}').realName || '用户'; } catch { return '用户'; } })()}
           </h1>
@@ -233,9 +233,9 @@ const Home: React.FC = () => {
         </h2>
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-blue-50 rounded-xl p-4">
-              <p className="text-blue-600 text-2xl font-bold">{studyStats?.totalStudyHours ?? 0}</p>
-              <p className="text-blue-600/70 text-sm">总学习时长(小时)</p>
+            <div className="bg-primary-50 rounded-xl p-4">
+              <p className="text-primary-600 text-2xl font-bold">{studyStats?.totalStudyHours ?? 0}</p>
+              <p className="text-primary-600/70 text-sm">总学习时长(小时)</p>
             </div>
             <div className="bg-green-50 rounded-xl p-4">
               <p className="text-green-600 text-2xl font-bold">{studyStats?.totalPracticeCount ?? 0}</p>

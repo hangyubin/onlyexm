@@ -243,7 +243,7 @@ export function DailyPractice() {
   );
 
   const renderCompletedInfo = () => (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pb-safe-8 max-w-md mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pb-safe-8 max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto">
       <header className="bg-white shadow-sm">
         <div className="px-4 pb-4 pt-safe">
           <div className="flex items-center justify-between">
@@ -318,7 +318,7 @@ export function DailyPractice() {
     };
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pb-safe-8 max-w-md mx-auto">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 pb-safe-8 max-w-md xl:max-w-lg 2xl:max-w-xl mx-auto">
         <header className="bg-white shadow-sm">
           <div className="px-4 pb-4 pt-safe">
             <div className="flex items-center justify-between">
@@ -599,7 +599,7 @@ export function DailyPractice() {
           </div>
         </main>
 
-        <footer className="fixed bottom-0 w-full max-w-md fixed-center bg-white border-t border-gray-200" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <footer className="fixed bottom-0 w-full max-w-md xl:max-w-lg 2xl:max-w-xl fixed-center bg-white border-t border-gray-200" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
           <div className="px-4 py-4">
             <div className="flex items-center gap-3">
               <button

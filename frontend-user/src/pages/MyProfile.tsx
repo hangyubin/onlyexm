@@ -6,8 +6,10 @@ import { useDicts, DICT_CATEGORY } from '../hooks/useDict';
 
 const FONT_SCALES = [
   { label: '小', value: '0.85' },
+  { label: '较小', value: '0.9' },
   { label: '标准', value: '1' },
-  { label: '大', value: '1.15' },
+  { label: '较大', value: '1.1' },
+  { label: '大', value: '1.2' },
   { label: '特大', value: '1.3' },
 ];
 
@@ -153,7 +155,7 @@ export default function MyProfile() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500" />
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500" />
       </div>
     );
   }
@@ -161,7 +163,7 @@ export default function MyProfile() {
   return (
     <div className="min-h-screen bg-gray-50 pb-safe-20 max-w-md mx-auto">
       {/* 用户信息头部 */}
-      <div className="bg-gradient-to-br from-blue-600 to-blue-800 text-white px-4 pt-8 pb-6 rounded-b-3xl">
+      <div className="bg-gradient-to-br from-primary-600 to-primary-800 text-white px-4 pt-8 pb-6 rounded-b-3xl">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
             <User className="w-8 h-8" />
@@ -180,7 +182,7 @@ export default function MyProfile() {
       <div className="px-4 mt-4">
         <div className="bg-white rounded-2xl shadow-sm p-4">
           <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-            <Edit3 className="w-5 h-5 text-blue-500" />
+            <Edit3 className="w-5 h-5 text-primary-500" />
             个人资料
           </h2>
           <div className="space-y-3">
@@ -209,7 +211,7 @@ export default function MyProfile() {
           </div>
           <button
             onClick={openProfileModal}
-            className="w-full mt-4 py-2.5 bg-blue-50 text-blue-600 rounded-xl text-sm font-medium hover:bg-blue-100 transition-colors"
+            className="w-full mt-4 py-2.5 bg-primary-50 text-primary-600 rounded-xl text-sm font-medium hover:bg-primary-100 transition-colors"
           >
             修改个人资料
           </button>
@@ -237,7 +239,7 @@ export default function MyProfile() {
                   onClick={() => handleFontScaleChange(item.value)}
                   className={`font-scale-btn flex-1 py-2 rounded-xl text-sm font-medium transition-all ${
                     currentFontScale === item.value
-                      ? 'bg-blue-500 text-white'
+                      ? 'bg-primary-500 text-white'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
@@ -296,7 +298,7 @@ export default function MyProfile() {
               <button
                 onClick={handleChangePassword}
                 disabled={passwordLoading}
-                className="flex-1 py-3 rounded-xl font-medium bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50"
+                className="flex-1 py-3 rounded-xl font-medium bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50"
               >
                 {passwordLoading ? '提交中...' : '确认修改'}
               </button>
@@ -365,7 +367,7 @@ export default function MyProfile() {
               <button
                 onClick={handleUpdateProfile}
                 disabled={profileLoading}
-                className="flex-1 py-3 rounded-xl font-medium bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50"
+                className="flex-1 py-3 rounded-xl font-medium bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-50"
               >
                 {profileLoading ? '提交中...' : '保存'}
               </button>
