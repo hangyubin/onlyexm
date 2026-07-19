@@ -21,7 +21,6 @@ export function TabLayout() {
       >
         <div className="flex items-center justify-around h-14">
           {tabs.map(({ to, icon: Icon, label }) => {
-            const isActive = location.pathname === to || (to !== '/' && location.pathname.startsWith(to));
             return (
               <NavLink
                 key={to}

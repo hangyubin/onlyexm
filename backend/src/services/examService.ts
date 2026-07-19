@@ -1,10 +1,6 @@
 import prisma from '../lib/prisma';
-import { getInfectionConfig } from './configService';
-
-const INFECTION_TAGS = [
-  'HAND_HYGIENE', 'MEDICAL_WASTE', 'DISINFECTION', 'EXPOSURE',
-  'ISOLATION', 'STERILIZATION', 'MDRO', 'AIR_QUALITY',
-] as const;
+import { getInfectionConfig, isInfectionQuestion, getInfectionTagSet } from './configService';
+import { shuffleArray } from '../utils/random';
 
 export const ExamStatus = {
   IN_PROGRESS: 'IN_PROGRESS',
@@ -240,9 +236,9 @@ export async function submitExam(input: SubmitExamInput): Promise<SubmitResult> 
 
       totalScore += result.score;
 
-      const isInfectionQuestion = INFECTION_TAGS.includes(question.infectionTag as any) || INFECTION_TAGS.includes(question.subCategory as any);
-      
-      if (isInfectionQuestion) {
+      const isInfectionQuestionFlag = await isInfectionQuestion(question.infectionTag, question.subCategory);
+
+      if (isInfectionQuestionFlag) {
         infectionScore += result.score;
         infectionTotal += questionScore;
         if (result.isCorrect) infectionCorrectCount++;
@@ -496,7 +492,8 @@ export async function startExam(paperId: number, userId: number, clientIp?: stri
       content: pq.question.content,
       type: pq.question.type,
       category: pq.question.category,
-      options: pq.question.options.map((opt) => ({
+      // 选项乱序：防止考生通过位置记忆作弊（isCorrect 字段已过滤，不返回给前端）
+      options: shuffleArray(pq.question.options).map((opt) => ({
         id: opt.id,
         optionKey: opt.optionKey,
         content: opt.content,
@@ -544,7 +541,8 @@ export async function startExam(paperId: number, userId: number, clientIp?: stri
     content: pq.question.content,
     type: pq.question.type,
     category: pq.question.category,
-    options: pq.question.options.map((opt) => ({
+    // 选项乱序：防止考生通过位置记忆作弊（isCorrect 字段已过滤，不返回给前端）
+    options: shuffleArray(pq.question.options).map((opt) => ({
       id: opt.id,
       optionKey: opt.optionKey,
       content: opt.content,
@@ -643,8 +641,11 @@ export async function autoSubmitExam(examRecordId: number, status: string = 'AUT
     totalScore += obtainedScore;
 
     if (question.infectionTag || question.subCategory) {
-      infectionScore += obtainedScore;
-      infectionTotal += questionScore;
+      const isInfection = await isInfectionQuestion(question.infectionTag, question.subCategory);
+      if (isInfection) {
+        infectionScore += obtainedScore;
+        infectionTotal += questionScore;
+      }
     }
 
     answerUpdates.push({ id: detail.id, isCorrect, scoreObtained: obtainedScore });
@@ -656,10 +657,29 @@ export async function autoSubmitExam(examRecordId: number, status: string = 'AUT
   // 使用事务批量更新
   await prisma.$transaction(async (tx) => {
     const config = await getInfectionConfig();
-    for (const update of answerUpdates) {
-      await tx.answerDetail.update({
-        where: { id: update.id },
-        data: { isCorrect: update.isCorrect, scoreObtained: update.scoreObtained },
+    // 批量更新：按 isCorrect 分组，用 updateMany 一次更新一组，O(2) 次写替代 O(N) 串行
+    const correctIds = answerUpdates.filter(u => u.isCorrect).map(u => u.id);
+    const wrongIds = answerUpdates.filter(u => !u.isCorrect).map(u => u.id);
+
+    if (correctIds.length > 0) {
+      await tx.answerDetail.updateMany({
+        where: { id: { in: correctIds } },
+        data: { isCorrect: true },
+      });
+      // scoreObtained 每题不同，仍需逐条更新分数，但只更新正确题的分数（错误题分数为0，可批量置0）
+      // 这里用逐条 update 分数，但只在正确题集合内进行，减少事务时长
+      for (const update of answerUpdates.filter(u => u.isCorrect)) {
+        await tx.answerDetail.update({
+          where: { id: update.id },
+          data: { scoreObtained: update.scoreObtained },
+        });
+      }
+    }
+    if (wrongIds.length > 0) {
+      // 错误题分数统一为 0，可一次批量更新
+      await tx.answerDetail.updateMany({
+        where: { id: { in: wrongIds } },
+        data: { isCorrect: false, scoreObtained: 0 },
       });
     }
 
@@ -681,13 +701,19 @@ export async function autoSubmitExam(examRecordId: number, status: string = 'AUT
 
       if (infectionAccuracy >= 70) {
         const currentMonth = new Date().toISOString().slice(0, 7);
+        // 在循环外预加载院感标签集合，避免循环内重复查询
+        const infectionTagSet = await getInfectionTagSet();
         let correctCount = 0;
         for (const update of answerUpdates) {
           const detail = examRecord.answerDetails.find((d) => d.id === update.id);
           if (detail) {
             const qInfo = questionMap.get(detail.questionId);
-            if (qInfo && (INFECTION_TAGS.includes(qInfo.question.infectionTag as any) || INFECTION_TAGS.includes(qInfo.question.subCategory as any)) && update.isCorrect) {
-              correctCount++;
+            if (qInfo && update.isCorrect) {
+              const tag = qInfo.question.infectionTag;
+              const sub = qInfo.question.subCategory;
+              if ((tag != null && infectionTagSet.has(tag)) || (sub != null && infectionTagSet.has(sub))) {
+                correctCount++;
+              }
             }
           }
         }

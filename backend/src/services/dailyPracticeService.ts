@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma';
-import { getInfectionConfig } from './configService';
+import { getInfectionConfig, getInfectionTagSet, isInfectionQuestion } from './configService';
 
 export interface PracticeQuestion {
   id: number;
@@ -147,9 +147,9 @@ async function generateQuestions(userId: number, options?: PracticeOptions): Pro
 
   // 分类筛选
   if (category && category !== 'ALL') {
-    // 检查是否是院感标签（八种标签之一）
-    const allInfectionTags = ['HAND_HYGIENE', 'MEDICAL_WASTE', 'DISINFECTION', 'EXPOSURE', 'ISOLATION', 'STERILIZATION', 'MDRO', 'AIR_QUALITY'];
-    if (allInfectionTags.includes(category)) {
+    // 检查是否是院感标签（从字典动态读取）
+    const infectionTagSet = await getInfectionTagSet();
+    if (infectionTagSet.has(category)) {
       // 按具体院感标签筛选
       baseWhere.OR = [
         { subCategory: category },
@@ -568,19 +568,22 @@ async function syncInfectionRequirement(
   results: { questionId: number; isCorrect: boolean }[],
 ): Promise<void> {
   const config = await getInfectionConfig();
+  const infectionTagSet = await getInfectionTagSet();
 
   const questionMap = new Map(questions.map(q => [q.id, q]));
-  const knownInfectionTags = ['HAND_HYGIENE', 'MEDICAL_WASTE', 'DISINFECTION', 'EXPOSURE', 'ISOLATION', 'STERILIZATION', 'MDRO', 'AIR_QUALITY'];
-  const infectionTaggedQuestions = questions.filter(q =>
-    knownInfectionTags.includes(q.infectionTag) || knownInfectionTags.includes(q.subCategory)
-  );
+  const isInfection = (q?: PracticeQuestion) =>
+    !!q && (
+      (q.infectionTag != null && infectionTagSet.has(q.infectionTag)) ||
+      (q.subCategory != null && infectionTagSet.has(q.subCategory))
+    );
+  const infectionTaggedQuestions = questions.filter(isInfection);
   const infectionTaggedCount = infectionTaggedQuestions.length;
 
   if (infectionTaggedCount === 0) return;
 
   const infectionTaggedCorrect = results.filter(r => {
     const q = questionMap.get(r.questionId);
-    return q && (knownInfectionTags.includes(q.infectionTag) || knownInfectionTags.includes(q.subCategory)) && r.isCorrect;
+    return isInfection(q) && r.isCorrect;
   }).length;
   const currentInfectionAccuracy = Math.round((infectionTaggedCorrect / infectionTaggedCount) * 100);
 

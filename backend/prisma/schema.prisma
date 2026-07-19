@@ -397,16 +397,18 @@ model PaperQuestionRecord {
   @@unique([paperId, questionId])
   @@index([paperId])
   @@index([questionId])
+  @@index([questionId, createdAt])
 }
 
 model PracticeSyncRecord {
-  id         Int      @id @default(autoincrement())
-  userId     Int
-  questionId Int
-  userAnswer String   @db.Text
-  isCorrect  Boolean
-  syncTime   DateTime
-  createdAt  DateTime @default(now())
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  questionId      Int
+  userAnswer      String   @db.Text
+  isCorrect       Boolean
+  syncTime        DateTime
+  clientRecordId  String?  // 客户端生成的唯一 ID，用于幂等去重（同一 clientRecordId 重复同步只入库一次）
+  createdAt       DateTime @default(now())
 
   user       User     @relation(fields: [userId], references: [id])
   question   Question @relation(fields: [questionId], references: [id])
@@ -414,6 +416,8 @@ model PracticeSyncRecord {
   @@index([userId])
   @@index([questionId])
   @@index([syncTime])
+  @@index([clientRecordId])
+  @@unique([userId, clientRecordId])
 }
 
 model SystemConfig {

@@ -10,3 +10,6 @@ provider = "mysql"
 [[migrations]]
   name = "20260608_make_hospitalId_optional"
   folder = "20260608_make_hospitalId_optional"
+[[migrations]]
+  name = "20260719180706_add_sync_idempotency_and_dedup_index"
+  folder = "20260719180706_add_sync_idempotency_and_dedup_index"

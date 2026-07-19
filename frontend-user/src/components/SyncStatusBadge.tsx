@@ -1,13 +1,21 @@
-import { RefreshCw, CloudOff, Cloud } from 'lucide-react';
+import { RefreshCw, CloudOff, Cloud, AlertCircle } from 'lucide-react';
 
 interface SyncStatusBadgeProps {
   isOnline: boolean;
   isSyncing: boolean;
   pendingCount: number;
+  /** 连续同步失败次数达到上限后，自动重试暂停，需用户手动触发 */
+  hasPausedAutoSync?: boolean;
   onSync?: () => void;
 }
 
-export function SyncStatusBadge({ isOnline, isSyncing, pendingCount, onSync }: SyncStatusBadgeProps) {
+export function SyncStatusBadge({
+  isOnline,
+  isSyncing,
+  pendingCount,
+  hasPausedAutoSync = false,
+  onSync,
+}: SyncStatusBadgeProps) {
   if (!isOnline) {
     return (
       <div className="flex items-center gap-2 px-3 py-2 bg-gray-100 rounded-full text-gray-600 text-sm">
@@ -22,6 +30,23 @@ export function SyncStatusBadge({ isOnline, isSyncing, pendingCount, onSync }: S
       <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 rounded-full text-blue-600 text-sm">
         <RefreshCw className="w-4 h-4 animate-spin" />
         <span>同步中...</span>
+      </div>
+    );
+  }
+
+  // 自动重试已暂停：醒目提示用户手动重试
+  if (hasPausedAutoSync && pendingCount > 0) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-full text-red-600 text-sm">
+        <AlertCircle className="w-4 h-4" />
+        <span>同步失败 {pendingCount} 条，点击重试</span>
+        <button
+          onClick={onSync}
+          className="ml-1 p-1 hover:bg-red-100 rounded-full transition-colors"
+          title="手动重试同步"
+        >
+          <RefreshCw className="w-3 h-3" />
+        </button>
       </div>
     );
   }

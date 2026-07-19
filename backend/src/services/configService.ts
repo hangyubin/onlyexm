@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma';
-import { getJsonCache, setJsonCache, deleteCache } from '../utils/redis';
+import { getJsonCache, setJsonCache, deleteCache, getCache, setCache } from '../utils/redis';
 
 export interface InfectionConfig {
   monthlyRequiredCount: number;
@@ -8,6 +8,86 @@ export interface InfectionConfig {
   weakPointThreshold: number;
   unlockAccuracy: number;
   unlockCompletedCount: number;
+}
+
+// ============================================================
+// 院感标签集合（字典驱动，替代各服务中的硬编码数组）
+// 从 SystemDict 的 INFECTION_TAG 分类读取，Redis 缓存 10 分钟
+// 字典 CRUD 时由 system 路由主动清缓存（见 clearInfectionTagCache）
+// ============================================================
+const INFECTION_TAG_CACHE_KEY = 'infection_tags';
+const INFECTION_TAG_CACHE_TTL = 600; // 10 分钟
+
+// 本地进程内缓存，避免同一实例内高频请求穿透到 Redis
+let inProcessTagCache: { codes: Set<string>; timestamp: number } | null = null;
+const IN_PROCESS_TAG_CACHE_TTL = 60 * 1000; // 60 秒
+
+// 字典未初始化时的兜底标签（保证系统在字典为空时仍可运行）
+const FALLBACK_INFECTION_TAGS = [
+  'HAND_HYGIENE', 'MEDICAL_WASTE', 'DISINFECTION', 'EXPOSURE',
+  'ISOLATION', 'STERILIZATION', 'MDRO', 'AIR_QUALITY',
+];
+
+/**
+ * 获取院感标签 Set，用于判断题目是否属于院感题。
+ * 三级缓存：进程内存 → Redis → DB，DB 为空时用兜底集合。
+ */
+export async function getInfectionTagSet(): Promise<Set<string>> {
+  // 1. 进程内存缓存（60s）
+  const now = Date.now();
+  if (inProcessTagCache && now - inProcessTagCache.timestamp < IN_PROCESS_TAG_CACHE_TTL) {
+    return inProcessTagCache.codes;
+  }
+
+  // 2. Redis 缓存（10min）
+  const redisCached = await getCache(INFECTION_TAG_CACHE_KEY);
+  if (redisCached) {
+    try {
+      const codes = new Set<string>(JSON.parse(redisCached));
+      inProcessTagCache = { codes, timestamp: now };
+      return codes;
+    } catch {
+      // JSON 解析失败，继续走 DB
+    }
+  }
+
+  // 3. 数据库查询
+  const items = await prisma.systemDict.findMany({
+    where: { category: 'INFECTION_TAG', isActive: true },
+    select: { code: true },
+  });
+
+  const codes = new Set<string>(
+    items.length > 0
+      ? items.map(i => i.code)
+      : FALLBACK_INFECTION_TAGS,
+  );
+
+  // 回填 Redis（兜底场景也缓存，避免频繁查空表）
+  await setCache(INFECTION_TAG_CACHE_KEY, JSON.stringify([...codes]), INFECTION_TAG_CACHE_TTL);
+  inProcessTagCache = { codes, timestamp: now };
+  return codes;
+}
+
+/**
+ * 判断题目的院感标签是否属于院感题（封装常用判断逻辑）。
+ */
+export async function isInfectionQuestion(
+  infectionTag: string | null | undefined,
+  subCategory: string | null | undefined,
+): Promise<boolean> {
+  const tags = await getInfectionTagSet();
+  return (infectionTag != null && tags.has(infectionTag)) ||
+         (subCategory != null && tags.has(subCategory));
+}
+
+/**
+ * 字典变更时清除院感标签缓存（供 system 路由调用）。
+ */
+export function clearInfectionTagCache(): void {
+  inProcessTagCache = null;
+  // Redis 缓存异步删除，不等待
+  deleteCache(INFECTION_TAG_CACHE_KEY).catch(() => { /* 忽略删除失败 */ });
 }
 
 const DEFAULT_CONFIG: InfectionConfig = {

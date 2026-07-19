@@ -2,6 +2,10 @@ import prisma from '../lib/prisma';
 
 type Question = Awaited<ReturnType<typeof prisma.question.findMany>>[number];
 
+// 跨试卷去重的时间窗口（天）：只排除近 N 天内被用过的题，
+// 超过窗口的题目可重复使用，避免长期累积后所有题被“用尽”而触发全表清空
+const PAPER_DEDUP_WINDOW_DAYS = 30;
+
 export interface GeneratePaperInput {
   name: string;
   department?: string;
@@ -29,10 +33,25 @@ export interface GenerateResult {
 // 获取所有试卷已使用的题目ID（跨试卷去重）
 // ============================================================
 async function getUsedQuestionIdsInPapers(): Promise<Set<number>> {
+  // 时间窗口去重：只查近 N 天内被用过的题，超期题目可重复使用
+  const since = new Date(Date.now() - PAPER_DEDUP_WINDOW_DAYS * 24 * 60 * 60 * 1000);
   const records = await prisma.paperQuestionRecord.findMany({
+    where: { createdAt: { gte: since } },
     select: { questionId: true },
   });
   return new Set(records.map((r) => r.questionId));
+}
+
+/**
+ * 清理过期的 PaperQuestionRecord 记录（超过时间窗口的），
+ * 避免表无限增长。保留近 N 天记录用于去重。
+ */
+async function cleanupExpiredPaperQuestionRecords(): Promise<number> {
+  const since = new Date(Date.now() - PAPER_DEDUP_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  const result = await prisma.paperQuestionRecord.deleteMany({
+    where: { createdAt: { lt: since } },
+  });
+  return result.count;
 }
 
 // ============================================================
@@ -212,21 +231,28 @@ async function generatePaper(
       .split(':')
       .map((s) => parseInt(s, 10));
 
-    // 从 PaperQuestionRecord 获取所有试卷已用题目ID
+    // 从 PaperQuestionRecord 获取近 N 天内已用题目 ID（时间窗口去重）
     let usedQuestionIds = await getUsedQuestionIdsInPapers();
-    console.log(`[组卷] 试卷已用题目数: ${usedQuestionIds.size}`);
+    console.log(`[组卷] 近${PAPER_DEDUP_WINDOW_DAYS}天试卷已用题目数: ${usedQuestionIds.size}`);
 
     // 获取可用题目总数
     const totalAvailable = await tx.question.count({
       where: { deletedAt: null },
     });
 
-    // 如果所有题目都已用完，清空历史记录，重新开始循环
+    // 如果近 N 天已用题量 >= 可用题量，说明窗口内题目已用尽，
+    // 此时不再全表清空（危险操作），而是缩小去重窗口或清空窗口内记录
     if (usedQuestionIds.size >= totalAvailable && totalAvailable > 0) {
-      console.log(`[组卷] 所有${totalAvailable}道题已用完，重置记录`);
-      await tx.paperQuestionRecord.deleteMany({});
+      console.log(`[组卷] 近${PAPER_DEDUP_WINDOW_DAYS}天${totalAvailable}道题已用完，清空窗口内记录重新组卷`);
+      const since = new Date(Date.now() - PAPER_DEDUP_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+      await tx.paperQuestionRecord.deleteMany({ where: { createdAt: { gte: since } } });
       usedQuestionIds.clear();
     }
+
+    // 顺带异步清理过期记录（超过窗口的），避免表无限增长，不阻塞组卷事务
+    cleanupExpiredPaperQuestionRecords().catch((e) => {
+      console.warn('[组卷] 清理过期 PaperQuestionRecord 失败:', e);
+    });
 
     const totalCategoryCount = input.categoryConfigs.reduce((sum, c) => sum + c.count, 0);
     const totalTypeCount = input.typeConfigs.reduce((sum, t) => sum + t.count, 0);
