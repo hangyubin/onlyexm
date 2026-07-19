@@ -1,18 +1,20 @@
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import AdminLayout from './layouts/AdminLayout';
+import { RouteErrorBoundary } from './components/RouteErrorBoundary';
+import { lazyRetry } from './utils/lazyRetry';
 
-// 代码分割：懒加载所有页面组件
-const Login = lazy(() => import('./pages/Login'));
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const QuestionManage = lazy(() => import('./pages/QuestionManage/QuestionManage'));
-const PaperManage = lazy(() => import('./pages/PaperManage/PaperManage'));
-const ExamMonitor = lazy(() => import('./pages/ExamMonitor'));
-const InfectionDashboard = lazy(() => import('./pages/InfectionDashboard'));
-const UserManage = lazy(() => import('./pages/UserManage'));
-const Reports = lazy(() => import('./pages/Reports'));
-const SystemConfig = lazy(() => import('./pages/SystemConfig'));
-const LearningMaterialManage = lazy(() => import('./pages/LearningMaterialManage/LearningMaterialManage'));
+// 代码分割：懒加载所有页面组件（带自动重试，防止部署后 chunk 失效导致白屏）
+const Login = lazy(() => lazyRetry(() => import('./pages/Login'), 'Login'));
+const Dashboard = lazy(() => lazyRetry(() => import('./pages/Dashboard'), 'Dashboard'));
+const QuestionManage = lazy(() => lazyRetry(() => import('./pages/QuestionManage/QuestionManage'), 'QuestionManage'));
+const PaperManage = lazy(() => lazyRetry(() => import('./pages/PaperManage/PaperManage'), 'PaperManage'));
+const ExamMonitor = lazy(() => lazyRetry(() => import('./pages/ExamMonitor'), 'ExamMonitor'));
+const InfectionDashboard = lazy(() => lazyRetry(() => import('./pages/InfectionDashboard'), 'InfectionDashboard'));
+const UserManage = lazy(() => lazyRetry(() => import('./pages/UserManage'), 'UserManage'));
+const Reports = lazy(() => lazyRetry(() => import('./pages/Reports'), 'Reports'));
+const SystemConfig = lazy(() => lazyRetry(() => import('./pages/SystemConfig'), 'SystemConfig'));
+const LearningMaterialManage = lazy(() => lazyRetry(() => import('./pages/LearningMaterialManage/LearningMaterialManage'), 'LearningMaterialManage'));
 
 function PageLoading() {
   return (
@@ -61,6 +63,7 @@ const router = createBrowserRouter(
     {
       path: '/login',
       element: <LazyPage><Login /></LazyPage>,
+      errorElement: <RouteErrorBoundary />,
     },
     {
       path: '/',
@@ -69,6 +72,7 @@ const router = createBrowserRouter(
           <AdminLayout />
         </ProtectedRoute>
       ),
+      errorElement: <RouteErrorBoundary />,
       children: [
         {
           index: true,

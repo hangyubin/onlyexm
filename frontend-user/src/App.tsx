@@ -4,20 +4,22 @@ import { TabLayout } from './components/TabLayout';
 import { useInfectionStatus } from './hooks/useInfectionStatus';
 import { useOnlineSync } from './hooks/useOnlineSync';
 import { InfectionWarning } from './components/InfectionWarning';
+import { RouteErrorBoundary } from './components/RouteErrorBoundary';
+import { lazyRetry } from './utils/lazyRetry';
 import { offlineDB } from './utils/offlineDB';
 
-// 代码分割：懒加载所有页面组件
-const Home = lazy(() => import('./pages/Home'));
-const Login = lazy(() => import('./pages/Login'));
-const DailyPractice = lazy(() => import('./pages/DailyPractice').then(m => ({ default: m.DailyPractice })));
-const WrongQuestionBook = lazy(() => import('./pages/WrongQuestionBook').then(m => ({ default: m.WrongQuestionBook })));
-const ExamTaking = lazy(() => import('./pages/ExamTaking').then(m => ({ default: m.ExamTaking })));
-const ExamList = lazy(() => import('./pages/ExamList'));
-const ExamResult = lazy(() => import('./pages/ExamResult'));
-const OutbreakSimulation = lazy(() => import('./pages/OutbreakSimulation').then(m => ({ default: m.OutbreakSimulation })));
-const MyProfile = lazy(() => import('./pages/MyProfile'));
-const LearningMaterials = lazy(() => import('./pages/LearningMaterials'));
-const LearningMaterialDetail = lazy(() => import('./pages/LearningMaterialDetail'));
+// 代码分割：懒加载所有页面组件（带自动重试，防止部署后 chunk 失效导致白屏）
+const Home = lazy(() => lazyRetry(() => import('./pages/Home'), 'Home'));
+const Login = lazy(() => lazyRetry(() => import('./pages/Login'), 'Login'));
+const DailyPractice = lazy(() => lazyRetry(() => import('./pages/DailyPractice').then(m => ({ default: m.DailyPractice })), 'DailyPractice'));
+const WrongQuestionBook = lazy(() => lazyRetry(() => import('./pages/WrongQuestionBook').then(m => ({ default: m.WrongQuestionBook })), 'WrongQuestionBook'));
+const ExamTaking = lazy(() => lazyRetry(() => import('./pages/ExamTaking').then(m => ({ default: m.ExamTaking })), 'ExamTaking'));
+const ExamList = lazy(() => lazyRetry(() => import('./pages/ExamList'), 'ExamList'));
+const ExamResult = lazy(() => lazyRetry(() => import('./pages/ExamResult'), 'ExamResult'));
+const OutbreakSimulation = lazy(() => lazyRetry(() => import('./pages/OutbreakSimulation').then(m => ({ default: m.OutbreakSimulation })), 'OutbreakSimulation'));
+const MyProfile = lazy(() => lazyRetry(() => import('./pages/MyProfile'), 'MyProfile'));
+const LearningMaterials = lazy(() => lazyRetry(() => import('./pages/LearningMaterials'), 'LearningMaterials'));
+const LearningMaterialDetail = lazy(() => lazyRetry(() => import('./pages/LearningMaterialDetail'), 'LearningMaterialDetail'));
 
 function PageLoading() {
   return (
@@ -77,6 +79,7 @@ const router = createBrowserRouter(
     {
       path: '/login',
       element: <LazyPage><Login /></LazyPage>,
+      errorElement: <RouteErrorBoundary />,
     },
     {
       element: (
@@ -84,6 +87,7 @@ const router = createBrowserRouter(
           <LayoutWrapper />
         </ProtectedRoute>
       ),
+      errorElement: <RouteErrorBoundary />,
       children: [
         // 带 TabBar 的页面
         {
